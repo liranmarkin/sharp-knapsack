@@ -47,6 +47,12 @@ theorem eval_perm {L M : SparseFun} (h : L.Perm M) : eval L = eval M := by
   funext x
   exact List.Perm.sum_eq (h.map _)
 
+theorem prefixLe_eval_append (L M : SparseFun) (x : ℕ) :
+    prefixLe (eval (L ++ M)) x = prefixLe (eval L) x + prefixLe (eval M) x := by
+  have h : eval (L ++ M) = fun t => eval L t + eval M t :=
+    funext fun t => eval_append L M t
+  rw [h, prefixLe_add]
+
 /-! ## Query (paper Section 2, "Query") -/
 
 /-- `queryLe L C` = the sum of all values at positions `≤ C` - the executable

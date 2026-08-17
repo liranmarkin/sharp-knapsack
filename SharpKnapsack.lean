@@ -1,1 +1,1 @@
-import SharpKnapsack.Sparse
+import SharpKnapsack.Sparsify
