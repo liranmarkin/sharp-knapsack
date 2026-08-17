@@ -77,7 +77,7 @@ theorem prefixLe_single (a v C : ℕ) :
       simp [single, h, h', this]
     · by_cases h' : a ≤ C + 1
       · have : a = C + 1 := by omega
-        simp [single, h, h', this]
+        simp [single, this]
       · have : ¬ a = C + 1 := by omega
         simp [single, h, h', this]
 
@@ -91,7 +91,7 @@ theorem queryLe_spec (L : SparseFun) (C : ℕ) :
       funext x; exact eval_cons p.1 p.2 L x
     rw [hev, prefixLe_add, ← ih, prefixLe_single]
     unfold queryLe
-    by_cases h : p.1 ≤ C <;> simp [List.filter_cons, h]
+    by_cases h : p.1 ≤ C <;> simp [h]
 
 /-! ## Shifting (paper Section 2, "Shifting") -/
 

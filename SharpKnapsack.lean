@@ -1,1 +1,1 @@
-import SharpKnapsack.DivideConquer
+import SharpKnapsack.Tests

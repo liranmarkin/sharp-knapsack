@@ -27,10 +27,10 @@ def emptyRep : SparseFun := [(0, 1)]
 theorem emptyRep_eval : eval emptyRep = count ([] : List ℕ) := by
   funext x
   rcases Nat.eq_zero_or_pos x with h | h
-  · subst h; simp [emptyRep, eval, single, count_nil]
+  · subst h; simp [emptyRep, eval, count_nil]
   · have h1 : ¬ (0 : ℕ) = x := by omega
     have h2 : ¬ x = 0 := by omega
-    simp [emptyRep, eval, single, count_nil, h1, h2]
+    simp [emptyRep, eval, count_nil, h1, h2]
 
 theorem emptyRep_wf : WF emptyRep := by
   constructor
