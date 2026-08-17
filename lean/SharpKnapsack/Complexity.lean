@@ -440,3 +440,240 @@ decreasing_by
     omega
 
 end SparseFun
+
+/-! ## Uniform bound on representation sizes
+
+`⌈1/ε⌉` plays the role of `1/ε` in `ℕ`. On the recursion tree of `dcGo`,
+node sizes satisfy `(|S|-1)·2^d ≤ n+1` and `2^d ≤ 2(n+1)` (sizes at least
+halve while depth increments), which turns every depth-dependent quantity
+into a polynomial in `n` alone. The result: *every* representation the
+algorithm ever constructs has at most `2431·⌈1/ε⌉·(n+1)³` points.
+-/
+
+namespace SparseFun
+
+theorem one_le_invE {ε : ℚ} (hε0 : 0 < ε) : 1 ≤ ⌈1 / ε⌉₊ := by
+  have h : (0 : ℚ) < 1 / ε := by positivity
+  exact Nat.ceil_pos.mpr h
+
+theorem two_div_deltaAt {ε : ℚ} (hε0 : 0 < ε) (d : ℕ) :
+    (2 : ℚ) / deltaAt ε d ≤ 40 * ⌈1 / ε⌉₊ * 4 ^ d := by
+  have hpow : (0 : ℚ) < ((2 : ℚ) / 5) ^ d := by positivity
+  have heq : (2 : ℚ) / deltaAt ε d = 40 / ε * (5 / 2) ^ d := by
+    unfold deltaAt
+    rw [show ((5 : ℚ) / 2) ^ d = (((2 : ℚ) / 5) ^ d)⁻¹ by
+      rw [← inv_pow]; norm_num]
+    field_simp
+    norm_num
+  rw [heq]
+  have h1 : (1 : ℚ) / ε ≤ (⌈1 / ε⌉₊ : ℚ) := Nat.le_ceil _
+  have h2 : ((5 : ℚ) / 2) ^ d ≤ (4 : ℚ) ^ d := by
+    gcongr
+    norm_num
+  have h3 : (40 : ℚ) / ε = 40 * (1 / ε) := by ring
+  rw [h3]
+  have h4 : (0 : ℚ) < 1 / ε := by positivity
+  calc (40 : ℚ) * (1 / ε) * (5 / 2) ^ d
+      ≤ 40 * (⌈1 / ε⌉₊ : ℚ) * (5 / 2) ^ d := by
+        apply mul_le_mul_of_nonneg_right _ (by positivity)
+        nlinarith
+    _ ≤ 40 * (⌈1 / ε⌉₊ : ℚ) * 4 ^ d := by
+        apply mul_le_mul_of_nonneg_left h2
+        positivity
+
+theorem doubleSteps_deltaAt {ε : ℚ} (hε0 : 0 < ε) (d : ℕ) :
+    doubleSteps (deltaAt ε d) ≤ 41 * ⌈1 / ε⌉₊ * 4 ^ d := by
+  have h := two_div_deltaAt hε0 d
+  have hceil : ⌈(2 : ℚ) / deltaAt ε d⌉₊ ≤ 40 * ⌈1 / ε⌉₊ * 4 ^ d := by
+    rw [Nat.ceil_le]
+    calc (2 : ℚ) / deltaAt ε d ≤ 40 * ⌈1 / ε⌉₊ * 4 ^ d := h
+      _ = ((40 * ⌈1 / ε⌉₊ * 4 ^ d : ℕ) : ℚ) := by push_cast; ring
+  have hE : 1 ≤ ⌈1 / ε⌉₊ := one_le_invE hε0
+  have h4 : 1 ≤ 4 ^ d := Nat.one_le_pow _ _ (by omega)
+  have hmul : 1 ≤ ⌈1 / ε⌉₊ * 4 ^ d := le_trans hE (Nat.le_mul_of_pos_right _ (by omega))
+  calc doubleSteps (deltaAt ε d) = ⌈(2 : ℚ) / deltaAt ε d⌉₊ + 1 := rfl
+    _ ≤ 40 * ⌈1 / ε⌉₊ * 4 ^ d + 1 := by omega
+    _ ≤ 41 * ⌈1 / ε⌉₊ * 4 ^ d := by nlinarith
+
+/-- Bound for the per-item parameter used by `halman S (deltaAt ε d)`. -/
+theorem doubleSteps_halman_delta {ε : ℚ} (hε0 : 0 < ε) (d : ℕ) {s : ℕ} (hs : 1 ≤ s) :
+    doubleSteps (deltaAt ε d / (2 * s)) ≤ 81 * s * ⌈1 / ε⌉₊ * 4 ^ d := by
+  have hδ : (0 : ℚ) < deltaAt ε d := deltaAt_pos hε0 d
+  have hs' : (0 : ℚ) < (s : ℚ) := by exact_mod_cast hs
+  have heq : (2 : ℚ) / (deltaAt ε d / (2 * s)) = (2 * s) * (2 / deltaAt ε d) := by
+    field_simp
+  have h := two_div_deltaAt hε0 d
+  have hceil : ⌈(2 : ℚ) / (deltaAt ε d / (2 * s))⌉₊ ≤ 80 * s * ⌈1 / ε⌉₊ * 4 ^ d := by
+    rw [Nat.ceil_le, heq]
+    calc (2 * (s : ℚ)) * (2 / deltaAt ε d)
+        ≤ (2 * s) * (40 * ⌈1 / ε⌉₊ * 4 ^ d) := by
+          apply mul_le_mul_of_nonneg_left h
+          positivity
+      _ = ((80 * s * ⌈1 / ε⌉₊ * 4 ^ d : ℕ) : ℚ) := by push_cast; ring
+  have hE : 1 ≤ ⌈1 / ε⌉₊ := one_le_invE hε0
+  have h4 : 1 ≤ 4 ^ d := Nat.one_le_pow _ _ (by omega)
+  have hpos : 1 ≤ s * ⌈1 / ε⌉₊ * 4 ^ d := by
+    have := Nat.mul_le_mul (Nat.mul_le_mul hs hE) h4
+    omega
+  calc doubleSteps (deltaAt ε d / (2 * s)) = ⌈(2 : ℚ) / (deltaAt ε d / (2 * s))⌉₊ + 1 := rfl
+    _ ≤ 80 * s * ⌈1 / ε⌉₊ * 4 ^ d + 1 := by omega
+    _ ≤ 81 * s * ⌈1 / ε⌉₊ * 4 ^ d := by nlinarith
+
+/-- Every intermediate representation of the insertion loop has at most
+`1 + doubleSteps δ · (n+2)` points, where `n` is the number of items. -/
+theorem halmanGo_length (δ : ℚ) (hδ : 0 < δ) (S : List ℕ) :
+    (halmanGo δ S).length ≤ 1 + doubleSteps δ * (S.length + 2) := by
+  induction S with
+  | nil => simp [halmanGo, emptyRep]
+  | cons w S ih =>
+    show (insertItem δ (halmanGo δ S) w).length ≤ _
+    unfold insertItem
+    set K := halmanGo δ S with hK
+    have hmass : massOf (add K (shift w K)) ≤ 2 ^ (S.length + 1) := by
+      rw [massOf_add, massOf_shift]
+      have hm := massOf_halmanGo δ S
+      rw [← hK] at hm
+      rw [pow_succ]
+      omega
+    have hlog : Nat.log 2 (massOf (add K (shift w K))) ≤ S.length + 1 := by
+      calc Nat.log 2 (massOf (add K (shift w K)))
+          ≤ Nat.log 2 (2 ^ (S.length + 1)) := Nat.log_mono_right hmass
+        _ = S.length + 1 := Nat.log_pow (b := 2) (by norm_num) _
+    calc (sparsify δ (add K (shift w K))).length
+        ≤ doubleSteps δ * (Nat.log 2 (massOf (add K (shift w K))) + 1) :=
+          sparsify_length δ hδ _
+      _ ≤ doubleSteps δ * ((S.length + 1) + 1) := by
+          apply Nat.mul_le_mul_left
+          omega
+      _ ≤ 1 + doubleSteps δ * ((w :: S).length + 2) := by
+          have h1 : (S.length + 1) + 1 ≤ (w :: S).length + 2 := by simp
+          have := Nat.mul_le_mul_left (doubleSteps δ) h1
+          omega
+
+/-- The uniform representation bound: `2431·⌈1/ε⌉·(n+1)³`. -/
+def repBound (ε : ℚ) (n : ℕ) : ℕ := 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3
+
+/-- **Every representation produced by a node of the recursion tree has at
+most `repBound ε n` points.** The hypotheses `(|S|-1)·2^d ≤ n+1` and
+`2^d ≤ 2(n+1)` are the tree invariants: they hold at the root `(S, 0)` with
+`n = |S|` and are preserved when a node splits its list and increments `d`. -/
+theorem dcGo_length {ε : ℚ} (hε0 : 0 < ε) (n : ℕ) (T : ℕ) (S : List ℕ) (d : ℕ)
+    (hd : 2 ^ d ≤ 2 * (n + 1)) (hs : (S.length - 1) * 2 ^ d ≤ n + 1) :
+    (dcGo ε T S d).length ≤ repBound ε n := by
+  have hE : 1 ≤ ⌈1 / ε⌉₊ := one_le_invE hε0
+  have h4d : (4 : ℕ) ^ d = 2 ^ d * 2 ^ d := by
+    rw [← Nat.mul_pow]
+  have hs2d : S.length * 2 ^ d ≤ 3 * (n + 1) := by
+    have h1 : 1 ≤ 2 ^ d := Nat.one_le_two_pow
+    have hsub : (S.length - 1) * 2 ^ d = S.length * 2 ^ d - 1 * 2 ^ d :=
+      Nat.sub_mul _ _ _
+    rw [hsub] at hs
+    omega
+  rw [dcGo.eq_def]
+  by_cases hlen : S.length ≤ max 1 T
+  · -- Bottom node: a halman output.
+    rw [if_pos hlen]
+    unfold halman
+    rcases Nat.eq_zero_or_pos S.length with h0 | hpos
+    · have hnil : S = [] := List.length_eq_zero_iff.mp h0
+      subst hnil
+      show (halmanGo _ []).length ≤ _
+      unfold halmanGo emptyRep repBound
+      have h3 : 1 ≤ (n + 1) ^ 3 := Nat.one_le_pow _ _ (by omega)
+      simp only [List.length_cons, List.length_nil]
+      nlinarith
+    · have hδ' : (0 : ℚ) < deltaAt ε d / (2 * S.length) := by
+        have h1 : (0 : ℚ) < deltaAt ε d := deltaAt_pos hε0 d
+        have h2 : (0 : ℚ) < (S.length : ℚ) := by exact_mod_cast hpos
+        positivity
+      have hlen' := halmanGo_length _ hδ' S
+      have hds := doubleSteps_halman_delta hε0 d hpos
+      -- Assemble: 1 + 81·s·E·4^d·(s+2) ≤ 2431·E·(n+1)³.
+      have hs3 : S.length ≤ 3 * (n + 1) := by
+        have h1 : 1 ≤ 2 ^ d := Nat.one_le_two_pow
+        have h2 : S.length * 1 ≤ S.length * 2 ^ d := Nat.mul_le_mul_left _ h1
+        omega
+      have hstep : doubleSteps (deltaAt ε d / (2 * S.length)) * (S.length + 2)
+          ≤ 81 * S.length * ⌈1 / ε⌉₊ * 4 ^ d * (S.length + 2) :=
+        Nat.mul_le_mul_right _ hds
+      have hkey : 81 * S.length * ⌈1 / ε⌉₊ * 4 ^ d * (S.length + 2)
+          ≤ 2430 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by
+        -- s·4^d = (s·2^d)·2^d ≤ 3(n+1)·2(n+1), and s+2 ≤ 3(n+1)+2 ≤ 5(n+1).
+        have e1 : 81 * S.length * ⌈1 / ε⌉₊ * 4 ^ d * (S.length + 2)
+            = 81 * ⌈1 / ε⌉₊ * ((S.length * 2 ^ d) * 2 ^ d * (S.length + 2)) := by
+          rw [h4d]; ring
+        have e2 : (S.length * 2 ^ d) * 2 ^ d * (S.length + 2)
+            ≤ (3 * (n + 1)) * (2 * (n + 1)) * (5 * (n + 1)) := by
+          have h5 : S.length + 2 ≤ 5 * (n + 1) := by omega
+          exact Nat.mul_le_mul (Nat.mul_le_mul hs2d hd) h5
+        have e3 : (3 * (n + 1)) * (2 * (n + 1)) * (5 * (n + 1)) = 30 * (n + 1) ^ 3 := by
+          ring
+        calc 81 * S.length * ⌈1 / ε⌉₊ * 4 ^ d * (S.length + 2)
+            = 81 * ⌈1 / ε⌉₊ * ((S.length * 2 ^ d) * 2 ^ d * (S.length + 2)) := e1
+          _ ≤ 81 * ⌈1 / ε⌉₊ * (30 * (n + 1) ^ 3) := by
+              apply Nat.mul_le_mul_left
+              rw [← e3]; exact e2
+          _ = 2430 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by ring
+      unfold repBound
+      have hone : 1 ≤ ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by
+        have : 1 ≤ (n + 1) ^ 3 := Nat.one_le_pow _ _ (by omega)
+        nlinarith
+      calc (halmanGo (deltaAt ε d / (2 * S.length)) S).length
+          ≤ 1 + doubleSteps (deltaAt ε d / (2 * S.length)) * (S.length + 2) := hlen'
+        _ ≤ 1 + 2430 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by
+            have := le_trans hstep hkey
+            omega
+        _ ≤ 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by nlinarith
+  · -- Internal node: a sparsify output whose input mass is at most 2^|S|.
+    rw [if_neg hlen]
+    have hδd : (0 : ℚ) < deltaAt ε d := deltaAt_pos hε0 d
+    set A := dcGo ε T (S.take (S.length / 2)) (d + 1)
+    set B := dcGo ε T (S.drop (S.length / 2)) (d + 1)
+    have hmass : massOf (conv A B) ≤ 2 ^ S.length := by
+      rw [massOf_conv]
+      calc massOf A * massOf B
+          ≤ 2 ^ (S.take (S.length / 2)).length * 2 ^ (S.drop (S.length / 2)).length :=
+            Nat.mul_le_mul (massOf_dcGo ε T _ _) (massOf_dcGo ε T _ _)
+        _ = 2 ^ S.length := by
+            rw [← pow_add, List.length_take, List.length_drop]
+            congr 1
+            omega
+    have hlog : Nat.log 2 (massOf (conv A B)) ≤ S.length := by
+      calc Nat.log 2 (massOf (conv A B)) ≤ Nat.log 2 (2 ^ S.length) :=
+            Nat.log_mono_right hmass
+        _ = S.length := Nat.log_pow (b := 2) (by norm_num) _
+    have hds := doubleSteps_deltaAt hε0 d
+    calc (sparsify (deltaAt ε d) (conv A B)).length
+        ≤ doubleSteps (deltaAt ε d) * (Nat.log 2 (massOf (conv A B)) + 1) :=
+          sparsify_length _ hδd _
+      _ ≤ (41 * ⌈1 / ε⌉₊ * 4 ^ d) * (S.length + 1) := by
+          exact Nat.mul_le_mul hds (by omega)
+      _ ≤ repBound ε n := by
+          unfold repBound
+          have e1 : 41 * ⌈1 / ε⌉₊ * 4 ^ d * (S.length + 1)
+              ≤ 41 * ⌈1 / ε⌉₊ * (2 ^ d * 2 ^ d * (2 * S.length)) := by
+            have : S.length + 1 ≤ 2 * S.length := by omega
+            calc 41 * ⌈1 / ε⌉₊ * 4 ^ d * (S.length + 1)
+                ≤ 41 * ⌈1 / ε⌉₊ * 4 ^ d * (2 * S.length) :=
+                  Nat.mul_le_mul_left _ this
+              _ = 41 * ⌈1 / ε⌉₊ * (2 ^ d * 2 ^ d * (2 * S.length)) := by
+                  rw [h4d]; ring
+          have e2 : 2 ^ d * 2 ^ d * (2 * S.length) ≤ 2 * (n + 1) * (2 * (3 * (n + 1))) := by
+            have := Nat.mul_le_mul hd (Nat.mul_le_mul_left 2 hs2d)
+            calc 2 ^ d * 2 ^ d * (2 * S.length) = 2 ^ d * (2 * (S.length * 2 ^ d)) := by
+                  ring
+              _ ≤ 2 * (n + 1) * (2 * (3 * (n + 1))) :=
+                  Nat.mul_le_mul hd (Nat.mul_le_mul_left 2 hs2d)
+          have e3 : 2 * (n + 1) * (2 * (3 * (n + 1))) = 12 * (n + 1) ^ 2 := by ring
+          have e4 : 41 * ⌈1 / ε⌉₊ * (12 * (n + 1) ^ 2) ≤ 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by
+            have : (n + 1) ^ 2 ≤ (n + 1) ^ 3 :=
+              Nat.pow_le_pow_right (by omega) (by omega)
+            nlinarith
+          calc 41 * ⌈1 / ε⌉₊ * 4 ^ d * (S.length + 1)
+              ≤ 41 * ⌈1 / ε⌉₊ * (2 ^ d * 2 ^ d * (2 * S.length)) := e1
+            _ ≤ 41 * ⌈1 / ε⌉₊ * (12 * (n + 1) ^ 2) := by
+                apply Nat.mul_le_mul_left
+                rw [← e3]; exact e2
+            _ ≤ 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := e4
+
+end SparseFun
