@@ -1,1 +1,1 @@
-import SharpKnapsack.Halman
+import SharpKnapsack.DivideConquer
