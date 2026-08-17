@@ -6,8 +6,11 @@ on:
   pull_request:
 
 jobs:
-  build:
+  lean:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lean
     steps:
       - uses: actions/checkout@v4
       - name: Install elan
@@ -21,3 +24,12 @@ jobs:
         run: lake build
       - name: Smoke-run CLI
         run: ./.lake/build/bin/sharpknapsack 1/10 15 3 1 4 1 5 9 2 6
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: python3 python/tests.py
+      - name: Smoke-run CLI
+        run: python3 python/sharp_knapsack.py 1/10 15 3 1 4 1 5 9 2 6
