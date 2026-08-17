@@ -13,9 +13,10 @@ O(n^2.5 eps^-1.5 log(n eps^-1) log(n eps)) time.
 
 - [`faster-fptas-knapsack.pdf`](faster-fptas-knapsack.pdf) - the paper.
 - [`lean/`](lean/) - **formal verification** in Lean 4: the algorithm as an
-  executable function together with a machine-checked, sorry-free proof of
-  Theorem 1's correctness guarantee
-  (`exact <= answer <= (1+eps) * exact`). See [`lean/README.md`](lean/README.md).
+  executable function together with machine-checked, sorry-free proofs of
+  Theorem 1's correctness guarantee (`exact <= answer <= (1+eps) * exact`)
+  and of a polynomial running-time bound in an explicit cost model - the
+  full FPTAS claim. See [`lean/README.md`](lean/README.md).
 - [`python/`](python/) - a short, readable **Python reference implementation**
   of the same algorithm, with differential tests against exact counting.
   See [`python/README.md`](python/README.md).

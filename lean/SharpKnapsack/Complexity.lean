@@ -677,3 +677,678 @@ theorem dcGo_length {ε : ℚ} (hε0 : 0 < ε) (n : ℕ) (T : ℕ) (S : List ℕ
             _ ≤ 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := e4
 
 end SparseFun
+
+/-! ## The cost model
+
+Each operation is charged a cost mirroring its obvious list-level operation
+count: linear scans cost the list length, sorting `k` elements costs
+`(k+1)·(log₂(k+1)+2)` (mergeSort-style), a convolution generates
+`|L|·|M|` pairs and sorts them, and a sparsification pays for its scan plus
+its threshold bumps. The cost functions recurse exactly as the algorithms do,
+so a bound on them is a bound on the number of elementary operations the
+algorithms perform.
+-/
+
+namespace SparseFun
+
+def sortCost (k : ℕ) : ℕ := (k + 1) * (Nat.log 2 (k + 1) + 2)
+
+def addCost (L M : SparseFun) : ℕ :=
+  sortCost (L.length + M.length) + (L.length + M.length) + 1
+
+def convCost (L M : SparseFun) : ℕ :=
+  sortCost (L.length * M.length) + L.length * M.length + 1
+
+def sparsifyCost (δ : ℚ) (L : SparseFun) : ℕ :=
+  L.length + bumpSteps δ 1 (massOf L) + 1
+
+def queryCost (L : SparseFun) : ℕ := L.length + 1
+
+def insertItemCost (δ : ℚ) (K : SparseFun) (w : ℕ) : ℕ :=
+  (K.length + 1) + addCost K (shift w K) + sparsifyCost δ (add K (shift w K))
+
+def halmanGoCost (δ : ℚ) : List ℕ → ℕ
+  | [] => 1
+  | w :: S => halmanGoCost δ S + insertItemCost δ (halmanGo δ S) w
+
+def halmanCost (S : List ℕ) (t : ℚ) : ℕ := halmanGoCost (t / (2 * S.length)) S
+
+def dcGoCost (ε : ℚ) (T : ℕ) (S : List ℕ) (d : ℕ) : ℕ :=
+  if S.length ≤ max 1 T then
+    halmanCost S (deltaAt ε d)
+  else
+    dcGoCost ε T (S.take (S.length / 2)) (d + 1) +
+    dcGoCost ε T (S.drop (S.length / 2)) (d + 1) +
+    convCost (dcGo ε T (S.take (S.length / 2)) (d + 1))
+             (dcGo ε T (S.drop (S.length / 2)) (d + 1)) +
+    sparsifyCost (deltaAt ε d)
+      (conv (dcGo ε T (S.take (S.length / 2)) (d + 1))
+            (dcGo ε T (S.drop (S.length / 2)) (d + 1)))
+termination_by S.length
+decreasing_by
+  · simp only [List.length_take]
+    omega
+  · simp only [List.length_drop]
+    omega
+
+/-- Total cost of answering a #Knapsack instance. -/
+def approxCountCost (S : List ℕ) (_C : ℕ) (ε : ℚ) : ℕ :=
+  dcGoCost ε (Nat.sqrt S.length) S 0 + queryCost (dc S ε)
+
+/-! ### Length bounds for the executable operations -/
+
+theorem mergeDups_length_le (L : SparseFun) : (mergeDups L).length ≤ L.length := by
+  induction L using mergeDups.induct with
+  | case1 => simp [mergeDups]
+  | case2 p => simp [mergeDups]
+  | case3 v y w L ih =>
+    rw [mergeDups, if_pos rfl]
+    simp only [List.length_cons] at ih ⊢
+    omega
+  | case4 x v y w L hne ih =>
+    rw [mergeDups, if_neg hne]
+    simp only [List.length_cons] at ih ⊢
+    omega
+
+theorem normalize_length_le (L : SparseFun) : (normalize L).length ≤ L.length := by
+  unfold normalize
+  calc (mergeDups (L.mergeSort _)).length ≤ (L.mergeSort _).length :=
+        mergeDups_length_le _
+    _ = L.length := (List.mergeSort_perm L _).length_eq
+
+theorem shift_length (w : ℕ) (L : SparseFun) : (shift w L).length = L.length := by
+  simp [shift]
+
+theorem add_length_le (L M : SparseFun) :
+    (add L M).length ≤ L.length + M.length := by
+  unfold add
+  calc (normalize (L ++ M)).length ≤ (L ++ M).length := normalize_length_le _
+    _ = L.length + M.length := List.length_append
+
+theorem conv_length_le (L M : SparseFun) :
+    (conv L M).length ≤ L.length * M.length := by
+  unfold conv
+  refine le_trans (normalize_length_le _) ?_
+  induction L with
+  | nil => simp
+  | cons p L ih =>
+    rw [List.flatMap_cons, List.length_append, List.length_map, List.length_cons,
+        Nat.succ_mul]
+    omega
+
+/-! ### Arithmetic helpers for collapsing the bounds -/
+
+theorem sortCost_mono {k k' : ℕ} (h : k ≤ k') : sortCost k ≤ sortCost k' := by
+  unfold sortCost
+  exact Nat.mul_le_mul (by omega) (by
+    have := Nat.log_mono_right (b := 2) (by omega : k + 1 ≤ k' + 1)
+    omega)
+
+theorem sortCost_le_of_le_pow {k j : ℕ} (h : k + 1 ≤ 2 ^ j) :
+    sortCost k ≤ (k + 1) * (j + 2) := by
+  unfold sortCost
+  refine Nat.mul_le_mul_left _ ?_
+  have h1 : Nat.log 2 (k + 1) ≤ Nat.log 2 (2 ^ j) := Nat.log_mono_right h
+  rw [Nat.log_pow (b := 2) (by norm_num)] at h1
+  omega
+
+theorem self_le_two_pow (n : ℕ) : n + 1 ≤ 2 ^ n := Nat.lt_two_pow_self
+
+theorem pow_cube_le (n : ℕ) : (n + 1) ^ 3 ≤ 2 ^ (3 * n + 3) := by
+  have h : n + 1 ≤ 2 ^ (n + 1) := by
+    have := Nat.lt_two_pow_self (n := n + 1)
+    omega
+  calc (n + 1) ^ 3 ≤ (2 ^ (n + 1)) ^ 3 := Nat.pow_le_pow_left h 3
+    _ = 2 ^ (3 * n + 3) := by rw [← Nat.pow_mul]; ring_nf
+
+/-- The representation bound fits under an explicit power of two, giving a
+usable bound on the logarithms in sorting costs. -/
+theorem repBound_lt_two_pow (ε : ℚ) (n : ℕ) :
+    repBound ε n + 1 ≤ 2 ^ (⌈1 / ε⌉₊ + 3 * n + 16) := by
+  have hE : ⌈1 / ε⌉₊ + 1 ≤ 2 ^ ⌈1 / ε⌉₊ := self_le_two_pow _
+  have hn : (n + 1) ^ 3 ≤ 2 ^ (3 * n + 3) := pow_cube_le n
+  have h2431 : (2431 : ℕ) ≤ 2 ^ 12 := by norm_num
+  unfold repBound
+  have hprod : 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3
+      ≤ 2 ^ 12 * 2 ^ ⌈1 / ε⌉₊ * 2 ^ (3 * n + 3) := by
+    exact Nat.mul_le_mul (Nat.mul_le_mul h2431 (by omega)) hn
+  have hpow : (2 : ℕ) ^ 12 * 2 ^ ⌈1 / ε⌉₊ * 2 ^ (3 * n + 3)
+      = 2 ^ (⌈1 / ε⌉₊ + 3 * n + 15) := by
+    rw [← Nat.pow_add, ← Nat.pow_add]
+    ring_nf
+  have hone : 1 ≤ 2 ^ (⌈1 / ε⌉₊ + 3 * n + 15) := Nat.one_le_two_pow
+  have hstep : 2 ^ (⌈1 / ε⌉₊ + 3 * n + 16) = 2 * 2 ^ (⌈1 / ε⌉₊ + 3 * n + 15) := by
+    rw [show ⌈1 / ε⌉₊ + 3 * n + 16 = (⌈1 / ε⌉₊ + 3 * n + 15) + 1 by omega,
+        Nat.pow_succ]
+    omega
+  omega
+
+end SparseFun
+
+/-! ## Cost of the insertion loop -/
+
+namespace SparseFun
+
+/-- Budget for one insertion, in terms of a bound `D` on the doubling
+parameter and a bound `s` on the number of items. -/
+def insertBudget (D s : ℕ) : ℕ :=
+  5 * (1 + D * (s + 2)) + sortCost (2 * (1 + D * (s + 2))) + D * (s + 2) + 3
+
+theorem insertBudget_mono {D D' s s' : ℕ} (hD : D ≤ D') (hs : s ≤ s') :
+    insertBudget D s ≤ insertBudget D' s' := by
+  unfold insertBudget
+  have h1 : D * (s + 2) ≤ D' * (s' + 2) := Nat.mul_le_mul hD (by omega)
+  have h2 : sortCost (2 * (1 + D * (s + 2))) ≤ sortCost (2 * (1 + D' * (s' + 2))) :=
+    sortCost_mono (by omega)
+  omega
+
+theorem insertItemCost_le (δ : ℚ) (hδ : 0 < δ) (K : SparseFun) (w : ℕ)
+    (D s : ℕ) (hD : doubleSteps δ ≤ D)
+    (hK : K.length ≤ 1 + D * (s + 2)) (hmass : massOf K ≤ 2 ^ s) :
+    insertItemCost δ K w ≤ insertBudget D s := by
+  have hbumps : bumpSteps δ 1 (massOf (add K (shift w K))) ≤ D * (s + 2) := by
+    have hm : massOf (add K (shift w K)) ≤ 2 ^ (s + 1) := by
+      rw [massOf_add, massOf_shift, pow_succ]
+      omega
+    have h1 := bumpSteps_le δ hδ (massOf (add K (shift w K)))
+    have h2 : Nat.log 2 (massOf (add K (shift w K))) ≤ s + 1 := by
+      calc Nat.log 2 (massOf (add K (shift w K)))
+          ≤ Nat.log 2 (2 ^ (s + 1)) := Nat.log_mono_right hm
+        _ = s + 1 := Nat.log_pow (b := 2) (by norm_num) _
+    calc bumpSteps δ 1 (massOf (add K (shift w K)))
+        ≤ doubleSteps δ * (Nat.log 2 (massOf (add K (shift w K))) + 1) := h1
+      _ ≤ D * ((s + 1) + 1) := Nat.mul_le_mul hD (by omega)
+      _ = D * (s + 2) := by ring_nf
+  have haddlen : (add K (shift w K)).length ≤ 2 * (1 + D * (s + 2)) := by
+    have h := add_length_le K (shift w K)
+    rw [shift_length] at h
+    omega
+  have hsort : sortCost (K.length + K.length)
+      ≤ sortCost (2 * (1 + D * (s + 2))) :=
+    sortCost_mono (by omega)
+  unfold insertItemCost addCost sparsifyCost insertBudget
+  rw [shift_length]
+  omega
+
+theorem halmanGoCost_le (δ : ℚ) (hδ : 0 < δ) (D s : ℕ) (hD : doubleSteps δ ≤ D) :
+    ∀ S : List ℕ, S.length ≤ s →
+    halmanGoCost δ S ≤ 1 + S.length * insertBudget D s := by
+  intro S
+  induction S with
+  | nil =>
+    intro _
+    simp [halmanGoCost]
+  | cons w S ih =>
+    intro hlen
+    rw [List.length_cons] at hlen
+    have hK : (halmanGo δ S).length ≤ 1 + D * (s + 2) := by
+      have h1 := halmanGo_length δ hδ S
+      have h2 : doubleSteps δ * (S.length + 2) ≤ D * (s + 2) :=
+        Nat.mul_le_mul hD (by omega)
+      omega
+    have hmass : massOf (halmanGo δ S) ≤ 2 ^ s := by
+      have h1 := massOf_halmanGo δ S
+      have h2 : (2 : ℕ) ^ S.length ≤ 2 ^ s :=
+        Nat.pow_le_pow_right (by omega) (by omega)
+      omega
+    have hins := insertItemCost_le δ hδ (halmanGo δ S) w D s hD hK hmass
+    have hrec := ih (by omega)
+    show halmanGoCost δ S + insertItemCost δ (halmanGo δ S) w ≤ _
+    rw [List.length_cons, Nat.succ_mul]
+    omega
+
+/-- Cost of a bottom node of the recursion tree, in global terms. -/
+theorem halmanCost_le {ε : ℚ} (hε0 : 0 < ε) (n : ℕ) (S : List ℕ) (d : ℕ)
+    (hd : 2 ^ d ≤ 2 * (n + 1)) (hs : (S.length - 1) * 2 ^ d ≤ n + 1) :
+    halmanCost S (deltaAt ε d)
+      ≤ 1 + 3 * (n + 1) * insertBudget (repBound ε n) (3 * (n + 1)) := by
+  have h4d : (4 : ℕ) ^ d = 2 ^ d * 2 ^ d := by rw [← Nat.mul_pow]
+  have h2d1 : 1 ≤ 2 ^ d := Nat.one_le_two_pow
+  have hsub : (S.length - 1) * 2 ^ d = S.length * 2 ^ d - 1 * 2 ^ d :=
+    Nat.sub_mul _ _ _
+  have hs2d : S.length * 2 ^ d ≤ 3 * (n + 1) := by
+    rw [hsub] at hs
+    omega
+  have hs3 : S.length ≤ 3 * (n + 1) := by
+    have h2 : S.length * 1 ≤ S.length * 2 ^ d := Nat.mul_le_mul_left _ h2d1
+    omega
+  rcases Nat.eq_zero_or_pos S.length with h0 | hpos
+  · have hnil : S = [] := List.length_eq_zero_iff.mp h0
+    subst hnil
+    show halmanGoCost _ [] ≤ _
+    simp [halmanGoCost]
+  · have hδ' : (0 : ℚ) < deltaAt ε d / (2 * S.length) := by
+      have h1 : (0 : ℚ) < deltaAt ε d := deltaAt_pos hε0 d
+      have h2 : (0 : ℚ) < (S.length : ℚ) := by exact_mod_cast hpos
+      positivity
+    have hE : 1 ≤ ⌈1 / ε⌉₊ := one_le_invE hε0
+    have hD : doubleSteps (deltaAt ε d / (2 * S.length)) ≤ repBound ε n := by
+      have h1 := doubleSteps_halman_delta hε0 d hpos
+      have h2 : 81 * S.length * ⌈1 / ε⌉₊ * 4 ^ d ≤ 486 * ⌈1 / ε⌉₊ * (n + 1) ^ 2 := by
+        have e1 : 81 * S.length * ⌈1 / ε⌉₊ * 4 ^ d
+            = 81 * ⌈1 / ε⌉₊ * (S.length * 2 ^ d * 2 ^ d) := by
+          rw [h4d]; ring
+        have e2 : S.length * 2 ^ d * 2 ^ d ≤ 3 * (n + 1) * (2 * (n + 1)) :=
+          Nat.mul_le_mul hs2d hd
+        have e3 : 3 * (n + 1) * (2 * (n + 1)) = 6 * (n + 1) ^ 2 := by ring
+        calc 81 * S.length * ⌈1 / ε⌉₊ * 4 ^ d
+            = 81 * ⌈1 / ε⌉₊ * (S.length * 2 ^ d * 2 ^ d) := e1
+          _ ≤ 81 * ⌈1 / ε⌉₊ * (6 * (n + 1) ^ 2) := by
+              apply Nat.mul_le_mul_left
+              rw [← e3]; exact e2
+          _ = 486 * ⌈1 / ε⌉₊ * (n + 1) ^ 2 := by ring
+      have h3 : 486 * ⌈1 / ε⌉₊ * (n + 1) ^ 2 ≤ 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by
+        have hp : (n + 1) ^ 2 * 1 ≤ (n + 1) ^ 2 * (n + 1) := Nat.mul_le_mul_left _ (by omega)
+        have he : (n + 1) ^ 2 * (n + 1) = (n + 1) ^ 3 := by ring
+        nlinarith
+      unfold repBound
+      omega
+    have hcost := halmanGoCost_le _ hδ' (repBound ε n) (3 * (n + 1)) hD S hs3
+    have hmul : S.length * insertBudget (repBound ε n) (3 * (n + 1))
+        ≤ 3 * (n + 1) * insertBudget (repBound ε n) (3 * (n + 1)) :=
+      Nat.mul_le_mul_right _ hs3
+    unfold halmanCost
+    omega
+
+end SparseFun
+
+/-! ## Cost of the recursion tree -/
+
+namespace SparseFun
+
+/-- Per-node budget: covers a bottom node's whole insertion loop as well as
+an internal node's convolution and sparsification. -/
+def nodeBudget (ε : ℚ) (n : ℕ) : ℕ :=
+  1 + 3 * (n + 1) * insertBudget (repBound ε n) (3 * (n + 1))
+    + sortCost (repBound ε n * repBound ε n)
+    + 2 * (repBound ε n * repBound ε n) + repBound ε n + 2
+
+/-- The recursion tree on `s ≥ 1` items has at most `2s-1` nodes, each within
+budget. -/
+theorem dcGoCost_le {ε : ℚ} (hε0 : 0 < ε) (n T : ℕ) (S : List ℕ) (d : ℕ)
+    (hd : 2 ^ d ≤ 2 * (n + 1)) (hs : (S.length - 1) * 2 ^ d ≤ n + 1)
+    (hpos : 1 ≤ S.length) :
+    dcGoCost ε T S d ≤ (2 * S.length - 1) * nodeBudget ε n := by
+  rw [dcGoCost.eq_def]
+  by_cases hlen : S.length ≤ max 1 T
+  · rw [if_pos hlen]
+    have hbot := halmanCost_le hε0 n S d hd hs
+    have hNB : 1 + 3 * (n + 1) * insertBudget (repBound ε n) (3 * (n + 1))
+        ≤ nodeBudget ε n := by
+      unfold nodeBudget
+      omega
+    have h1 : 1 * nodeBudget ε n ≤ (2 * S.length - 1) * nodeBudget ε n :=
+      Nat.mul_le_mul_right _ (by omega)
+    omega
+  · rw [if_neg hlen]
+    have hslen : 2 ≤ S.length := by
+      have h1 : 1 ≤ max 1 T := le_max_left _ _
+      omega
+    have h2dn : 2 ^ d ≤ n + 1 := by
+      have h1 : 1 * 2 ^ d ≤ (S.length - 1) * 2 ^ d :=
+        Nat.mul_le_mul_right _ (by omega)
+      omega
+    have hd' : 2 ^ (d + 1) ≤ 2 * (n + 1) := by
+      rw [pow_succ]
+      omega
+    have hta : (S.take (S.length / 2)).length = S.length / 2 := by
+      rw [List.length_take]
+      omega
+    have htb : (S.drop (S.length / 2)).length = S.length - S.length / 2 := by
+      rw [List.length_drop]
+    have hsA : ((S.take (S.length / 2)).length - 1) * 2 ^ (d + 1) ≤ n + 1 := by
+      rw [hta, pow_succ]
+      have e : (S.length / 2 - 1) * (2 ^ d * 2) = (2 * (S.length / 2 - 1)) * 2 ^ d := by
+        ring
+      rw [e]
+      have h1 : 2 * (S.length / 2 - 1) ≤ S.length - 1 := by omega
+      have h2 : (2 * (S.length / 2 - 1)) * 2 ^ d ≤ (S.length - 1) * 2 ^ d :=
+        Nat.mul_le_mul_right _ h1
+      omega
+    have hsB : ((S.drop (S.length / 2)).length - 1) * 2 ^ (d + 1) ≤ n + 1 := by
+      rw [htb, pow_succ]
+      have e : (S.length - S.length / 2 - 1) * (2 ^ d * 2)
+          = (2 * (S.length - S.length / 2 - 1)) * 2 ^ d := by
+        ring
+      rw [e]
+      have h1 : 2 * (S.length - S.length / 2 - 1) ≤ S.length - 1 := by omega
+      have h2 : (2 * (S.length - S.length / 2 - 1)) * 2 ^ d ≤ (S.length - 1) * 2 ^ d :=
+        Nat.mul_le_mul_right _ h1
+      omega
+    have hApos : 1 ≤ (S.take (S.length / 2)).length := by rw [hta]; omega
+    have hBpos : 1 ≤ (S.drop (S.length / 2)).length := by rw [htb]; omega
+    have hcA := dcGoCost_le hε0 n T (S.take (S.length / 2)) (d + 1) hd' hsA hApos
+    have hcB := dcGoCost_le hε0 n T (S.drop (S.length / 2)) (d + 1) hd' hsB hBpos
+    have hlA := dcGo_length hε0 n T (S.take (S.length / 2)) (d + 1) hd' hsA
+    have hlB := dcGo_length hε0 n T (S.drop (S.length / 2)) (d + 1) hd' hsB
+    set A := dcGo ε T (S.take (S.length / 2)) (d + 1) with hA
+    set B := dcGo ε T (S.drop (S.length / 2)) (d + 1) with hB
+    have hAB : A.length * B.length ≤ repBound ε n * repBound ε n :=
+      Nat.mul_le_mul hlA hlB
+    have hconvcost : convCost A B ≤ sortCost (repBound ε n * repBound ε n)
+        + repBound ε n * repBound ε n + 1 := by
+      unfold convCost
+      have := sortCost_mono hAB
+      omega
+    have hs2d : S.length * 2 ^ d ≤ 3 * (n + 1) := by
+      have hsub : (S.length - 1) * 2 ^ d = S.length * 2 ^ d - 1 * 2 ^ d :=
+        Nat.sub_mul _ _ _
+      have h2d1 : 1 ≤ 2 ^ d := Nat.one_le_two_pow
+      rw [hsub] at hs
+      omega
+    have hmassconv : massOf (conv A B) ≤ 2 ^ S.length := by
+      rw [massOf_conv]
+      calc massOf A * massOf B
+          ≤ 2 ^ (S.take (S.length / 2)).length * 2 ^ (S.drop (S.length / 2)).length :=
+            Nat.mul_le_mul (massOf_dcGo ε T _ _) (massOf_dcGo ε T _ _)
+        _ = 2 ^ S.length := by
+            rw [← pow_add, hta, htb]
+            congr 1
+            omega
+    have hbumpsnode : bumpSteps (deltaAt ε d) 1 (massOf (conv A B)) ≤ repBound ε n := by
+      have h1 := bumpSteps_le (deltaAt ε d) (deltaAt_pos hε0 d) (massOf (conv A B))
+      have hlog : Nat.log 2 (massOf (conv A B)) ≤ S.length := by
+        calc Nat.log 2 (massOf (conv A B)) ≤ Nat.log 2 (2 ^ S.length) :=
+              Nat.log_mono_right hmassconv
+          _ = S.length := Nat.log_pow (b := 2) (by norm_num) _
+      have hds := doubleSteps_deltaAt hε0 d
+      have hE : 1 ≤ ⌈1 / ε⌉₊ := one_le_invE hε0
+      have h4d : (4 : ℕ) ^ d = 2 ^ d * 2 ^ d := by rw [← Nat.mul_pow]
+      have hkey : 41 * ⌈1 / ε⌉₊ * 4 ^ d * (S.length + 1)
+          ≤ 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by
+        have hsp1 : S.length + 1 ≤ 2 * S.length := by omega
+        have e1 : 41 * ⌈1 / ε⌉₊ * 4 ^ d * (2 * S.length)
+            = 82 * ⌈1 / ε⌉₊ * (S.length * 2 ^ d * 2 ^ d) := by
+          rw [h4d]; ring
+        have e2 : S.length * 2 ^ d * 2 ^ d ≤ 3 * (n + 1) * (2 * (n + 1)) :=
+          Nat.mul_le_mul hs2d hd
+        have e3 : 3 * (n + 1) * (2 * (n + 1)) = 6 * (n + 1) ^ 2 := by ring
+        have hcube : 492 * ⌈1 / ε⌉₊ * (n + 1) ^ 2 ≤ 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by
+          have hp : (n + 1) ^ 2 * 1 ≤ (n + 1) ^ 2 * (n + 1) :=
+            Nat.mul_le_mul_left _ (by omega)
+          have he : (n + 1) ^ 2 * (n + 1) = (n + 1) ^ 3 := by ring
+          nlinarith
+        calc 41 * ⌈1 / ε⌉₊ * 4 ^ d * (S.length + 1)
+            ≤ 41 * ⌈1 / ε⌉₊ * 4 ^ d * (2 * S.length) := Nat.mul_le_mul_left _ hsp1
+          _ = 82 * ⌈1 / ε⌉₊ * (S.length * 2 ^ d * 2 ^ d) := e1
+          _ ≤ 82 * ⌈1 / ε⌉₊ * (6 * (n + 1) ^ 2) := by
+              apply Nat.mul_le_mul_left
+              rw [← e3]; exact e2
+          _ = 492 * ⌈1 / ε⌉₊ * (n + 1) ^ 2 := by ring
+          _ ≤ 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := hcube
+      unfold repBound
+      calc bumpSteps (deltaAt ε d) 1 (massOf (conv A B))
+          ≤ doubleSteps (deltaAt ε d) * (Nat.log 2 (massOf (conv A B)) + 1) := h1
+        _ ≤ (41 * ⌈1 / ε⌉₊ * 4 ^ d) * (S.length + 1) := Nat.mul_le_mul hds (by omega)
+        _ ≤ 2431 * ⌈1 / ε⌉₊ * (n + 1) ^ 3 := hkey
+    have hsparcost : sparsifyCost (deltaAt ε d) (conv A B)
+        ≤ repBound ε n * repBound ε n + repBound ε n + 1 := by
+      unfold sparsifyCost
+      have h1 : (conv A B).length ≤ repBound ε n * repBound ε n :=
+        le_trans (conv_length_le A B) hAB
+      omega
+    have hnode : convCost A B + sparsifyCost (deltaAt ε d) (conv A B)
+        ≤ nodeBudget ε n := by
+      unfold nodeBudget
+      omega
+    have hsum : (2 * (S.length / 2) - 1) + (2 * (S.length - S.length / 2) - 1) + 1
+        = 2 * S.length - 1 := by omega
+    have hdist : (2 * S.length - 1) * nodeBudget ε n
+        = (2 * (S.length / 2) - 1) * nodeBudget ε n
+          + (2 * (S.length - S.length / 2) - 1) * nodeBudget ε n
+          + 1 * nodeBudget ε n := by
+      rw [← hsum, Nat.add_mul, Nat.add_mul]
+    rw [hta] at hcA
+    rw [htb] at hcB
+    omega
+termination_by S.length
+decreasing_by
+  · simp only [List.length_take]
+    omega
+  · simp only [List.length_drop]
+    omega
+
+end SparseFun
+
+/-! ## The polynomial bound -/
+
+namespace SparseFun
+
+theorem pow_four_le (n : ℕ) : (n + 1) ^ 4 ≤ 2 ^ (4 * n + 4) := by
+  have h : n + 1 ≤ 2 ^ (n + 1) := by
+    have := Nat.lt_two_pow_self (n := n + 1)
+    omega
+  calc (n + 1) ^ 4 ≤ (2 ^ (n + 1)) ^ 4 := Nat.pow_le_pow_left h 4
+    _ = 2 ^ (4 * n + 4) := by rw [← Nat.pow_mul]; ring_nf
+
+set_option maxHeartbeats 1000000 in
+/-- Numeric collapse: the per-node budget is at most `10⁹·⌈1/ε⌉³·(n+1)⁷`. -/
+theorem nodeBudget_le {ε : ℚ} (hε0 : 0 < ε) (n : ℕ) :
+    nodeBudget ε n ≤ 10 ^ 9 * ⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7 := by
+  have hE : 1 ≤ ⌈1 / ε⌉₊ := one_le_invE hε0
+  have hone : ∀ k : ℕ, 1 ≤ (n + 1) ^ k := fun k => Nat.one_le_pow _ _ (by omega)
+  have honeE : ∀ k : ℕ, 1 ≤ ⌈1 / ε⌉₊ ^ k := fun k => Nat.one_le_pow _ _ (by omega)
+  have hEn1 : 1 ≤ ⌈1 / ε⌉₊ * (n + 1) := by
+    have := Nat.mul_le_mul hE (hone 1)
+    simpa using this
+  have hEn : n ≤ ⌈1 / ε⌉₊ * n := by
+    have := Nat.mul_le_mul_right n hE
+    omega
+  have hRval : repBound ε n = 2431 * (⌈1 / ε⌉₊ * (n + 1) ^ 3) := by
+    unfold repBound
+    ring
+  have h13 : 1 ≤ ⌈1 / ε⌉₊ * (n + 1) ^ 3 := by
+    have := Nat.mul_le_mul hE (hone 3)
+    omega
+  have h14 : 1 ≤ ⌈1 / ε⌉₊ * (n + 1) ^ 4 := by
+    have := Nat.mul_le_mul hE (hone 4)
+    omega
+  -- Common-form conversions.
+  have hc65 : ⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 6 ≤ ⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7 := by
+    have h1 : ⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 6 * 1
+        ≤ ⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 6 * (⌈1 / ε⌉₊ * (n + 1)) :=
+      Nat.mul_le_mul_left _ hEn1
+    have h2 : ⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 6 * (⌈1 / ε⌉₊ * (n + 1))
+        = ⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7 := by ring
+    omega
+  have hc45 : ⌈1 / ε⌉₊ * (n + 1) ^ 4 ≤ ⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 5 := by
+    have h1 : ⌈1 / ε⌉₊ * (n + 1) ^ 4 * 1
+        ≤ ⌈1 / ε⌉₊ * (n + 1) ^ 4 * (⌈1 / ε⌉₊ * (n + 1)) :=
+      Nat.mul_le_mul_left _ hEn1
+    have h2 : ⌈1 / ε⌉₊ * (n + 1) ^ 4 * (⌈1 / ε⌉₊ * (n + 1))
+        = ⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 5 := by ring
+    omega
+  have hc37 : ⌈1 / ε⌉₊ * (n + 1) ^ 3 ≤ ⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7 := by
+    have h0 : 1 ≤ ⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 4 := by
+      have := Nat.mul_le_mul (honeE 2) (hone 4)
+      omega
+    have h1 : ⌈1 / ε⌉₊ * (n + 1) ^ 3 * 1
+        ≤ ⌈1 / ε⌉₊ * (n + 1) ^ 3 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 4) :=
+      Nat.mul_le_mul_left _ h0
+    have h2 : ⌈1 / ε⌉₊ * (n + 1) ^ 3 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 4)
+        = ⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7 := by ring
+    omega
+  have hX7 : 1 ≤ ⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7 := by
+    have := Nat.mul_le_mul (honeE 3) (hone 7)
+    omega
+  -- (1) sortCost (R·R).
+  have hR1 : repBound ε n + 1 ≤ 2 ^ (⌈1 / ε⌉₊ + 3 * n + 16) := repBound_lt_two_pow ε n
+  have hsq : (repBound ε n + 1) * (repBound ε n + 1)
+      = repBound ε n * repBound ε n + 2 * repBound ε n + 1 := by ring
+  have hRR1 : repBound ε n * repBound ε n + 1 ≤ 2 ^ (2 * (⌈1 / ε⌉₊ + 3 * n + 16)) := by
+    have h1 : repBound ε n * repBound ε n + 1
+        ≤ (repBound ε n + 1) * (repBound ε n + 1) := by omega
+    have h2 := Nat.mul_le_mul hR1 hR1
+    have h3 : (2 : ℕ) ^ (⌈1 / ε⌉₊ + 3 * n + 16) * 2 ^ (⌈1 / ε⌉₊ + 3 * n + 16)
+        = 2 ^ (2 * (⌈1 / ε⌉₊ + 3 * n + 16)) := by
+      rw [← Nat.pow_add]
+      ring_nf
+    omega
+  have hRRle : repBound ε n * repBound ε n + 1
+      ≤ 5914624 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 6) := by
+    have h1 : repBound ε n * repBound ε n + 1
+        ≤ (repBound ε n + 1) * (repBound ε n + 1) := by omega
+    have h2 : repBound ε n + 1 ≤ 2432 * (⌈1 / ε⌉₊ * (n + 1) ^ 3) := by
+      rw [hRval]
+      omega
+    have h3 := Nat.mul_le_mul h2 h2
+    have h4 : 2432 * (⌈1 / ε⌉₊ * (n + 1) ^ 3) * (2432 * (⌈1 / ε⌉₊ * (n + 1) ^ 3))
+        = 5914624 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 6) := by ring
+    omega
+  have hlin1 : 2 * (⌈1 / ε⌉₊ + 3 * n + 16) + 2 ≤ 42 * (⌈1 / ε⌉₊ * (n + 1)) := by
+    have hexp : 42 * (⌈1 / ε⌉₊ * (n + 1)) = 42 * (⌈1 / ε⌉₊ * n) + 42 * ⌈1 / ε⌉₊ := by
+      ring
+    have hEn' : n ≤ ⌈1 / ε⌉₊ * n := hEn
+    omega
+  have hsort1 : sortCost (repBound ε n * repBound ε n)
+      ≤ 248414208 * (⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7) := by
+    have h1 := sortCost_le_of_le_pow hRR1
+    have h2 := Nat.mul_le_mul hRRle hlin1
+    have h3 : 5914624 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 6) * (42 * (⌈1 / ε⌉₊ * (n + 1)))
+        = 248414208 * (⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7) := by ring
+    omega
+  -- (2) the insertion budget.
+  have hY : 1 + repBound ε n * (3 * (n + 1) + 2) ≤ 12156 * (⌈1 / ε⌉₊ * (n + 1) ^ 4) := by
+    have h1 : repBound ε n * (3 * (n + 1) + 2)
+        ≤ 2431 * (⌈1 / ε⌉₊ * (n + 1) ^ 3) * (5 * (n + 1)) := by
+      refine Nat.mul_le_mul ?_ (by omega)
+      rw [hRval]
+    have h2 : 2431 * (⌈1 / ε⌉₊ * (n + 1) ^ 3) * (5 * (n + 1))
+        = 12155 * (⌈1 / ε⌉₊ * (n + 1) ^ 4) := by ring
+    omega
+  have h2Y : 2 * (1 + repBound ε n * (3 * (n + 1) + 2)) + 1
+      ≤ 2 ^ (⌈1 / ε⌉₊ + 4 * n + 19) := by
+    have h1 : 2 * (1 + repBound ε n * (3 * (n + 1) + 2)) + 1
+        ≤ 24313 * (⌈1 / ε⌉₊ * (n + 1) ^ 4) := by omega
+    have hEp : ⌈1 / ε⌉₊ ≤ 2 ^ ⌈1 / ε⌉₊ := by
+      have := self_le_two_pow ⌈1 / ε⌉₊
+      omega
+    have hn4 : (n + 1) ^ 4 ≤ 2 ^ (4 * n + 4) := pow_four_le n
+    have h2 : 24313 * (⌈1 / ε⌉₊ * (n + 1) ^ 4) ≤ 2 ^ 15 * (2 ^ ⌈1 / ε⌉₊ * 2 ^ (4 * n + 4)) :=
+      Nat.mul_le_mul (by norm_num) (Nat.mul_le_mul hEp hn4)
+    have h3 : (2 : ℕ) ^ 15 * (2 ^ ⌈1 / ε⌉₊ * 2 ^ (4 * n + 4)) = 2 ^ (⌈1 / ε⌉₊ + 4 * n + 19) := by
+      rw [← Nat.pow_add, ← Nat.pow_add]
+      ring_nf
+    omega
+  have hlin2 : (⌈1 / ε⌉₊ + 4 * n + 19) + 2 ≤ 26 * (⌈1 / ε⌉₊ * (n + 1)) := by
+    have hexp : 26 * (⌈1 / ε⌉₊ * (n + 1)) = 26 * (⌈1 / ε⌉₊ * n) + 26 * ⌈1 / ε⌉₊ := by
+      ring
+    have hEn' : n ≤ ⌈1 / ε⌉₊ * n := hEn
+    omega
+  have hsort2 : sortCost (2 * (1 + repBound ε n * (3 * (n + 1) + 2)))
+      ≤ 632138 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 5) := by
+    have h1 := sortCost_le_of_le_pow h2Y
+    have hup : 2 * (1 + repBound ε n * (3 * (n + 1) + 2)) + 1
+        ≤ 24313 * (⌈1 / ε⌉₊ * (n + 1) ^ 4) := by omega
+    have h2 := Nat.mul_le_mul hup hlin2
+    have h3 : 24313 * (⌈1 / ε⌉₊ * (n + 1) ^ 4) * (26 * (⌈1 / ε⌉₊ * (n + 1)))
+        = 632138 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 5) := by ring
+    omega
+  have hIB : insertBudget (repBound ε n) (3 * (n + 1))
+      ≤ 710000 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 5) := by
+    unfold insertBudget
+    have b1 : 5 * (1 + repBound ε n * (3 * (n + 1) + 2))
+        ≤ 60780 * (⌈1 / ε⌉₊ * (n + 1) ^ 4) := by omega
+    have hc : ⌈1 / ε⌉₊ * (n + 1) ^ 4 ≤ ⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 5 := hc45
+    omega
+  -- (3) assemble.
+  have t1 : 3 * (n + 1) * insertBudget (repBound ε n) (3 * (n + 1))
+      ≤ 2130000 * (⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7) := by
+    have h1 : 3 * (n + 1) * insertBudget (repBound ε n) (3 * (n + 1))
+        ≤ 3 * (n + 1) * (710000 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 5)) :=
+      Nat.mul_le_mul_left _ hIB
+    have h2 : 3 * (n + 1) * (710000 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 5))
+        = 2130000 * (⌈1 / ε⌉₊ ^ 2 * (n + 1) ^ 6) := by ring
+    have h3 := Nat.mul_le_mul_left 2130000 hc65
+    omega
+  have t3 : 2 * (repBound ε n * repBound ε n)
+      ≤ 11829248 * (⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7) := by
+    have h3 := Nat.mul_le_mul_left 11829248 hc65
+    omega
+  have t4 : repBound ε n ≤ 2432 * (⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7) := by
+    have h1 : repBound ε n ≤ 2432 * (⌈1 / ε⌉₊ * (n + 1) ^ 3) := by
+      rw [hRval]
+      omega
+    have h3 := Nat.mul_le_mul_left 2432 hc37
+    omega
+  unfold nodeBudget
+  have hgoal : (10 : ℕ) ^ 9 * ⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7
+      = 1000000000 * (⌈1 / ε⌉₊ ^ 3 * (n + 1) ^ 7) := by ring
+  omega
+
+set_option maxHeartbeats 1000000 in
+/-- **The running-time theorem**: answering a #Knapsack instance costs at
+most `10¹⁰ · ⌈1/ε⌉³ · (n+1)⁸` operations in the cost model - an explicit
+polynomial in `n` and `1/ε`. -/
+theorem approxCountCost_le (S : List ℕ) (C : ℕ) (ε : ℚ) (h0 : 0 < ε) (_h1 : ε ≤ 1) :
+    approxCountCost S C ε ≤ 10 ^ 10 * ⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 8 := by
+  have hE : 1 ≤ ⌈1 / ε⌉₊ := one_le_invE h0
+  have hone : ∀ k : ℕ, 1 ≤ (S.length + 1) ^ k := fun k => Nat.one_le_pow _ _ (by omega)
+  have honeE : ∀ k : ℕ, 1 ≤ ⌈1 / ε⌉₊ ^ k := fun k => Nat.one_le_pow _ _ (by omega)
+  have hd0 : 2 ^ 0 ≤ 2 * (S.length + 1) := by
+    rw [pow_zero]
+    omega
+  have hs0 : (S.length - 1) * 2 ^ 0 ≤ S.length + 1 := by
+    rw [pow_zero]
+    omega
+  have hquery : queryCost (dc S ε) ≤ repBound ε S.length + 1 := by
+    show (dc S ε).length + 1 ≤ repBound ε S.length + 1
+    have := dcGo_length h0 S.length (Nat.sqrt S.length) S 0 hd0 hs0
+    unfold dc
+    omega
+  have hX8 : 1 ≤ ⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 8 := by
+    have := Nat.mul_le_mul (honeE 3) (hone 8)
+    omega
+  have hRsmall : repBound ε S.length + 1
+      ≤ 2432 * (⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 8) := by
+    have h2 : repBound ε S.length + 1 ≤ 2432 * (⌈1 / ε⌉₊ * (S.length + 1) ^ 3) := by
+      unfold repBound
+      have h13 : 1 ≤ ⌈1 / ε⌉₊ * (S.length + 1) ^ 3 := by
+        have := Nat.mul_le_mul hE (hone 3)
+        omega
+      have e : 2431 * ⌈1 / ε⌉₊ * (S.length + 1) ^ 3
+          = 2431 * (⌈1 / ε⌉₊ * (S.length + 1) ^ 3) := by ring
+      omega
+    have hconv : ⌈1 / ε⌉₊ * (S.length + 1) ^ 3
+        ≤ ⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 8 := by
+      have h0' : 1 ≤ ⌈1 / ε⌉₊ ^ 2 * (S.length + 1) ^ 5 := by
+        have := Nat.mul_le_mul (honeE 2) (hone 5)
+        omega
+      have ha : ⌈1 / ε⌉₊ * (S.length + 1) ^ 3 * 1
+          ≤ ⌈1 / ε⌉₊ * (S.length + 1) ^ 3 * (⌈1 / ε⌉₊ ^ 2 * (S.length + 1) ^ 5) :=
+        Nat.mul_le_mul_left _ h0'
+      have hb : ⌈1 / ε⌉₊ * (S.length + 1) ^ 3 * (⌈1 / ε⌉₊ ^ 2 * (S.length + 1) ^ 5)
+          = ⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 8 := by ring
+      omega
+    have h3 := Nat.mul_le_mul_left 2432 hconv
+    omega
+  have hgoal : (10 : ℕ) ^ 10 * ⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 8
+      = 10000000000 * (⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 8) := by ring
+  rcases Nat.eq_zero_or_pos S.length with h00 | hp
+  · have hzero : dcGoCost ε (Nat.sqrt S.length) S 0 = 1 := by
+      rw [dcGoCost.eq_def, if_pos (by omega)]
+      have hnil : S = [] := List.length_eq_zero_iff.mp h00
+      rw [hnil]
+      rfl
+    unfold approxCountCost
+    omega
+  · have hcost := dcGoCost_le h0 S.length (Nat.sqrt S.length) S 0 hd0 hs0 hp
+    have hnb := nodeBudget_le h0 S.length
+    have h2n : (2 * S.length - 1) * nodeBudget ε S.length
+        ≤ (2 * (S.length + 1)) * (10 ^ 9 * ⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 7) :=
+      Nat.mul_le_mul (by omega) hnb
+    have he : (2 * (S.length + 1)) * (10 ^ 9 * ⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 7)
+        = 2000000000 * (⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 8) := by ring
+    unfold approxCountCost
+    omega
+
+/-- **The FPTAS, complete**: for `0 < ε ≤ 1` the algorithm's answer is within
+a factor `1+ε` of the exact count (Theorem 1) *and* is computed within an
+explicit polynomial operation budget. -/
+theorem fptas (S : List ℕ) (C : ℕ) (ε : ℚ) (h0 : 0 < ε) (h1 : ε ≤ 1) :
+    (countLe S C ≤ approxCount S C ε ∧
+      (approxCount S C ε : ℚ) ≤ (1 + ε) * countLe S C) ∧
+    approxCountCost S C ε ≤ 10 ^ 10 * ⌈1 / ε⌉₊ ^ 3 * (S.length + 1) ^ 8 :=
+  ⟨approxCount_spec S C ε h0 h1, approxCountCost_le S C ε h0 h1⟩
+
+end SparseFun
