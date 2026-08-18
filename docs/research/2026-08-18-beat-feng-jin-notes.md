@@ -163,3 +163,47 @@ Two further (P)-attacks tried and killed tonight:
 
 (P) has now resisted six distinct approaches; each failure mode is recorded
 above so a future attempt does not retrace them.
+
+## Lower-bound attempt: reducing (max,+)-convolution to approximate #Knapsack
+
+Goal: show that an Õ(n^{1.5-δ} poly(1/ε)) FPRAS would give a
+sub-n√M algorithm for bounded monotone (max,+)-convolution (the CDXZ/BDP
+frontier), i.e. a conditional lower bound matching Feng-Jin's upper bound.
+
+**The construction that almost works.** Given monotone A[1..n], B[1..n] ≤ M:
+- *Pool*: V = Θ(M log n) unit-weight (η-scale) items. N^≤(v) = Σ_{r≤v} C(V,r)
+  is exactly computable, strictly monotone, with log-slope Θ(1) on a Θ(V)-wide
+  window - so any exponent in a Õ(M)-range is realizable as a pool budget, and
+  the map φ = log N^≤ is invertible with O(log V) granularity.
+- *Selectors*: single items s_i^(1) at weight iG + Λ − a_i·η and
+  s_j^(2) at weight (j+4n)G + Λ − b_j·η, with a_i = s·A_i, b_j = s·B_j,
+  s = Θ(log n). The Λ-component forces exactly two selectors per window;
+  the +4n index shift separates cross-pairs from same-group pairs; random
+  micro-offsets kill cardinality-preserving aliasing.
+- *Readout*: the window for index-sum k has count Σ_{i+j=k} N^≤(u₀+a_i+b_j),
+  whose log is φ(s·max_{i+j=k}(A_i+B_j)) ± O(log n) by max-term dominance;
+  invert φ to recover C[k] exactly. Each window needs only an ε = O(1)
+  approximate count, and the instance has Õ(n + M log n) items with poly
+  weights. If windows were queryable, this would be the reduction.
+
+**The obstruction (robust): ≤-saturation.** #Knapsack only answers
+*prefix* counts. cnt(≤ Q_k) includes every lower window, and any pair with
+index-sum < k has ≥ G spare capacity - enough to afford the *entire* pool -
+so it saturates at the maximum count 2^V. Since φ ≤ 0.63·V on the usable
+linear window, every prefix count is dominated by saturated junk:
+log cnt(≤ Q_k) = V + O(log n) for all k, and the window structure is
+invisible at any constant ε. Extraction by subtracting two (1±ε) prefix
+counts is information-theoretically dead (the classic difference trap), and
+capacity-metering the pool cannot separate legit pairs from saturators
+because both need Θ(V) pool items. Escalating per-window boosts hit the
+same 2^V cap. The obstruction is the monotone ≤-structure itself: prefix
+counting *washes out* max-plus fine structure.
+
+**Takeaway.** This is (weak) evidence *against* a (max,+)-based lower bound
+for approximate #Knapsack - the ≤-aggregation appears to genuinely destroy
+the structure that hardness would need to survive, which is consistent with
+the problem admitting the FPRAS at all. Two consequences: (1) a lower bound
+for this problem likely needs a new hypothesis about approximate counting
+itself, not a reduction from exact fine-grained problems; (2) the balance of
+evidence tilts toward the *upper* bound being improvable - i.e. problem (P)
+and the sub-n^1.5 question deserve the effort more than hardness does.
