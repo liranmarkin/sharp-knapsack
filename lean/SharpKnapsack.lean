@@ -4,3 +4,4 @@ import SharpKnapsack.WitnessSampler
 import SharpKnapsack.SamplerExact
 import SharpKnapsack.SamplerApprox
 import SharpKnapsack.SamplerEstimator
+import SharpKnapsack.SamplerCost

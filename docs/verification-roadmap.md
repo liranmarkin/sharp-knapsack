@@ -33,9 +33,13 @@ meaningful theorem; later stages depend only on earlier ones.
 - [ ] **Stage D - the combinatorial reductions**: Feng-Jin's Lemma 3.1
   (popular class) and Lemma 3.3 (hitting-set ratio ≥ ℓ/Õ(n)) - finite
   injection arguments; connects Stage C's ratio to |Ω|.
-- [ ] **Stage E - sampling cost**: structural cost model for the query stage
-  (as `Complexity.lean` does for the FPTAS) and the ledger bound
-  Õ(min(n√ℓ, n²/ℓ)·ε⁻²), reusing Stage 0's amortization and collapse.
+- [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
+  pruning payoff `sampler_visit_bound` - a sample selecting k items
+  activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);
+  with Stage 0's `lazy_amortization` + `ledger_collapse` this covers the
+  tree-structural half of the cost ledger. E.2 (open): the per-node
+  array-work model (level enumeration + class draws) and the
+  Σ_h min(2^h,k)·min(n/2^h, ℓ/2^{h/2}) arithmetic.
 - [ ] **Stage F - construction**: a verified-executable merge meeting the
   witness spec (naive convolution + witness rounding suffices for
   correctness; the Õ(n^1.5) *time* of the sophisticated merge - Theorem 6.1
