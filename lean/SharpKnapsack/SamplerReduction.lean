@@ -486,3 +486,53 @@ theorem bipartite_double_count {α β : Type} [DecidableEq α] [DecidableEq β]
     _ = ∑ b ∈ B, (A.filter (fun a => E a b)).card := hedges
     _ ≤ ∑ _b ∈ B, dB := Finset.sum_le_sum hdB
     _ = B.card * dB := by rw [Finset.sum_const, smul_eq_mul]
+
+/-- The degree engine of Claim 3.5: adding the `2^|G|` subsets of a
+disjoint pool to a base set produces `2^|G|` distinct sets. -/
+theorem card_union_pool (base G : Finset ℕ) (hdisj : Disjoint base G) :
+    (G.powerset.image (fun S => base ∪ S)).card = 2 ^ G.card := by
+  classical
+  rw [Finset.card_image_of_injOn, Finset.card_powerset]
+  intro S₁ h₁ S₂ h₂ heq
+  rw [Finset.mem_coe, Finset.mem_powerset] at h₁ h₂
+  have key : ∀ S ⊆ G, (base ∪ S) ∩ G = S := by
+    intro S hS
+    ext x
+    simp only [Finset.mem_inter, Finset.mem_union]
+    constructor
+    · rintro ⟨hx1 | hx1, hx2⟩
+      · exact absurd hx2 (Finset.disjoint_left.mp hdisj hx1)
+      · exact hx1
+    · intro hx
+      exact ⟨Or.inr hx, hS hx⟩
+  have heq' : base ∪ S₁ = base ∪ S₂ := heq
+  calc S₁ = (base ∪ S₁) ∩ G := (key S₁ h₁).symm
+    _ = (base ∪ S₂) ∩ G := by rw [heq']
+    _ = S₂ := key S₂ h₂
+
+/-- The choice engine of Claim 3.6: at most `m·n^m` subsets of `[n]` have
+fewer than `m` elements (crude binomial-sum bound, polylog-tight). -/
+theorem card_small_subsets_lt (n m : ℕ) (hn : 0 < n) :
+    ((Finset.range n).powerset.filter (fun Y => Y.card < m)).card ≤ m * n ^ m := by
+  classical
+  have hsub : (Finset.range n).powerset.filter (fun Y => Y.card < m) ⊆
+      (Finset.range m).biUnion (fun y => Finset.powersetCard y (Finset.range n)) := by
+    intro Y hY
+    rw [Finset.mem_filter, Finset.mem_powerset] at hY
+    rw [Finset.mem_biUnion]
+    exact ⟨Y.card, Finset.mem_range.mpr hY.2,
+      Finset.mem_powersetCard.mpr ⟨hY.1, rfl⟩⟩
+  calc ((Finset.range n).powerset.filter (fun Y => Y.card < m)).card
+      ≤ ((Finset.range m).biUnion
+          (fun y => Finset.powersetCard y (Finset.range n))).card :=
+        Finset.card_le_card hsub
+    _ ≤ ∑ y ∈ Finset.range m, (Finset.powersetCard y (Finset.range n)).card :=
+        Finset.card_biUnion_le
+    _ ≤ ∑ _y ∈ Finset.range m, n ^ m := by
+        apply Finset.sum_le_sum
+        intro y hy
+        rw [Finset.mem_range] at hy
+        rw [Finset.card_powersetCard, Finset.card_range]
+        calc n.choose y ≤ n ^ y := Nat.choose_le_pow n y
+          _ ≤ n ^ m := Nat.pow_le_pow_right hn (by omega)
+    _ = m * n ^ m := by rw [Finset.sum_const, Finset.card_range, smul_eq_mul]

@@ -45,10 +45,13 @@ meaningful theorem; later stages depend only on earlier ones.
   `exists_peel` (≤ d large-item removals land any excess-≤-dg subset in Ω)
   and `band_d_le` (|Ω_d| ≤ #{small sets}·|Ω| ≤ d·n^d·|Ω| via
   `small_sets_card_le`). D.5 (done): `bipartite_double_count`,
-  the counting skeleton of Lemma 3.4 (min-degree vs max-degree). Remaining
-  in D: instantiating Lemma 3.4's two degree claims (good/huge item
-  taxonomy + binomial-sum arithmetic) and composing Lemma 3.3's final
-  constant from 3.1 + 3.2 + 3.4 + the greedy hitting set.
+  the counting skeleton of Lemma 3.4 (min-degree vs max-degree). D.6 (done): the two
+  combinatorial engines of 3.4's claims - `card_union_pool` (pool addition
+  gives 2^|G| distinct neighbors, Claim 3.5's degree) and
+  `card_small_subsets_lt` (≤ m·n^m small subsets, Claim 3.6's choices).
+  Remaining in D: only the weight-arithmetic plumbing of Claims 3.5/3.6
+  (good/huge taxonomy with the paper's constants) and composing Lemma
+  3.3's final constant from 3.1 + 3.2 + 3.4 + the greedy hitting set.
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);
