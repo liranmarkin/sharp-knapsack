@@ -57,9 +57,13 @@ meaningful theorem; later stages depend only on earlier ones.
   the meaning lemma `expect1_uniform_indicator` (the estimated quantity is
   exactly #(solutions with P)/#solutions), and the headline corollary
   `fpras_relative`: N ≥ 1/(ε²ρ²) samples give relative error ε except with
-  probability ≤ 1/4. Remaining (F.1): the fast (1±δ)-witness-array
-  construction - Feng-Jin Theorem 6.1 / BDP24 with FFT and random primes -
-  the last and largest item.
+  probability ≤ 1/4. The arrays-to-kernels bridge is also done
+  (`SamplerArrays.lean`): `ArraysOK` (the spec the construction must meet:
+  pointwise (1±δ) arrays + witness sets with γ dropped mass) with
+  `arrayKernel_ok` and `arrayKernel_close` (induced kernels are valid and
+  within local L1 12δ+3γ of exact). Remaining (F.1): produce ArraysOK
+  arrays in Õ(n^1.5) - Feng-Jin Theorem 6.1 / BDP24 with FFT and random
+  primes - the last and largest item.
 
 - [x] **Assembly** (`SamplerAssembly.lean`, done): `fpras_assembly` -
   Stages A+B+C composed into the top-level guarantee: under the

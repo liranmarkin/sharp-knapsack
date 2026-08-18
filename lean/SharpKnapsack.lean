@@ -9,3 +9,4 @@ import SharpKnapsack.SamplerReduction
 import SharpKnapsack.SamplerAssembly
 import SharpKnapsack.SamplerLedger
 import SharpKnapsack.SamplerInstance
+import SharpKnapsack.SamplerArrays
