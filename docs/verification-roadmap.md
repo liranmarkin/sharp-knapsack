@@ -6,12 +6,13 @@ meaningful theorem; later stages depend only on earlier ones.
 
 - [x] **Stage 0 - core lemmas** (`WitnessSampler.lean`, done): the exact
   witness factorization, δ-domination, lazy amortization, ledger collapse.
-- [ ] **Stage A - exact sampler is uniform** (`SamplerExact.lean`): model
+- [x] **Stage A - exact sampler is uniform** (`SamplerExact.lean`, done): model
   outcomes as Boolean masks; define the recursive split sampler's mass
   function over exact count arrays; prove it equals the uniform distribution
-  over solutions (root ≤-draw + exact-sum recursion + the ∅-split pruning
-  equality). Pure finite ℚ arithmetic, no measure theory. This verifies the
-  *new algorithmic content* end to end in the exact setting.
+  over solutions (root ≤-draw + exact-sum recursion; `splitMass_spec`,
+  `samplerMass_spec` - standard axioms only). Pure finite ℚ arithmetic, no
+  measure theory. Remaining sub-items: the ∅-split pruning equality and the
+  masses-sum-to-one lemma (A.2).
 - [ ] **Stage B - approximate arrays: TV bound**: replace exact counts by
   arrays satisfying the (1±δ) witness spec; define the tree measure the
   arrays induce; prove TV(tree measure, uniform) ≤ f(δ, depth) by
