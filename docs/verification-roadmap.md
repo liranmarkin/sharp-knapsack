@@ -11,8 +11,9 @@ meaningful theorem; later stages depend only on earlier ones.
   function over exact count arrays; prove it equals the uniform distribution
   over solutions (root ≤-draw + exact-sum recursion; `splitMass_spec`,
   `samplerMass_spec` - standard axioms only). Pure finite ℚ arithmetic, no
-  measure theory. Remaining sub-items: the ∅-split pruning equality and the
-  masses-sum-to-one lemma (A.2).
+  measure theory. A.2 (done): the ∅-split pruning equality
+  (`splitMassP_eq`) and totality (`samplerMass_total`, via the enumeration
+  bridge `allMasks_countP` tying masks to the trusted `count` spec).
 - [ ] **Stage B - approximate arrays: TV bound**: replace exact counts by
   arrays satisfying the (1±δ) witness spec; define the tree measure the
   arrays induce; prove TV(tree measure, uniform) ≤ f(δ, depth) by

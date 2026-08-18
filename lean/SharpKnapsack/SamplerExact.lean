@@ -254,3 +254,253 @@ theorem samplerMass_spec (S : List ℕ) (t : ℕ) (m : List Bool) :
       exact hm ⟨h1, by omega⟩
     rw [splitMass_spec, if_neg this]
     ring
+
+/-! ### A.2: the ∅-split pruning is exact, and the masses form a distribution -/
+
+theorem maskSum_replicate_false (n : ℕ) (S : List ℕ) :
+    maskSum (List.replicate n false) S = 0 := by
+  induction n generalizing S with
+  | zero => simp [maskSum_nil_left]
+  | succ n ih =>
+    cases S with
+    | nil => rfl
+    | cons w S => simp [List.replicate_succ, maskSum, ih]
+
+theorem count_zero_pos (S : List ℕ) : 0 < count S 0 := by
+  have h := count_pos_of_mask S (List.replicate S.length false) (by simp)
+  rwa [maskSum_replicate_false] at h
+
+/-- If the empty set is the only weight-0 subset, the only weight-0 mask is
+all-false: the pruned sampler may skip the descent. -/
+theorem mask_zero_unique (S : List ℕ) (m : List Bool) (h1 : count S 0 = 1)
+    (hlen : m.length = S.length) (hsum : maskSum m S = 0) :
+    m = List.replicate S.length false := by
+  induction S generalizing m with
+  | nil =>
+    cases m with
+    | nil => rfl
+    | cons b m' => simp at hlen
+  | cons w S ih =>
+    cases m with
+    | nil => simp at hlen
+    | cons b m' =>
+      have hlen' : m'.length = S.length := by simpa using hlen
+      have hc : count (w :: S) 0 = count S 0 + (if w = 0 then count S 0 else 0) := by
+        rw [count_cons]
+        congr 1
+        simp only [shiftFun]
+        by_cases hw : w = 0
+        · subst hw; simp
+        · simp [hw]
+      have hSpos := count_zero_pos S
+      have hw : w ≠ 0 := by
+        intro hw0
+        subst hw0
+        rw [if_pos rfl] at hc
+        omega
+      have hcS : count S 0 = 1 := by
+        rw [if_neg hw] at hc
+        omega
+      have hb : b = false := by
+        cases b with
+        | false => rfl
+        | true =>
+          exfalso
+          have : maskSum (true :: m') (w :: S) = w + maskSum m' S := by simp [maskSum]
+          omega
+      subst hb
+      have hsum' : maskSum m' S = 0 := by
+        have : maskSum (false :: m') (w :: S) = maskSum m' S := by simp [maskSum]
+        omega
+      simp [List.replicate_succ, ih m' hcS hlen' hsum']
+
+/-- Closed form of the sampler at a prunable child: the all-false mask with
+probability one. -/
+theorem splitMass_zero_of_unique (S : List ℕ) (m : List Bool)
+    (h1 : count S 0 = 1) :
+    splitMass S 0 m = if m = List.replicate S.length false then 1 else 0 := by
+  rw [splitMass_spec]
+  by_cases hm : m = List.replicate S.length false
+  · subst hm
+    rw [if_pos ⟨by simp, maskSum_replicate_false _ _⟩, if_pos rfl, h1]
+    norm_num
+  · rw [if_neg hm]
+    rw [if_neg]
+    rintro ⟨hlen, hsum⟩
+    exact hm (mask_zero_unique S m h1 hlen hsum)
+
+/-- The pruned sampler: identical to `splitMass` except that a child whose
+exact weight is `0` and whose weight-0 stratum is only ∅ is emitted as the
+all-false mask without descending. -/
+def splitMassP (S : List ℕ) (s : ℕ) (m : List Bool) : ℚ :=
+  if S.length ≤ 1 then
+    if m.length = S.length ∧ maskSum m S = s then ((count S s : ℚ))⁻¹ else 0
+  else
+    ∑ y ∈ range (s + 1),
+      ((count (S.take (S.length / 2)) y * count (S.drop (S.length / 2)) (s - y) : ℕ) : ℚ)
+          / ((count S s : ℕ) : ℚ)
+        * (if y = 0 ∧ count (S.take (S.length / 2)) 0 = 1 then
+             (if m.take (S.length / 2) = List.replicate (S.length / 2) false then 1 else 0)
+           else splitMassP (S.take (S.length / 2)) y (m.take (S.length / 2)))
+        * (if s - y = 0 ∧ count (S.drop (S.length / 2)) 0 = 1 then
+             (if m.drop (S.length / 2) =
+                 List.replicate (S.length - S.length / 2) false then 1 else 0)
+           else splitMassP (S.drop (S.length / 2)) (s - y) (m.drop (S.length / 2)))
+termination_by S.length
+decreasing_by
+  · simp only [List.length_take]
+    omega
+  · simp only [List.length_drop]
+    omega
+
+/-- **Pruning is exact**: the pruned sampler has the same mass function. -/
+theorem splitMassP_eq (S : List ℕ) (s : ℕ) (m : List Bool) :
+    splitMassP S s m = splitMass S s m := by
+  induction hn : S.length using Nat.strong_induction_on generalizing S s m with
+  | _ n IH =>
+  subst hn
+  rw [splitMassP, splitMass]
+  by_cases hlen : S.length ≤ 1
+  · rw [if_pos hlen, if_pos hlen]
+  rw [if_neg hlen, if_neg hlen]
+  apply Finset.sum_congr rfl
+  intro y _
+  congr 1
+  · congr 1
+    by_cases hp : y = 0 ∧ count (S.take (S.length / 2)) 0 = 1
+    · obtain ⟨hy0, hu⟩ := hp
+      rw [if_pos ⟨hy0, hu⟩, hy0, splitMass_zero_of_unique _ _ hu]
+      have : (S.take (S.length / 2)).length = S.length / 2 := by
+        simp [List.length_take]
+        omega
+      rw [this]
+    · rw [if_neg hp]
+      exact IH (S.take (S.length / 2)).length
+        (by simp [List.length_take]; omega) _ _ _ rfl
+  · by_cases hp : s - y = 0 ∧ count (S.drop (S.length / 2)) 0 = 1
+    · obtain ⟨hy0, hu⟩ := hp
+      rw [if_pos ⟨hy0, hu⟩, hy0, splitMass_zero_of_unique _ _ hu]
+      have : (S.drop (S.length / 2)).length = S.length - S.length / 2 := by
+        simp [List.length_drop]
+      rw [this]
+    · rw [if_neg hp]
+      exact IH (S.drop (S.length / 2)).length
+        (by simp [List.length_drop]; omega) _ _ _ rfl
+
+/-! The enumeration bridge and totality: the masses sum to one. -/
+
+/-- All Boolean masks of length `n`. -/
+def allMasks : ℕ → List (List Bool)
+  | 0 => [[]]
+  | n + 1 => (allMasks n).map (List.cons false) ++ (allMasks n).map (List.cons true)
+
+theorem mem_allMasks {n : ℕ} {m : List Bool} (h : m ∈ allMasks n) :
+    m.length = n := by
+  induction n generalizing m with
+  | zero => simp [allMasks] at h; simp [h]
+  | succ n ih =>
+    simp only [allMasks, List.mem_append, List.mem_map] at h
+    rcases h with ⟨m', hm', rfl⟩ | ⟨m', hm', rfl⟩ <;> simp [ih hm']
+
+/-- The enumeration bridge: masks of each weight are counted by `count` -
+the trusted specification of the repository. -/
+theorem allMasks_countP (S : List ℕ) (s : ℕ) :
+    (allMasks S.length).countP (fun m => decide (maskSum m S = s)) = count S s := by
+  induction S generalizing s with
+  | nil =>
+    rcases s with _ | s <;>
+      simp [allMasks, count_nil, maskSum]
+  | cons w S ih =>
+    rw [count_cons]
+    show (allMasks (S.length + 1)).countP _ = _
+    rw [allMasks, List.countP_append, List.countP_map, List.countP_map]
+    have h1 : (allMasks S.length).countP
+        ((fun m => decide (maskSum m (w :: S) = s)) ∘ List.cons false) =
+        count S s := by
+      rw [← ih s]
+      apply List.countP_congr
+      intro m _
+      simp only [Function.comp_apply]
+      have hms : maskSum (false :: m) (w :: S) = maskSum m S := by simp [maskSum]
+      rw [hms]
+    have h2 : (allMasks S.length).countP
+        ((fun m => decide (maskSum m (w :: S) = s)) ∘ List.cons true) =
+        shiftFun w (count S) s := by
+      simp only [shiftFun]
+      by_cases hw : w ≤ s
+      · rw [if_pos hw, ← ih (s - w)]
+        apply List.countP_congr
+        intro m _
+        simp only [Function.comp_apply]
+        have hms : maskSum (true :: m) (w :: S) = w + maskSum m S := by simp [maskSum]
+        rw [hms]
+        simp only [decide_eq_true_eq]
+        omega
+      · rw [if_neg hw]
+        rw [List.countP_eq_zero]
+        intro m _
+        simp only [Function.comp_apply]
+        have hms : maskSum (true :: m) (w :: S) = w + maskSum m S := by simp [maskSum]
+        rw [hms, decide_eq_true_eq]
+        omega
+    rw [h1, h2]
+
+theorem countLe_pos (S : List ℕ) (t : ℕ) : 0 < countLe S t := by
+  have h0 := count_zero_pos S
+  have : count S 0 ≤ countLe S t := by
+    unfold countLe prefixLe
+    exact Finset.single_le_sum (f := fun y => count S y)
+      (fun i _ => Nat.zero_le _) (by simp)
+  omega
+
+theorem sum_map_ite {α : Type} (l : List α) (p : α → Bool) (c : ℚ) :
+    (l.map (fun a => if p a then c else 0)).sum = (l.countP p : ℚ) * c := by
+  induction l with
+  | nil => simp
+  | cons a l ih =>
+    by_cases h : p a <;> (simp [h, ih]; try ring)
+
+theorem countP_le_eq_sum {α : Type} (l : List α) (f : α → ℕ) (t : ℕ) :
+    l.countP (fun a => decide (f a ≤ t)) =
+      ∑ s ∈ range (t + 1), l.countP (fun a => decide (f a = s)) := by
+  induction l with
+  | nil => simp
+  | cons a l ih =>
+    simp only [List.countP_cons, ih, Finset.sum_add_distrib]
+    congr 1
+    by_cases h : f a ≤ t
+    · rw [if_pos (by simpa using h)]
+      rw [Finset.sum_eq_single_of_mem (f a) (by simp; omega)]
+      · simp
+      · intro s _ hs
+        simp [Ne.symm hs]
+    · rw [if_neg (by simpa using h)]
+      symm
+      apply Finset.sum_eq_zero
+      intro s hs
+      rw [Finset.mem_range] at hs
+      simp
+      omega
+
+/-- **Totality**: over all masks, the sampler's masses sum to one - together
+with `samplerMass_spec` this states in full that the sampler is exactly the
+uniform distribution over the solutions of the #Knapsack instance. -/
+theorem samplerMass_total (S : List ℕ) (t : ℕ) :
+    ((allMasks S.length).map (samplerMass S t)).sum = 1 := by
+  have hmap : (allMasks S.length).map (samplerMass S t) =
+      (allMasks S.length).map
+        (fun m => if decide (maskSum m S ≤ t) then ((countLe S t : ℚ))⁻¹ else 0) := by
+    apply List.map_congr_left
+    intro m hm
+    rw [samplerMass_spec]
+    have hl := mem_allMasks hm
+    by_cases h : maskSum m S ≤ t
+    · rw [if_pos ⟨hl, h⟩, if_pos (by simpa using h)]
+    · rw [if_neg (by rintro ⟨-, h2⟩; exact h h2), if_neg (by simpa using h)]
+  rw [hmap, sum_map_ite, countP_le_eq_sum (f := fun m => maskSum m S)]
+  simp only [allMasks_countP]
+  have hsum : (∑ s ∈ range (t + 1), count S s) = countLe S t := rfl
+  rw [hsum]
+  have hpos : ((countLe S t : ℕ) : ℚ) ≠ 0 := by
+    exact_mod_cast (countLe_pos S t).ne'
+  field_simp
