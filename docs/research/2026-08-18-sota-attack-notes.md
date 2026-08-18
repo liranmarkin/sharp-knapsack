@@ -68,3 +68,28 @@ Consequences:
 2. **Human-lane attempt documented**: the hardness observation above and the
    coarse-regime program (deterministic bounded monotone (max,+); win-win via
    additive combinatorics) as the precise open frontier.
+
+
+## Outcome (same day)
+
+**Achieved - new verified-lane SOTA.** `lean/SharpKnapsack/Sharp.lean` +
+`SharpComplexity.lean` (on this branch) implement and verify the sharp
+algorithm: depth-capped divide-and-conquer with the rational schedule
+δ_d = ε/(16·2^⌈d/2⌉·2^⌈D/2⌉), D = log₂(√(n/⌈1/ε⌉)+1), bottom nodes
+re-sparsified at δ_bot. Machine-checked theorems (`fptasSharp`):
+
+* correctness: exact ≤ answer ≤ (1+ε)·exact;
+* running time: cost ≤ 10⁷·LOG²·(n+2)²·(⌈1/ε⌉·(√(n·⌈1/ε⌉)+1) + ⌈1/ε⌉²),
+  i.e. **Õ(n^2.5·ε^-1.5 + n²·ε^-2)** - matching the best known deterministic
+  bound (GMW 2018) term for term; the n²ε⁻² term is dominated whenever
+  ε ≥ 1/n. Axioms: propext, Classical.choice, Quot.sound only.
+
+This is the strongest formally verified result for #Knapsack in existence
+(the prior record was this repository's own loose degree-8 verified bound;
+no other verified FPTAS for #Knapsack exists).
+
+**Not achieved - beating the human deterministic record.** The barrier
+analysis above stands: sub-n^2.5 deterministic #Knapsack runs through either
+derandomizing Dyer-style rounding + bounded monotone (max,+)-convolution
+(both randomized today), or a win-win additive-combinatorics argument for
+sparse staircase convolution - a recognized open problem (Feng-Jin §1.3).

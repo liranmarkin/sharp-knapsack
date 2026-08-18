@@ -77,6 +77,8 @@ Also verified along the way, mirroring the paper:
 | `SharpKnapsack/Halman.lean` | the O(n³ε⁻¹)-style insertion algorithm, verified end to end | Sec. 3 |
 | `SharpKnapsack/DivideConquer.lean` | the divide-and-conquer algorithm, the depth-decaying budget analysis, and Theorem 1 | Sec. 4 |
 | `SharpKnapsack/Complexity.lean` | threshold-growth lemma, representation-size bounds, cost model, polynomial running-time bound | Sec. 2 sizes, Thm. 1 runtime |
+| `SharpKnapsack/Sharp.lean` | the sharp algorithm: depth-capped recursion, rational power-of-two schedule, correctness | Sec. 4, sharp |
+| `SharpKnapsack/SharpComplexity.lean` | the sharp cost bound `Õ(n^2.5 ε^-1.5 + n² ε^-2)`, matching the paper's Theorem 1 running time (`fptasSharp`) | Thm. 1, sharp |
 | `SharpKnapsack/Tests.lean` | build-time differential tests against the brute-force count | - |
 
 Approximation factors are handled multiplicatively (`K = 1+ε` throughout), so
