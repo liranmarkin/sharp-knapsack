@@ -148,3 +148,18 @@ decomposition of {y+z ≤ x} needs Θ(L) rectangles (triangle boundary);
 (log-concavity empirically dead). (P) appears to be an open data-structure
 problem; it is *the* bottleneck between here and beating Feng-Jin
 in the small-ε regime.
+
+Two further (P)-attacks tried and killed tonight:
+(v) *Subsampled split arrays*: keep each a_y w.p. q, reweight - per-query
+    TV blows up when the product mass concentrates on one entry (a light-a
+    entry dominates when B kills the heavy region); importance-keeping by
+    a-mass fails because the dominant entries depend on x through B.
+(vi) *B-level-set intervals*: B monotone ⇒ geometric level sets are
+    contiguous intervals; sampling by (interval, within-interval-by-a) costs
+    O(#levels). But subset counts grow exponentially along the array, so
+    every entry can occupy its own (1+η)-level: #levels = Θ(L). No
+    compression. (Same huge-value-range wall that forces the paper's
+    (max,+) reduction.)
+
+(P) has now resisted six distinct approaches; each failure mode is recorded
+above so a future attempt does not retrace them.
