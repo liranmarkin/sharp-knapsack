@@ -352,4 +352,281 @@ decreasing_by all_goals omega
 def approxCountSharpCost (S : List ℕ) (_C : ℕ) (ε : ℚ) : ℕ :=
   dcSharpGoCost ε (sharpDepth S.length ⌈1 / ε⌉₊) S 0 + queryCost (dcSharp S ε)
 
+/-! ## The log factor and power-chain helpers -/
+
+/-- The polylog factor of the sharp bound. -/
+def LGsharp (E n D : ℕ) : ℕ :=
+  2 * Nat.log 2 (E + 1) + 4 * D + 4 * Nat.log 2 (n + 2) + 40
+
+theorem le_LGsharp_pow (E n D k : ℕ)
+    (h : k + 1 ≤ 2 ^ (LGsharp E n D - 2)) :
+    sortCost k ≤ (k + 1) * LGsharp E n D := by
+  have h1 := sortCost_le_of_le_pow h
+  have h2 : LGsharp E n D - 2 + 2 = LGsharp E n D := by
+    unfold LGsharp
+    omega
+  calc sortCost k ≤ (k + 1) * (LGsharp E n D - 2 + 2) := h1
+    _ = (k + 1) * LGsharp E n D := by rw [h2]
+
+theorem self_le_pow_log (x : ℕ) : x + 1 ≤ 2 ^ (Nat.log 2 (x + 1) + 1) := by
+  have := Nat.lt_pow_succ_log_self (b := 2) (by norm_num) (x + 1)
+  omega
+
+/-- The generic power-domination fact used to feed `sortCost` bounds:
+`c·E^a·pow·(n-part) + 1 ≤ 2^(LGsharp-2)` instances are all proven through
+this chain. -/
+theorem prod_le_two_pow {a b c i j k : ℕ}
+    (ha : a ≤ 2 ^ i) (hb : b ≤ 2 ^ j) (hc : c ≤ 2 ^ k) :
+    a * b * c ≤ 2 ^ (i + j + k) := by
+  calc a * b * c ≤ 2 ^ i * 2 ^ j * 2 ^ k :=
+        Nat.mul_le_mul (Nat.mul_le_mul ha hb) hc
+    _ = 2 ^ (i + j + k) := by rw [← Nat.pow_add, ← Nat.pow_add]
+
+/-! ## Cost of a depth-`D` bottom node -/
+
+/-- Per-bottom-node cost cap. -/
+def BOTC (E n D LG : ℕ) : ℕ :=
+  300 * LG * E * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ D + 3) ^ 3 + 64
+
+/-- Pure-arithmetic collapse of the insertion budget (no rationals: all
+products appear literally so `omega` can treat them as atoms). Here
+`W = Dh·(s+2)` with `Dh = 66·s·E·PP` the doubling bound, and
+`X = E·PP·(s+2)²`. -/
+theorem insertBudget_le_sharp (E PP LG s : ℕ) (hE : 1 ≤ E) (hPP : 1 ≤ PP)
+    (hLG : 40 ≤ LG)
+    (hsort : sortCost (2 * (1 + 66 * s * E * PP * (s + 2)))
+      ≤ (2 * (1 + 66 * s * E * PP * (s + 2)) + 1) * LG) :
+    insertBudget (66 * s * E * PP) s ≤ 215 * LG * (E * PP * (s + 2) ^ 2) := by
+  unfold insertBudget
+  have hone : 1 ≤ E * PP * (s + 2) ^ 2 := by
+    have h0 : (0:ℕ) < E * PP * (s + 2) ^ 2 := by positivity
+    omega
+  have hW : 66 * s * E * PP * (s + 2) ≤ 66 * (E * PP * (s + 2) ^ 2) := by
+    have e : 66 * s * E * PP * (s + 2) = 66 * (E * PP) * (s * (s + 2)) := by ring
+    have h : s * (s + 2) ≤ (s + 2) ^ 2 := by nlinarith
+    calc 66 * s * E * PP * (s + 2) = 66 * (E * PP) * (s * (s + 2)) := e
+      _ ≤ 66 * (E * PP) * (s + 2) ^ 2 := Nat.mul_le_mul_left _ h
+      _ = 66 * (E * PP * (s + 2) ^ 2) := by ring
+  have hXLG : E * PP * (s + 2) ^ 2 ≤ E * PP * (s + 2) ^ 2 * LG :=
+    Nat.le_mul_of_pos_right _ (by omega)
+  have harg : 2 * (1 + 66 * s * E * PP * (s + 2)) + 1
+      ≤ 137 * (E * PP * (s + 2) ^ 2) := by omega
+  have hsort2 : sortCost (2 * (1 + 66 * s * E * PP * (s + 2)))
+      ≤ 137 * (E * PP * (s + 2) ^ 2 * LG) := by
+    calc sortCost (2 * (1 + 66 * s * E * PP * (s + 2)))
+        ≤ (2 * (1 + 66 * s * E * PP * (s + 2)) + 1) * LG := hsort
+      _ ≤ 137 * (E * PP * (s + 2) ^ 2) * LG := Nat.mul_le_mul_right _ harg
+      _ = 137 * (E * PP * (s + 2) ^ 2 * LG) := by ring
+  have hsmall : 405 * (E * PP * (s + 2) ^ 2) ≤ 78 * (E * PP * (s + 2) ^ 2 * LG) := by
+    have h1 : 405 ≤ 78 * LG := by omega
+    calc 405 * (E * PP * (s + 2) ^ 2)
+        ≤ 78 * LG * (E * PP * (s + 2) ^ 2) :=
+          Nat.mul_le_mul_right _ h1
+      _ = 78 * (E * PP * (s + 2) ^ 2 * LG) := by ring
+  have hfin : 215 * LG * (E * PP * (s + 2) ^ 2)
+      = 137 * (E * PP * (s + 2) ^ 2 * LG) + 78 * (E * PP * (s + 2) ^ 2 * LG) := by
+    ring
+  omega
+
+/-- The sort argument of a bottom node fits under the log factor. -/
+theorem bottom_sort_arg {E n D s : ℕ} (hE : 1 ≤ E) (hs : s ≤ n + 1) :
+    2 * (1 + 66 * s * E * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (s + 2)) + 1
+      ≤ 2 ^ (LGsharp E n D - 2) := by
+  have hPP : (2:ℕ) ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2) ≤ 2 ^ (D + 1) := by
+    rw [← Nat.pow_add]
+    exact Nat.pow_le_pow_right (by norm_num) (by omega)
+  have hEp : E ≤ 2 ^ (Nat.log 2 (E + 1) + 1) := by
+    have := self_le_pow_log E
+    omega
+  have hnp : n + 2 ≤ 2 ^ (Nat.log 2 (n + 2) + 1) := by
+    have := self_le_pow_log (n + 1)
+    have e : n + 1 + 1 = n + 2 := by omega
+    rw [e] at this
+    exact this
+  have hs3 : s + 2 ≤ (n + 2) * 2 := by omega
+  have hs2 : s ≤ (n + 2) * 2 := by omega
+  -- LHS ≤ 2·(1 + 66·s·E·2^{D+1}·(s+2)) + 1 ≤ 201·s·E·2^{D+1}·(s+2) + 3-ish,
+  -- then power-dominate each factor.
+  have hbig : 2 * (1 + 66 * s * E * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (s + 2)) + 1
+      ≤ 512 * (s + 2) * E * 2 ^ (D + 1) * (s + 2) := by
+    have h1 : 66 * s * E * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (s + 2)
+        ≤ 66 * (s + 2) * E * 2 ^ (D + 1) * (s + 2) := by
+      have h2 : 66 * s * E ≤ 66 * (s + 2) * E := by
+        have := Nat.mul_le_mul_right E
+          (Nat.mul_le_mul_left 66 (show s ≤ s + 2 by omega))
+        omega
+      calc 66 * s * E * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (s + 2)
+          ≤ 66 * (s + 2) * E * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (s + 2) :=
+            Nat.mul_le_mul_right _ (Nat.mul_le_mul_right _ h2)
+        _ ≤ 66 * (s + 2) * E * 2 ^ (D + 1) * (s + 2) :=
+            Nat.mul_le_mul_right _ (Nat.mul_le_mul_left _ hPP)
+    have hone : 1 ≤ (s + 2) * E * 2 ^ (D + 1) * (s + 2) := by
+      have h0 : (0:ℕ) < (s + 2) * E * 2 ^ (D + 1) * (s + 2) := by positivity
+      omega
+    have e1 : 512 * (s + 2) * E * 2 ^ (D + 1) * (s + 2)
+        = 512 * ((s + 2) * E * 2 ^ (D + 1) * (s + 2)) := by ring
+    have e2 : 66 * (s + 2) * E * 2 ^ (D + 1) * (s + 2)
+        = 66 * ((s + 2) * E * 2 ^ (D + 1) * (s + 2)) := by ring
+    omega
+  refine le_trans hbig ?_
+  -- 512·(s+2)·E·2^{D+1}·(s+2) ≤ 2^{9 + (log(n+2)+2) + (log(E+1)+1) + (D+1) + (log(n+2)+2)}
+  have hsp : s + 2 ≤ 2 ^ (Nat.log 2 (n + 2) + 2) := by
+    calc s + 2 ≤ (n + 2) * 2 := hs3
+      _ ≤ 2 ^ (Nat.log 2 (n + 2) + 1) * 2 := Nat.mul_le_mul_right _ hnp
+      _ = 2 ^ (Nat.log 2 (n + 2) + 2) :=
+          (Nat.pow_succ 2 (Nat.log 2 (n + 2) + 1)).symm
+  have h512 : (512 : ℕ) ≤ 2 ^ 9 := by norm_num
+  have hchain : 512 * (s + 2) * E * 2 ^ (D + 1) * (s + 2)
+      ≤ 2 ^ (9 + (Nat.log 2 (n + 2) + 2) + (Nat.log 2 (E + 1) + 1) + (D + 1)
+          + (Nat.log 2 (n + 2) + 2)) := by
+    calc 512 * (s + 2) * E * 2 ^ (D + 1) * (s + 2)
+        ≤ 2 ^ 9 * 2 ^ (Nat.log 2 (n + 2) + 2) * 2 ^ (Nat.log 2 (E + 1) + 1)
+            * 2 ^ (D + 1) * 2 ^ (Nat.log 2 (n + 2) + 2) :=
+          Nat.mul_le_mul (Nat.mul_le_mul (Nat.mul_le_mul
+            (Nat.mul_le_mul h512 hsp) hEp) le_rfl) hsp
+      _ = 2 ^ (9 + (Nat.log 2 (n + 2) + 2) + (Nat.log 2 (E + 1) + 1) + (D + 1)
+            + (Nat.log 2 (n + 2) + 2)) := by
+          rw [← Nat.pow_add, ← Nat.pow_add, ← Nat.pow_add, ← Nat.pow_add]
+  refine le_trans hchain (Nat.pow_le_pow_right (by norm_num) ?_)
+  unfold LGsharp
+  omega
+
+set_option maxHeartbeats 1000000 in
+/-- Cost of a depth-`D` bottom node. -/
+theorem bottomCost_le {ε : ℚ} (hε0 : 0 < ε) (n D : ℕ) (S : List ℕ)
+    (hσ : S.length ≤ n / 2 ^ D + 1) (h2 : 2 ≤ S.length) :
+    halmanCost S (deltaBot ε D)
+        + sparsifyCost (deltaBot ε D) (halman S (deltaBot ε D))
+      ≤ BOTC ⌈1 / ε⌉₊ n D (LGsharp ⌈1 / ε⌉₊ n D) := by
+  have hE : 1 ≤ ⌈1 / ε⌉₊ := one_le_invE hε0
+  have hPP : 1 ≤ (2:ℕ) ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2) := by
+    have h0 : (0:ℕ) < (2:ℕ) ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2) := by positivity
+    omega
+  have hLG : 40 ≤ LGsharp ⌈1 / ε⌉₊ n D := by
+    unfold LGsharp
+    omega
+  have hs1 : 1 ≤ S.length := by omega
+  have hδ' : (0 : ℚ) < deltaBot ε D / (2 * S.length) := by
+    have h1 := deltaBot_pos hε0 D
+    have h2' : (0 : ℚ) < (S.length : ℚ) := by exact_mod_cast hs1
+    positivity
+  have hsn : S.length ≤ n + 1 := by
+    have := Nat.div_le_self n (2 ^ D)
+    omega
+  -- The insertion loop.
+  have hDh := doubleSteps_deltaBot_div hε0 D (s := S.length) hs1
+  have hsort := le_LGsharp_pow ⌈1 / ε⌉₊ n D
+    (2 * (1 + 66 * S.length * ⌈1 / ε⌉₊
+      * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 2)))
+    (bottom_sort_arg hE hsn)
+  have hIB := insertBudget_le_sharp ⌈1 / ε⌉₊
+    (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) (LGsharp ⌈1 / ε⌉₊ n D) S.length
+    hE hPP hLG hsort
+  have hcost := halmanGoCost_le _ hδ'
+    (66 * S.length * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)))
+    S.length hDh S le_rfl
+  -- The re-sparsification.
+  have hout_len : (halman S (deltaBot ε D)).length
+      ≤ 1 + 66 * S.length * ⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 2) := by
+    have h1 := halmanGo_length _ hδ' S
+    have h2' := Nat.mul_le_mul hDh (le_refl (S.length + 2))
+    unfold halman
+    omega
+  have hbumps : bumpSteps (deltaBot ε D) 1 (massOf (halman S (deltaBot ε D)))
+      ≤ 34 * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 1) := by
+    have h1 := bumpSteps_le (deltaBot ε D) (deltaBot_pos hε0 D)
+      (massOf (halman S (deltaBot ε D)))
+    have hmass : massOf (halman S (deltaBot ε D)) ≤ 2 ^ S.length := massOf_halman S _
+    have hlog : Nat.log 2 (massOf (halman S (deltaBot ε D))) ≤ S.length := by
+      calc Nat.log 2 (massOf (halman S (deltaBot ε D)))
+          ≤ Nat.log 2 (2 ^ S.length) := Nat.log_mono_right hmass
+        _ = S.length := Nat.log_pow (b := 2) (by norm_num) _
+    have hds := doubleSteps_deltaBot hε0 D
+    calc bumpSteps (deltaBot ε D) 1 (massOf (halman S (deltaBot ε D)))
+        ≤ doubleSteps (deltaBot ε D)
+            * (Nat.log 2 (massOf (halman S (deltaBot ε D))) + 1) := h1
+      _ ≤ 34 * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 1) :=
+          Nat.mul_le_mul hds (by omega)
+  -- Pure-ℕ final collapse.
+  have hσ3 : S.length + 2 ≤ n / 2 ^ D + 3 := by omega
+  have hcube : S.length * (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (S.length + 2) ^ 2) ≤ ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (n / 2 ^ D + 3) ^ 3 := by
+    have e1 : S.length * (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (S.length + 2) ^ 2) = ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (S.length * (S.length + 2) ^ 2) := by ring
+    have h1 : S.length * (S.length + 2) ^ 2 ≤ (n / 2 ^ D + 3) ^ 3 := by
+      calc S.length * (S.length + 2) ^ 2
+          ≤ (S.length + 2) * (S.length + 2) ^ 2 := Nat.mul_le_mul_right _ (by omega)
+        _ = (S.length + 2) ^ 3 := by ring
+        _ ≤ (n / 2 ^ D + 3) ^ 3 := Nat.pow_le_pow_left hσ3 3
+    rw [e1]
+    exact Nat.mul_le_mul_left _ h1
+  have hsq : (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 2) ^ 2)
+      ≤ ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ D + 3) ^ 3 := by
+    refine Nat.mul_le_mul_left _ ?_
+    calc (S.length + 2) ^ 2 ≤ (S.length + 2) ^ 3 :=
+          Nat.pow_le_pow_right (by omega) (by omega)
+      _ ≤ (n / 2 ^ D + 3) ^ 3 := Nat.pow_le_pow_left hσ3 3
+  have hlin : S.length + 1 ≤ (n / 2 ^ D + 3) ^ 3 := by
+    have h1 : S.length + 1 ≤ (n / 2 ^ D + 3) := by omega
+    calc S.length + 1 ≤ n / 2 ^ D + 3 := h1
+      _ ≤ (n / 2 ^ D + 3) ^ 3 := Nat.le_self_pow (by omega) _
+  -- Assemble.
+  unfold BOTC halmanCost at *
+  -- name the recurring atoms via generalization
+  have hIB' := Nat.mul_le_mul_left S.length hIB
+  -- halmanCost ≤ 1 + s·IB ≤ 1 + 215·LG·(E·PP·σ³)
+  have hterm1 : S.length * (215 * LGsharp ⌈1 / ε⌉₊ n D
+      * (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 2) ^ 2))
+      ≤ 215 * LGsharp ⌈1 / ε⌉₊ n D * (⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ D + 3) ^ 3) := by
+    have e1 : S.length * (215 * LGsharp ⌈1 / ε⌉₊ n D
+        * (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 2) ^ 2))
+        = 215 * LGsharp ⌈1 / ε⌉₊ n D * (S.length * (⌈1 / ε⌉₊
+            * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 2) ^ 2)) := by
+      ring
+    rw [e1]
+    exact Nat.mul_le_mul_left _ hcube
+  have hbump2 : 34 * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 1)
+      ≤ 34 * (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ D + 3) ^ 3) := by
+    have e1 : 34 * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 1)
+        = 34 * (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (S.length + 1)) := by
+      ring
+    rw [e1]
+    exact Nat.mul_le_mul_left _ (Nat.mul_le_mul_left _ hlin)
+  have hout2 : 66 * S.length * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+      * (S.length + 2) ≤ 66 * (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+      * (n / 2 ^ D + 3) ^ 3) := by
+    have e1 : 66 * S.length * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (S.length + 2)
+        = 66 * (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+            * (S.length * (S.length + 2))) := by
+      ring
+    have h1 : S.length * (S.length + 2) ≤ (n / 2 ^ D + 3) ^ 3 := by
+      calc S.length * (S.length + 2) ≤ (S.length + 2) * (S.length + 2) :=
+            Nat.mul_le_mul_right _ (by omega)
+        _ = (S.length + 2) ^ 2 := by ring
+        _ ≤ (S.length + 2) ^ 3 := Nat.pow_le_pow_right (by omega) (by omega)
+        _ ≤ (n / 2 ^ D + 3) ^ 3 := Nat.pow_le_pow_left hσ3 3
+    rw [e1]
+    exact Nat.mul_le_mul_left _ (Nat.mul_le_mul_left _ h1)
+  -- Final assembly.
+  unfold sparsifyCost
+  have e300 : 300 * LGsharp ⌈1 / ε⌉₊ n D * ⌈1 / ε⌉₊
+      * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ D + 3) ^ 3
+      = 215 * LGsharp ⌈1 / ε⌉₊ n D * (⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ D + 3) ^ 3)
+        + 85 * LGsharp ⌈1 / ε⌉₊ n D * (⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ D + 3) ^ 3) := by
+    ring
+  have hsmall : 100 * (⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+      * (n / 2 ^ D + 3) ^ 3)
+      ≤ 85 * LGsharp ⌈1 / ε⌉₊ n D * (⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ D + 3) ^ 3) := by
+    have h1 : (100 : ℕ) ≤ 85 * LGsharp ⌈1 / ε⌉₊ n D := by omega
+    exact Nat.mul_le_mul_right _ h1
+  omega
+
 end SparseFun
