@@ -44,9 +44,13 @@ meaningful theorem; later stages depend only on earlier ones.
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);
   with Stage 0's `lazy_amortization` + `ledger_collapse` this covers the
-  tree-structural half of the cost ledger. E.2 (open): the per-node
-  array-work model (level enumeration + class draws) and the
-  Σ_h min(2^h,k)·min(n/2^h, ℓ/2^{h/2}) arithmetic.
+  tree-structural half of the cost ledger. E.2 (done,
+  `SamplerLedger.lean`): the two ledger modes - `ledger_flat`
+  (Σ min(2^h,k)·(A/2^h) ≤ D·A) and `ledger_sqrt`
+  (Σ min(2^h,k)·(B/2^(h/2)) ≤ 32·B·(√k+1)), with the geometric toolkit
+  (`geom_sum_le`, `geom_half_root`, `staircase_le`) proven from scratch.
+  Remaining in E: connecting the per-node model to a concrete
+  data-structure cost function (with Stage F).
 - [ ] **Stage F - construction**: a verified-executable merge meeting the
   witness spec (naive convolution + witness rounding suffices for
   correctness; the Õ(n^1.5) *time* of the sophisticated merge - Theorem 6.1
