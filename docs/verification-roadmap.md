@@ -30,9 +30,13 @@ meaningful theorem; later stages depend only on earlier ones.
   robustness: product-measure L1 subadditivity `prodMass_l1` +
   `event_prob_diff`, the bridge that lets the estimator run on Stage B's
   approximate sampler. Standard axioms only.
-- [ ] **Stage D - the combinatorial reductions**: Feng-Jin's Lemma 3.1
-  (popular class) and Lemma 3.3 (hitting-set ratio ≥ ℓ/Õ(n)) - finite
-  injection arguments; connects Stage C's ratio to |Ω|.
+- [~] **Stage D - the combinatorial reductions** (`SamplerReduction.lean`,
+  D.1 done): the deterministic core of Feng-Jin Lemma 3.3 -
+  `band_card_gt` (band subsets have > ℓ/2 items in the bounded-ratio
+  regime) and `band_hit_le` (the delete-one-hit-item injection: the H-hit
+  band has size ≤ |H|·|Ω|). D.2 (open): probabilistic-method existence of
+  an Õ(n/ℓ) hitting set covering 1−o(1) of the band; Lemma 3.4 (the
+  popular-class structural lemma for the general case).
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);
