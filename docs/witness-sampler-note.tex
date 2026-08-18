@@ -1,0 +1,98 @@
+\documentclass[10pt]{article}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+\newcommand{\OO}{\widetilde{O}}
+\setlength{\parskip}{2pt}
+\begin{document}
+\begin{center}
+{\Large\bf Sampling through the witness structure}\\[2pt]
+{\small A one-page companion to Feng--Jin, ``A Faster Algorithm for
+Counting Knapsack Solutions'' (SODA~2025, arXiv:2410.22267), whose
+notation and numbering are used throughout.}
+\end{center}
+
+\paragraph{Where their time goes.}
+The total $\OO(n^{1.5}\varepsilon^{-2})$ splits into
+\emph{construction} --- the merge trees of Theorem~4.2, $\OO(n^{1.5})$
+--- and \emph{queries}: $N=\OO(n/(\ell\varepsilon^2))$ samples
+(Lemma~3.3), each answered by descending the trees and drawing, at every
+node, a split from a distribution of support $\OO(\ell)$ by scanning it.
+The claim here: the query stage can run in nearly the time it takes to
+write the samples down, giving
+$\OO\!\bigl(n^{1.5}+\min(n\sqrt{\ell},\,n^2/\ell)\cdot\varepsilon^{-2}\bigr)
+\le \OO(n^{1.5}+n^{4/3}\varepsilon^{-2})$ ---
+never worse than $\OO(n^{1.5}\varepsilon^{-2})$, and below it for every
+$\varepsilon=o(1)$.
+
+\paragraph{The identity.}
+Recall the merge of \S6.2: levels $A^*_0[x]$ with
+$f_0(x)\in[D^{A^*_0[x]},D^{A^*_0[x]+1})$, prefix maxima $A[x]$, residuals
+$u[x]=f_0(x)D^{-A[x]}\in[1,D)$ at prefix-max-attaining positions (else
+$0$); likewise $B,v$ for $g_0$; $C=$ the $(\max,+)$-convolution of $A,B$;
+$w[z]=\sum_{x:\,A[x]+B[z-x]=C[z]}u[x]v[z-x]$ (Theorem~6.1); the merge
+returns $h(z)=D^{C[z]}\cdot w[z]$. Each witness term satisfies
+$u[x]\,v[z-x]\,D^{C[z]}=f_0(x)\,g_0(z-x)$ \emph{exactly} --- the
+exponents cancel by the witness condition. Hence
+\[
+h(z)\;=\;\textstyle\sum\,\bigl\{\,f_0(x)g_0(y)\;:\;x+y=z,\;
+A[x]+B[y]=C[z],\;u[x]v[y]>0\,\bigr\}.
+\]
+So the stored array is not merely a $(1\pm\delta)$-approximation of
+$f\star g$: it is an \emph{exact aggregation} of the product measure
+restricted to witness pairs (a measure that is within a per-prefix
+$(1\pm\delta)$ of $f\star g$ by~(41)). The construction, built to
+\emph{compute} the arrays, stores for free an exact factorization of the
+distribution they define.
+
+\paragraph{The sampler.}
+Sample that factorization literally. (i)~At the root: a coarse value
+$z\propto \hat f_{\mathrm{root}}(z)\cdot\mathbf 1[z\le t]$ --- the
+capacity appears here and nowhere else. (ii)~De-rounding: a node's fine
+position $s\propto h(s)$ over the preimage of its coarse value; position
+rounding is a monotone floor, so the preimage is a contiguous interval
+--- an $O(\log)$ prefix-sum draw, no differences of approximate
+quantities anywhere. (iii)~Split: a witness pair $(x,\,y=s-x)\propto
+u[x]v[y]$ over $\{A[x]+B[y]=C[s]\}$; recurse with the \emph{exact} child
+values $x,y$. Every draw is exactly proportional to the stored
+decomposition, so the sampled measure is the one the arrays define, and
+the TV analysis of \S4--5 applies unchanged; the only new TV term is the
+output re-rounding of $h$ (a pointwise $1\pm\delta$, so $\le2\delta$ per
+visited merge). Children with value $0$ whose weight-$0$ stratum is only
+$\varnothing$ are not descended, so a sample visits only the path-union
+of its $k$ items.
+
+\paragraph{Why the split is cheap.}
+Witness pairs at $s$ organize by level: $a+b=C[s]$, and the attaining
+positions of $A$-level $a$ form an interval $I^{(a)}$ ($A$ is monotone),
+likewise $J^{(b)}$ --- at most $M=\OO(\text{subtree items}/\log D)$
+rectangles, against array length $L$; near the roots $M\ll L$. Within a
+rectangle, $u,v\in[1,D)$ have $O(\log D)$ log-range: split into factor-2
+classes $X_i,Y_j$; the counts $|X_i\cap(s-Y_j)|$ for \emph{all} $s$ are
+indicator convolutions, FFT-precomputed in $\OO(L\,\mathrm{polylog})$
+per node. A draw picks (rectangle, class) $\propto 2^{i+j}\cdot$count,
+a uniform member by rank (prefix counts from lazily built, memoized
+dyadic restrictions; unconditionally $\OO(L\sqrt{N})$ amortized per
+node), then accepts with probability $u[x]v[y]/2^{i+j+2}\ge\tfrac14$ ---
+exact. Diagonal pairs \emph{below} $C[s]$ carry $\le\delta$ of the
+diagonal mass by the multiples-of-3 separation, exactly as in~(41): one
+more $O(1)$ rejection.
+
+\paragraph{The count.}
+Per split-draw $\OO(\min(M,L))$; per sample, over the pruned path-union,
+$\OO(\min(n_m,\;\ell\sqrt{k}))$; over $N=\OO(n/(\ell\varepsilon^2))$
+samples, $\OO(\min(n^2/\ell,\;n\sqrt{\ell})\cdot\varepsilon^{-2})
+\le\OO(n^{4/3}\varepsilon^{-2})$, the maximum at $\ell=n^{2/3}$.
+Construction is unchanged; the second phase (\S5.4) admits the same
+treatment.
+
+\paragraph{Status.}
+The identity, the $\delta$-domination, the lazy amortization, and the
+$\min$-collapse are machine-checked in Lean
+(\texttt{lean/SharpKnapsack/WitnessSampler.lean}); every sampling
+mechanism is validated against brute force
+(\texttt{experiments/test\_witness\_sampler.py}). This is a
+\emph{theorem-candidate}: what remains is the substitution pass through
+Lemmas~4.6/4.7 and \S5.3--5.4 and the detailed second-phase ledger
+(\texttt{docs/witness-sampler.md}).
+\end{document}
