@@ -51,10 +51,15 @@ meaningful theorem; later stages depend only on earlier ones.
   (`geom_sum_le`, `geom_half_root`, `staircase_le`) proven from scratch.
   Remaining in E: connecting the per-node model to a concrete
   data-structure cost function (with Stage F).
-- [ ] **Stage F - construction**: a verified-executable merge meeting the
-  witness spec (naive convolution + witness rounding suffices for
-  correctness; the Õ(n^1.5) *time* of the sophisticated merge - Theorem 6.1
-  / BDP24 with FFT and random primes - is the last and largest item).
+- [~] **Stage F - construction** (F.0 done, `SamplerInstance.lean`): the
+  exact-arrays instantiation - `exactKernel_ok`, `samplerMassK_exact_eq`
+  (the stored-kernel sampler with exact kernels IS the uniform sampler),
+  the meaning lemma `expect1_uniform_indicator` (the estimated quantity is
+  exactly #(solutions with P)/#solutions), and the headline corollary
+  `fpras_relative`: N ≥ 1/(ε²ρ²) samples give relative error ε except with
+  probability ≤ 1/4. Remaining (F.1): the fast (1±δ)-witness-array
+  construction - Feng-Jin Theorem 6.1 / BDP24 with FFT and random primes -
+  the last and largest item.
 
 - [x] **Assembly** (`SamplerAssembly.lean`, done): `fpras_assembly` -
   Stages A+B+C composed into the top-level guarantee: under the

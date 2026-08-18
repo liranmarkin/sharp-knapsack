@@ -8,3 +8,4 @@ import SharpKnapsack.SamplerCost
 import SharpKnapsack.SamplerReduction
 import SharpKnapsack.SamplerAssembly
 import SharpKnapsack.SamplerLedger
+import SharpKnapsack.SamplerInstance
