@@ -536,3 +536,65 @@ theorem card_small_subsets_lt (n m : ℕ) (hn : 0 < n) :
         calc n.choose y ≤ n ^ y := Nat.choose_le_pow n y
           _ ≤ n ^ m := Nat.pow_le_pow_right hn (by omega)
     _ = m * n ^ m := by rw [Finset.sum_const, Finset.card_range, smul_eq_mul]
+
+/-- Claim 3.5's geometric core: a base set plus a disjoint pool that
+jointly fit under the capacity contribute `2^|G|` distinct solutions
+extending the base within the pool. -/
+theorem pool_neighbors_card (n T : ℕ) (W : ℕ → ℕ) (B G : Finset ℕ)
+    (hB : B ⊆ Finset.range n) (hG : G ⊆ Finset.range n) (hdisj : Disjoint B G)
+    (hw : (∑ j ∈ B, W j) + (∑ j ∈ G, W j) ≤ T) :
+    2 ^ G.card ≤
+      ((solSet n W T).filter (fun X => B ⊆ X ∧ X \ B ⊆ G)).card := by
+  classical
+  have himg : G.powerset.image (fun S => B ∪ S) ⊆
+      (solSet n W T).filter (fun X => B ⊆ X ∧ X \ B ⊆ G) := by
+    intro X hX
+    rw [Finset.mem_image] at hX
+    obtain ⟨S, hS, rfl⟩ := hX
+    rw [Finset.mem_powerset] at hS
+    have hSd : Disjoint B S := Finset.disjoint_of_subset_right hS hdisj
+    rw [Finset.mem_filter]
+    refine ⟨?_, Finset.subset_union_left, ?_⟩
+    · rw [solSet, Finset.mem_filter, Finset.mem_powerset]
+      constructor
+      · exact Finset.union_subset hB (Finset.Subset.trans hS hG)
+      · rw [Finset.sum_union hSd]
+        have hSsum : (∑ j ∈ S, W j) ≤ ∑ j ∈ G, W j :=
+          Finset.sum_le_sum_of_subset hS
+        omega
+    · intro x hx
+      rw [Finset.mem_sdiff, Finset.mem_union] at hx
+      rcases hx.1 with h | h
+      · exact absurd h hx.2
+      · exact hS h
+  calc 2 ^ G.card = (G.powerset.image (fun S => B ∪ S)).card :=
+        (card_union_pool B G hdisj).symm
+    _ ≤ ((solSet n W T).filter (fun X => B ⊆ X ∧ X \ B ⊆ G)).card :=
+        Finset.card_le_card himg
+
+/-- Claim 3.6's counting core: if every member of a family decomposes as
+`(X \ R) ∪ H` with `R` from `P` and `H` from `Q`, the family has at most
+`|P|·|Q|` members. -/
+theorem fiber_card_le {α : Type} [DecidableEq α] (F : Finset (Finset α))
+    (X : Finset α) (P Q : Finset (Finset α))
+    (h : ∀ Y ∈ F, ∃ R ∈ P, ∃ H ∈ Q, Y = (X \ R) ∪ H) :
+    F.card ≤ P.card * Q.card := by
+  classical
+  let pick : Finset α → Finset α × Finset α := fun Y =>
+    if hY : ∃ R ∈ P, ∃ H ∈ Q, Y = (X \ R) ∪ H then
+      (Classical.choose hY, Classical.choose (Classical.choose_spec hY).2)
+    else (∅, ∅)
+  have hspec : ∀ Y ∈ F, pick Y ∈ P ×ˢ Q ∧ Y = (X \ (pick Y).1) ∪ (pick Y).2 := by
+    intro Y hY
+    have hex := h Y hY
+    simp only [pick, dif_pos hex]
+    obtain ⟨hR, H, hH, hdec⟩ := Classical.choose_spec hex
+    obtain ⟨hH', hdec'⟩ := Classical.choose_spec (Classical.choose_spec hex).2
+    exact ⟨Finset.mem_product.mpr ⟨hR, hH'⟩, hdec'⟩
+  calc F.card ≤ (P ×ˢ Q).card := by
+        apply Finset.card_le_card_of_injOn pick (fun Y hY => (hspec Y hY).1)
+        intro Y₁ h₁ Y₂ h₂ heq
+        calc Y₁ = (X \ (pick Y₁).1) ∪ (pick Y₁).2 := (hspec Y₁ h₁).2
+          _ = (X \ (pick Y₂).1) ∪ (pick Y₂).2 := by rw [heq]
+          _ = Y₂ := ((hspec Y₂ h₂).2).symm
+    _ = P.card * Q.card := Finset.card_product _ _

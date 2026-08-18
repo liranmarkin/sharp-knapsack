@@ -49,9 +49,13 @@ meaningful theorem; later stages depend only on earlier ones.
   combinatorial engines of 3.4's claims - `card_union_pool` (pool addition
   gives 2^|G| distinct neighbors, Claim 3.5's degree) and
   `card_small_subsets_lt` (≤ m·n^m small subsets, Claim 3.6's choices).
-  Remaining in D: only the weight-arithmetic plumbing of Claims 3.5/3.6
-  (good/huge taxonomy with the paper's constants) and composing Lemma
-  3.3's final constant from 3.1 + 3.2 + 3.4 + the greedy hitting set.
+  D.7 (done): `pool_neighbors_card`
+  (base + disjoint pool under capacity give 2^|G| solutions extending the
+  base - Claim 3.5 modulo taxonomy arithmetic) and `fiber_card_le` (fibers
+  decomposing as (X∖R)∪H are bounded by |P|·|Q| - Claim 3.6's counting).
+  Remaining in D: only the weight-arithmetic plumbing (good/huge taxonomy
+  with the paper's constants, the pool-existence bound, the exponent
+  comparison) and composing Lemma 3.3's final constant.
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);
