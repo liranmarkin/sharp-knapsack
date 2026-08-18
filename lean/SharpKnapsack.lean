@@ -2,3 +2,4 @@ import SharpKnapsack.Tests
 import SharpKnapsack.Complexity
 import SharpKnapsack.WitnessSampler
 import SharpKnapsack.SamplerExact
+import SharpKnapsack.SamplerApprox

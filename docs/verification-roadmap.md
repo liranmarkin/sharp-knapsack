@@ -14,10 +14,14 @@ meaningful theorem; later stages depend only on earlier ones.
   measure theory. A.2 (done): the ∅-split pruning equality
   (`splitMassP_eq`) and totality (`samplerMass_total`, via the enumeration
   bridge `allMasks_countP` tying masks to the trusted `count` spec).
-- [ ] **Stage B - approximate arrays: TV bound**: replace exact counts by
-  arrays satisfying the (1±δ) witness spec; define the tree measure the
-  arrays induce; prove TV(tree measure, uniform) ≤ f(δ, depth) by
-  telescoping the per-merge factors (uses Stage 0's identity + domination).
+- [x] **Stage B - approximate arrays: L1/TV bound** (`SamplerApprox.lean`,
+  done): the kernel-parametrized sampler `splitMassK`; the damage-control
+  theorem `splitMassK_l1` (per-node kernel error η costs at most
+  η · #internal nodes in L1, telescoped by a hybrid argument); the
+  assembled root bound `samplerMassK_l1`; and the local kernel lemma
+  `kernel_l1_of_approx` (a (1±δ)-perturbed, witness-restricted kernel with
+  γ dropped mass has L1 error ≤ 4δ + 3γ - the shape Stage 0's domination
+  provides). Standard axioms only.
 - [ ] **Stage C - the estimator**: Monte Carlo mean of indicators over N
   samples; multiplicative concentration (Chebyshev suffices for ε⁻² sample
   complexity); combine with Stage B's TV to get the (1±ε, 3/4) guarantee
