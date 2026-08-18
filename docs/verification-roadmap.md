@@ -41,8 +41,11 @@ meaningful theorem; later stages depend only on earlier ones.
   probabilistic method deterministically. D.3 (done, `SamplerPopular.lean`):
   Feng-Jin Lemma 3.1 - `popular_class`: some dyadic class ℓ = 2^k ∈ [2,8n]
   holds ≥ ℓ/(8⌈log₂ 4n⌉) items (dyadic assignment + fiberwise pigeonhole,
-  all conditions multiplicative). Remaining in D: Lemmas 3.2/3.4 (the
-  d-band mapping and the Ω^△ bound feeding Lemma 3.3's constant).
+  all conditions multiplicative). D.4 (done): Feng-Jin Lemma 3.2 -
+  `exists_peel` (≤ d large-item removals land any excess-≤-dg subset in Ω)
+  and `band_d_le` (|Ω_d| ≤ #{small sets}·|Ω| ≤ d·n^d·|Ω| via
+  `small_sets_card_le`). Remaining in D: Lemma 3.4 (the Ω^△ bound feeding
+  Lemma 3.3's constant).
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);

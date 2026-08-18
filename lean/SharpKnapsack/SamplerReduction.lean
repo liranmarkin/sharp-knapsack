@@ -319,3 +319,150 @@ theorem pow_shrink (n s m : ℕ) (hs : 0 < s) (hsn : s ≤ n) (hm : n ≤ s * m)
       push_cast
       exact key
     exact_mod_cast h2
+
+/-! ### D.4: the d-band bound (Feng-Jin Lemma 3.2)
+
+Every solution band `Ω_d = {X : T + (d−1)g < W_X ≤ T + d·g}` maps into
+`Ω × {small item sets}` by peeling at most `d` large items, so
+`|Ω_d| ≤ (Σ_{y≤d} C(n,y))·|Ω| ≤ d·n^d·|Ω|`. -/
+
+/-- If everything light in total weighs at most `T`, any overweight subset
+contains a `g`-large item. -/
+theorem exists_large_item (n T g : ℕ) (W : ℕ → ℕ) (X : Finset ℕ)
+    (hX : X ⊆ Finset.range n) (hbig : T < ∑ j ∈ X, W j)
+    (hsmall : (∑ j ∈ (Finset.range n).filter (fun j => W j ≤ g), W j) ≤ T) :
+    ∃ j ∈ X, g < W j := by
+  by_contra hcon
+  push Not at hcon
+  have hsub : X ⊆ (Finset.range n).filter (fun j => W j ≤ g) := by
+    intro j hj
+    rw [Finset.mem_filter]
+    exact ⟨hX hj, hcon j hj⟩
+  have := Finset.sum_le_sum_of_subset (f := W) hsub
+  omega
+
+/-- Peeling: at most `d` large-item removals bring an overweight subset
+(of excess ≤ d·g) down into the solution set. -/
+theorem exists_peel (n T g : ℕ) (W : ℕ → ℕ)
+    (hsmall : (∑ j ∈ (Finset.range n).filter (fun j => W j ≤ g), W j) ≤ T) :
+    ∀ d (X : Finset ℕ), X ⊆ Finset.range n →
+      T < ∑ j ∈ X, W j → (∑ j ∈ X, W j) ≤ T + d * g →
+      ∃ Y, Y ⊆ X ∧ 1 ≤ Y.card ∧ Y.card ≤ d ∧ (∑ j ∈ X \ Y, W j) ≤ T := by
+  intro d
+  induction d with
+  | zero =>
+    intro X _ hbig hup
+    omega
+  | succ d ih =>
+    intro X hX hbig hup
+    obtain ⟨j, hjX, hjW⟩ := exists_large_item n T g W X hX hbig hsmall
+    have herase : (∑ i ∈ X.erase j, W i) + W j = ∑ i ∈ X, W i :=
+      Finset.sum_erase_add X W hjX
+    by_cases hdone : (∑ i ∈ X.erase j, W i) ≤ T
+    · refine ⟨{j}, ?_, by simp, by simp, ?_⟩
+      · simpa using hjX
+      · have hsd : X \ {j} = X.erase j := by
+          ext x
+          simp [Finset.mem_erase, and_comm]
+        rw [hsd]
+        exact hdone
+    · push Not at hdone
+      have hgg : (d + 1) * g = d * g + g := by ring
+      have hup' : (∑ i ∈ X.erase j, W i) ≤ T + d * g := by omega
+      obtain ⟨Y', hY'sub, hY'1, hY'd, hY'w⟩ :=
+        ih (X.erase j) (Finset.Subset.trans (Finset.erase_subset _ _) hX) hdone hup'
+      refine ⟨insert j Y', ?_, ?_, ?_, ?_⟩
+      · intro x hx
+        rcases Finset.mem_insert.mp hx with rfl | hx'
+        · exact hjX
+        · exact Finset.erase_subset _ _ (hY'sub hx')
+      · calc 1 ≤ Y'.card := hY'1
+          _ ≤ (insert j Y').card := Finset.card_le_card (Finset.subset_insert _ _)
+      · calc (insert j Y').card ≤ Y'.card + 1 := Finset.card_insert_le _ _
+          _ ≤ d + 1 := by omega
+      · have hsd : X \ insert j Y' = (X.erase j) \ Y' := by
+          ext x
+          simp only [Finset.mem_sdiff, Finset.mem_insert, Finset.mem_erase]
+          tauto
+        rw [hsd]
+        exact hY'w
+
+/-- **The d-band bound** (Feng-Jin Lemma 3.2): the band of excess up to
+`d·g` has size at most `(Σ_{1≤y≤d} C(n,y))·|Ω|`. -/
+theorem band_d_le (n T g d : ℕ) (W : ℕ → ℕ)
+    (hsmall : (∑ j ∈ (Finset.range n).filter (fun j => W j ≤ g), W j) ≤ T) :
+    ((Finset.range n).powerset.filter
+        (fun X => T < ∑ j ∈ X, W j ∧ (∑ j ∈ X, W j) ≤ T + d * g)).card ≤
+      ((Finset.range n).powerset.filter
+        (fun Y => 1 ≤ Y.card ∧ Y.card ≤ d)).card * (solSet n W T).card := by
+  classical
+  set B := (Finset.range n).powerset.filter
+    (fun X => T < ∑ j ∈ X, W j ∧ (∑ j ∈ X, W j) ≤ T + d * g) with hB
+  set YS := (Finset.range n).powerset.filter (fun Y => 1 ≤ Y.card ∧ Y.card ≤ d) with hYS
+  let peel : Finset ℕ → Finset ℕ := fun X =>
+    if h : X ⊆ Finset.range n ∧ T < ∑ j ∈ X, W j ∧ (∑ j ∈ X, W j) ≤ T + d * g then
+      Classical.choose (exists_peel n T g W hsmall d X h.1 h.2.1 h.2.2)
+    else ∅
+  have hpeel : ∀ X ∈ B, peel X ⊆ X ∧ 1 ≤ (peel X).card ∧ (peel X).card ≤ d ∧
+      (∑ j ∈ X \ peel X, W j) ≤ T := by
+    intro X hX
+    rw [hB, Finset.mem_filter, Finset.mem_powerset] at hX
+    have hcond : X ⊆ Finset.range n ∧ T < ∑ j ∈ X, W j ∧
+        (∑ j ∈ X, W j) ≤ T + d * g := ⟨hX.1, hX.2.1, hX.2.2⟩
+    simp only [peel, dif_pos hcond]
+    exact Classical.choose_spec (exists_peel n T g W hsmall d X hcond.1
+      hcond.2.1 hcond.2.2)
+  have hland : ∀ X ∈ B, (peel X, X \ peel X) ∈ YS ×ˢ solSet n W T := by
+    intro X hX
+    obtain ⟨hsub, h1, hd', hw⟩ := hpeel X hX
+    rw [hB, Finset.mem_filter, Finset.mem_powerset] at hX
+    rw [Finset.mem_product]
+    constructor
+    · rw [hYS, Finset.mem_filter, Finset.mem_powerset]
+      exact ⟨Finset.Subset.trans hsub hX.1, h1, hd'⟩
+    · rw [solSet, Finset.mem_filter, Finset.mem_powerset]
+      exact ⟨Finset.Subset.trans Finset.sdiff_subset hX.1, hw⟩
+  have hinj : ∀ X₁ ∈ B, ∀ X₂ ∈ B,
+      (peel X₁, X₁ \ peel X₁) = (peel X₂, X₂ \ peel X₂) → X₁ = X₂ := by
+    intro X₁ h₁ X₂ h₂ heq
+    obtain ⟨hsub₁, -, -, -⟩ := hpeel X₁ h₁
+    obtain ⟨hsub₂, -, -, -⟩ := hpeel X₂ h₂
+    have e1 : peel X₁ = peel X₂ := (Prod.mk.injEq _ _ _ _).mp heq |>.1
+    have e2 : X₁ \ peel X₁ = X₂ \ peel X₂ := (Prod.mk.injEq _ _ _ _).mp heq |>.2
+    calc X₁ = (X₁ \ peel X₁) ∪ peel X₁ := (Finset.sdiff_union_of_subset hsub₁).symm
+      _ = (X₂ \ peel X₂) ∪ peel X₂ := by rw [e2, e1]
+      _ = X₂ := Finset.sdiff_union_of_subset hsub₂
+  calc B.card ≤ (YS ×ˢ solSet n W T).card :=
+        Finset.card_le_card_of_injOn (fun X => (peel X, X \ peel X)) hland hinj
+    _ = YS.card * (solSet n W T).card := Finset.card_product _ _
+
+/-- The small-set collection is at most `d·n^d` (crude but polylog-tight). -/
+theorem small_sets_card_le (n d : ℕ) (hn : 0 < n) :
+    ((Finset.range n).powerset.filter
+      (fun Y => 1 ≤ Y.card ∧ Y.card ≤ d)).card ≤ d * n ^ d := by
+  classical
+  have hsub : (Finset.range n).powerset.filter (fun Y => 1 ≤ Y.card ∧ Y.card ≤ d) ⊆
+      (Finset.Icc 1 d).biUnion (fun y => Finset.powersetCard y (Finset.range n)) := by
+    intro Y hY
+    rw [Finset.mem_filter, Finset.mem_powerset] at hY
+    rw [Finset.mem_biUnion]
+    exact ⟨Y.card, Finset.mem_Icc.mpr ⟨hY.2.1, hY.2.2⟩,
+      Finset.mem_powersetCard.mpr ⟨hY.1, rfl⟩⟩
+  calc ((Finset.range n).powerset.filter
+      (fun Y => 1 ≤ Y.card ∧ Y.card ≤ d)).card
+      ≤ ((Finset.Icc 1 d).biUnion
+          (fun y => Finset.powersetCard y (Finset.range n))).card :=
+        Finset.card_le_card hsub
+    _ ≤ ∑ y ∈ Finset.Icc 1 d, (Finset.powersetCard y (Finset.range n)).card :=
+        Finset.card_biUnion_le
+    _ ≤ ∑ _y ∈ Finset.Icc 1 d, n ^ d := by
+        apply Finset.sum_le_sum
+        intro y hy
+        rw [Finset.mem_Icc] at hy
+        rw [Finset.card_powersetCard, Finset.card_range]
+        calc n.choose y ≤ n ^ y := Nat.choose_le_pow n y
+          _ ≤ n ^ d := Nat.pow_le_pow_right hn hy.2
+    _ ≤ d * n ^ d := by
+        rw [Finset.sum_const, smul_eq_mul, Nat.card_Icc]
+        have : d + 1 - 1 = d := by omega
+        rw [this]
