@@ -34,8 +34,11 @@ meaningful theorem; later stages depend only on earlier ones.
   D.1 done): the deterministic core of Feng-Jin Lemma 3.3 -
   `band_card_gt` (band subsets have > ℓ/2 items in the bounded-ratio
   regime) and `band_hit_le` (the delete-one-hit-item injection: the H-hit
-  band has size ≤ |H|·|Ω|). D.2 (open): probabilistic-method existence of
-  an Õ(n/ℓ) hitting set covering 1−o(1) of the band; Lemma 3.4 (the
+  band has size ≤ |H|·|Ω|). D.2 (done): `greedy_hitting` - a
+  fully constructive hitting set: h greedy rounds leave ≤ |F|·((n−s)/n)^h
+  of any family of >s-sized sets unhit - plus `pow_shrink` (each n/s
+  rounds halve the unhit family, via Bernoulli over ℚ). Replaces their
+  probabilistic method deterministically. Remaining: Lemma 3.4 (the
   popular-class structural lemma for the general case).
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
