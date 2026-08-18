@@ -598,3 +598,73 @@ theorem fiber_card_le {α : Type} [DecidableEq α] (F : Finset (Finset α))
           _ = (X \ (pick Y₂).1) ∪ (pick Y₂).2 := by rw [heq]
           _ = Y₂ := ((hspec Y₂ h₂).2).symm
     _ = P.card * Q.card := Finset.card_product _ _
+
+/-- Claim 3.5's weight arithmetic: stripping huge items (weight ≥ 40L²T/ℓ)
+from a set with at most `m₁` large items leaves weight at most `9T/10`,
+given the global light-item bound (their eq. (6)) and `100·m₁·L² ≤ ℓ`.
+All thresholds are multiplicative. -/
+theorem hat_weight_le (n T ℓ L2 m₁ : ℕ) (W : ℕ → ℕ) (X : Finset ℕ)
+    (hX : X ⊆ Finset.range n) (hL2 : 0 < L2)
+    (hsmall : 2 * (∑ j ∈ (Finset.range n).filter (fun j => W j * ℓ ≤ T), W j) ≤ T)
+    (hfew : (X.filter (fun j => T < W j * ℓ)).card ≤ m₁)
+    (hm₁ : 100 * m₁ * L2 ≤ ℓ) :
+    10 * (∑ j ∈ X.filter (fun j => W j * ℓ < 40 * L2 * T), W j) ≤ 9 * T := by
+  classical
+  set Xh := X.filter (fun j => W j * ℓ < 40 * L2 * T) with hXh
+  have hsplit : (∑ j ∈ Xh.filter (fun j => W j * ℓ ≤ T), W j) +
+      ∑ j ∈ Xh.filter (fun j => ¬ W j * ℓ ≤ T), W j = ∑ j ∈ Xh, W j := by
+    rw [Finset.sum_filter_add_sum_filter_not]
+  have hlight : 2 * (∑ j ∈ Xh.filter (fun j => W j * ℓ ≤ T), W j) ≤ T := by
+    have hsub : Xh.filter (fun j => W j * ℓ ≤ T) ⊆
+        (Finset.range n).filter (fun j => W j * ℓ ≤ T) := by
+      intro j hj
+      rw [Finset.mem_filter] at hj
+      have hjX : j ∈ X := by
+        have h1 := hj.1
+        rw [hXh, Finset.mem_filter] at h1
+        exact h1.1
+      rw [Finset.mem_filter]
+      exact ⟨hX hjX, hj.2⟩
+    have := Finset.sum_le_sum_of_subset (f := W) hsub
+    omega
+  have hmid : 100 * (∑ j ∈ Xh.filter (fun j => ¬ W j * ℓ ≤ T), W j) ≤ 40 * T := by
+    have hcard : (Xh.filter (fun j => ¬ W j * ℓ ≤ T)).card ≤ m₁ := by
+      have hsub : Xh.filter (fun j => ¬ W j * ℓ ≤ T) ⊆
+          X.filter (fun j => T < W j * ℓ) := by
+        intro j hj
+        rw [Finset.mem_filter] at hj ⊢
+        have h1 := hj.1
+        rw [hXh, Finset.mem_filter] at h1
+        exact ⟨h1.1, by omega⟩
+      exact le_trans (Finset.card_le_card hsub) hfew
+    have hsum : (∑ j ∈ Xh.filter (fun j => ¬ W j * ℓ ≤ T), W j) * ℓ ≤
+        m₁ * (40 * L2 * T) := by
+      rw [Finset.sum_mul]
+      calc (∑ j ∈ Xh.filter (fun j => ¬ W j * ℓ ≤ T), W j * ℓ)
+          ≤ ∑ _j ∈ Xh.filter (fun j => ¬ W j * ℓ ≤ T), 40 * L2 * T := by
+            apply Finset.sum_le_sum
+            intro j hj
+            rw [Finset.mem_filter] at hj
+            have h1 := hj.1
+            rw [hXh, Finset.mem_filter] at h1
+            omega
+        _ = (Xh.filter (fun j => ¬ W j * ℓ ≤ T)).card * (40 * L2 * T) := by
+            rw [Finset.sum_const, smul_eq_mul]
+        _ ≤ m₁ * (40 * L2 * T) := Nat.mul_le_mul_right _ hcard
+    rcases Nat.eq_zero_or_pos m₁ with hm0 | hm0
+    · have hempty : Xh.filter (fun j => ¬ W j * ℓ ≤ T) = ∅ :=
+        Finset.card_eq_zero.mp (by omega)
+      rw [hempty]
+      simp
+    · have hpos : 0 < m₁ * L2 := Nat.mul_pos hm0 hL2
+      have key : (m₁ * L2) * (100 * ∑ j ∈ Xh.filter (fun j => ¬ W j * ℓ ≤ T), W j) ≤
+          (m₁ * L2) * (40 * T) := by
+        calc (m₁ * L2) * (100 * ∑ j ∈ Xh.filter (fun j => ¬ W j * ℓ ≤ T), W j)
+            = (∑ j ∈ Xh.filter (fun j => ¬ W j * ℓ ≤ T), W j) * (100 * m₁ * L2) := by
+              ring
+          _ ≤ (∑ j ∈ Xh.filter (fun j => ¬ W j * ℓ ≤ T), W j) * ℓ :=
+              Nat.mul_le_mul_left _ hm₁
+          _ ≤ m₁ * (40 * L2 * T) := hsum
+          _ = (m₁ * L2) * (40 * T) := by ring
+      exact Nat.le_of_mul_le_mul_left key hpos
+  omega
