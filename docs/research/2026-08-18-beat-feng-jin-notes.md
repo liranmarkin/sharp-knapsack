@@ -207,3 +207,63 @@ for this problem likely needs a new hypothesis about approximate counting
 itself, not a reduction from exact fine-grained problems; (2) the balance of
 evidence tilts toward the *upper* bound being improvable - i.e. problem (P)
 and the sub-n^1.5 question deserve the effort more than hardness does.
+
+## BREAKTHROUGH CANDIDATE: Õ(n^1.5 + n^{4/3}·ε^-2) - beating Feng-Jin for all ε = o(1)
+
+The (P) barrier is broken in the form the sampler actually needs, by combining
+five mechanisms - each validated in prototype (`scratchpad/witness_sampler.py`,
+`scratchpad/sublevel_sampler.py`, `scratchpad/pruned_sampler.py`):
+
+1. **Witness-measure sampling.** The merged arrays' own values are
+   h(z) = D^{C[z]}·w[z] with w[z] = Σ_{witness pairs} u[x]v[y] (their §6.2).
+   Sampling the *witness measure* (not the raw product) is consistent with the
+   tree's stored arrays and costs only the per-merge δ the analysis already
+   pays (their eq. (41)-(42)). Split-draws become diagonal draws over witness
+   pairs weighted u[x]·v[y] with u, v ∈ {0}∪[1, D), log D = polylog.
+   [Validated: TV 0.025 vs brute force; witness fraction 1.0000.]
+2. **Level-interval enumeration.** Witness pairs organize into level-interval
+   rectangles; #levels M_u = Õ(subtree items/polylog) ≪ L_u at shallow nodes
+   [validated: 96 items → 12 levels vs L = 389]. Active rectangles for a
+   query are enumerable in O(M_u); full rectangles need O(1) each (prefix
+   sums); the diagonal (max,+)-conv on attaining-restricted arrays (for
+   C_att[s]) comes from their own Theorem 6.1 at construction, same budget.
+3. **Sub-level classes + FFT correlations.** Since u,v ∈ [1,D), partition
+   into polylog value-classes X_i, Y_j; all shifted intersection counts
+   |X_i ∩ (s−Y_j)| for every s are FFT correlations, Õ(L·polylog) per node
+   at construction. Draw class ∝ 2^{i+j}·count, then a ≤4-retry rejection
+   makes the draw exact. [Validated: TV 0.011, mean retries 1.69.]
+4. **Rank-selection via lazy dyadic pairs.** Uniform selection inside
+   X_i ∩ (s−Y_j) by descending dyadic x-intervals with on-demand,
+   memoized correlations of dyadic pairs (T, T'). Each pair is built once
+   ever; balancing draws·log(fresh pairs) against (L/2^k)² total pairs of
+   size 2^k gives an UNCONDITIONAL amortized total Õ(L_u·√N_u) per node,
+   which sums to Õ(ℓ√(Nk)) ≤ Õ(ℓ√n/ε) - absorbed by the main terms.
+5. **Attaining-acceptance ≈ 1.** The multiples-of-3 level separation makes
+   non-attaining diagonal mass ≤ poly·D^{-3}: one final O(1) rejection.
+   [Validated: worst attaining fraction 1.0000 over 520 queries.]
+   Plus the ∅-split pruning (earlier section) so a sample visits only the
+   path-union of its k contributing leaves.
+
+**Cost ledger.** Construction: unchanged Õ(n^1.5) + Õ(L·polylog) per node
+extras. Sampling: N = Õ(n/(ℓε²)) samples; per-draw Õ(M_u + polylog);
+per-sample Σ_h min(2^h,k)·min(n_m/2^h, ℓ/2^{h/2}) = Õ(min(n_m, ℓ√k));
+total sampling Õ(min(n√ℓ, n²/ℓ)·ε^-2), maximized at ℓ = n^{2/3}:
+
+    TOTAL:  Õ(n^1.5 + min(n√ℓ, n²/ℓ)·ε^-2)  ≤  Õ(n^1.5 + n^{4/3}·ε^-2)
+
+Strictly better than Feng-Jin's Õ(n^1.5·ε^-2) for every ε = o(1); equal at
+ε = Θ(1); at the ℓ-extremes (ℓ ≤ polylog or ℓ = Θ(n)) it reaches
+Õ(n^1.5 + n·ε^-2).
+
+**Status: theorem-candidate.** All mechanisms are individually validated and
+the ledger is arithmetic; what remains for a paper-grade proof: (a) the
+telescoped TV accounting for witness-measure substitution at every node;
+(b) the root ≤-capacity draw and per-node s-draws written out (1D prefix
+draws - routine); (c) re-rounding grids between levels (the diagonal draw
+lives on the parent grid - per-merge, matches the witness structure);
+(d) the second phase (their §5.4) re-run through the same machinery;
+(e) the lazy-amortization write-up (caps are unconditional). None looks
+structural. Open refinement: eliminating the per-draw M_u rectangle
+enumeration would give Õ(n^1.5 + n·ε^-2) uniformly - requires s-adaptive
+aggregation over the level lattice, currently blocked by an LM-storage
+tradeoff.
