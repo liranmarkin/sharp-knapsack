@@ -6,3 +6,4 @@ import SharpKnapsack.SamplerApprox
 import SharpKnapsack.SamplerEstimator
 import SharpKnapsack.SamplerCost
 import SharpKnapsack.SamplerReduction
+import SharpKnapsack.SamplerAssembly

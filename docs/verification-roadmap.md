@@ -52,6 +52,12 @@ meaningful theorem; later stages depend only on earlier ones.
   correctness; the Õ(n^1.5) *time* of the sophisticated merge - Theorem 6.1
   / BDP24 with FFT and random primes - is the last and largest item).
 
+- [x] **Assembly** (`SamplerAssembly.lean`, done): `fpras_assembly` -
+  Stages A+B+C composed into the top-level guarantee: under the
+  stored-kernel sampler's N-fold run, the empirical indicator mean is
+  within `a + (η₀ + η·#nodes)` of the expectation under the EXACT uniform
+  solution distribution, except with probability ≤ 1/(4Na²).
+
 Stages A-E verify everything new in this result plus the probabilistic
 glue, treating the construction as a specified interface; Stage F closes
 the loop on Feng-Jin's side. Status lives in this file; each completed
