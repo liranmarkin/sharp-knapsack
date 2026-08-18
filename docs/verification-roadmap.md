@@ -53,9 +53,12 @@ meaningful theorem; later stages depend only on earlier ones.
   (base + disjoint pool under capacity give 2^|G| solutions extending the
   base - Claim 3.5 modulo taxonomy arithmetic) and `fiber_card_le` (fibers
   decomposing as (X∖R)∪H are bounded by |P|·|Q| - Claim 3.6's counting).
-  Remaining in D: only the weight-arithmetic plumbing (good/huge taxonomy
-  with the paper's constants, the pool-existence bound, the exponent
-  comparison) and composing Lemma 3.3's final constant.
+  D.8-D.9 (done): `hat_weight_le`
+  (the huge-stripped set weighs ≤ 9T/10), `huge_count_le` (≤ ℓ/(20L²) huge
+  items fit under 2T), `pool_exists` (a g₀-pool of good items disjoint
+  from X remains). Remaining in D: assembling Claims 3.5/3.6 from these
+  pieces, the exponent comparison 2^{g₀} vs the fiber bound, Lemma 3.4
+  itself, and composing Lemma 3.3's final constant.
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);

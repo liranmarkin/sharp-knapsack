@@ -668,3 +668,40 @@ theorem hat_weight_le (n T ℓ L2 m₁ : ℕ) (W : ℕ → ℕ) (X : Finset ℕ)
           _ = (m₁ * L2) * (40 * T) := by ring
       exact Nat.le_of_mul_le_mul_left key hpos
   omega
+
+/-- Claim 3.6's huge-count bound: a set of weight at most `2T` contains
+few huge items - multiplicatively, `#huge · 40·L²·T ≤ 2·T·ℓ`. -/
+theorem huge_count_le (T ℓ L2 : ℕ) (W : ℕ → ℕ) (Y : Finset ℕ)
+    (hw : (∑ j ∈ Y, W j) ≤ 2 * T) :
+    (Y.filter (fun j => 40 * L2 * T ≤ W j * ℓ)).card * (40 * L2 * T) ≤
+      2 * T * ℓ := by
+  classical
+  calc (Y.filter (fun j => 40 * L2 * T ≤ W j * ℓ)).card * (40 * L2 * T)
+      = ∑ _j ∈ Y.filter (fun j => 40 * L2 * T ≤ W j * ℓ), 40 * L2 * T := by
+        rw [Finset.sum_const, smul_eq_mul]
+    _ ≤ ∑ j ∈ Y.filter (fun j => 40 * L2 * T ≤ W j * ℓ), W j * ℓ := by
+        apply Finset.sum_le_sum
+        intro j hj
+        exact (Finset.mem_filter.mp hj).2
+    _ = (∑ j ∈ Y.filter (fun j => 40 * L2 * T ≤ W j * ℓ), W j) * ℓ := by
+        rw [Finset.sum_mul]
+    _ ≤ (∑ j ∈ Y, W j) * ℓ :=
+        Nat.mul_le_mul_right _
+          (Finset.sum_le_sum_of_subset (Finset.filter_subset _ _))
+    _ ≤ 2 * T * ℓ := Nat.mul_le_mul_right _ hw
+
+/-- The good-item pool exists: if `Good` has `g₀ + m₁` members and at most
+`m₁` of them meet `X`, a `g₀`-sized pool disjoint from `X` remains. -/
+theorem pool_exists (m₁ g₀ : ℕ) (Good X : Finset ℕ)
+    (hcard : g₀ + m₁ ≤ Good.card)
+    (hfew : (Good ∩ X).card ≤ m₁) :
+    ∃ G, G ⊆ Good ∧ G.card = g₀ ∧ Disjoint G X := by
+  classical
+  have hsplit : (Good \ X).card + (Good ∩ X).card = Good.card :=
+    Finset.card_sdiff_add_card_inter Good X
+  have hbig : g₀ ≤ (Good \ X).card := by omega
+  obtain ⟨G, hGsub, hGcard⟩ := Finset.exists_subset_card_eq hbig
+  refine ⟨G, Finset.Subset.trans hGsub Finset.sdiff_subset, hGcard, ?_⟩
+  rw [Finset.disjoint_left]
+  intro a haG haX
+  exact (Finset.mem_sdiff.mp (hGsub haG)).2 haX
