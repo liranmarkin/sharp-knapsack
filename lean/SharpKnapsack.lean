@@ -2,3 +2,4 @@ import SharpKnapsack.Tests
 import SharpKnapsack.Complexity
 import SharpKnapsack.Sharp
 import SharpKnapsack.SharpComplexity
+import SharpKnapsack.WitnessSampler
