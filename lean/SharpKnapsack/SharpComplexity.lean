@@ -629,4 +629,320 @@ theorem bottomCost_le {ε : ℚ} (hε0 : 0 < ε) (n D : ℕ) (S : List ℕ)
     exact Nat.mul_le_mul_right _ h1
   omega
 
+/-! ## Internal nodes: one level costs a flat amount -/
+
+/-- The flat per-level budget (times `2^d` this dominates any internal
+node's cost at depth `d`). -/
+def FLAT (E n D LG : ℕ) : ℕ :=
+  5000 * (LG + 3) * E * E * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+    * (n + 3 * 2 ^ D + 4) ^ 2
+
+/-- The sort argument of an internal node fits under the log factor. -/
+theorem internal_sort_arg {E n D d : ℕ} (hE : 1 ≤ E) (hd : d < D) :
+    repSharp E n D (d + 1) * repSharp E n D (d + 1) + 1
+      ≤ 2 ^ (LGsharp E n D - 2) := by
+  have hEp : E ≤ 2 ^ (Nat.log 2 (E + 1) + 1) := by
+    have := self_le_pow_log E
+    omega
+  have hnp : n + 2 ≤ 2 ^ (Nat.log 2 (n + 2) + 1) := by
+    have := self_le_pow_log (n + 1)
+    have e : n + 1 + 1 = n + 2 := by omega
+    rw [e] at this
+    exact this
+  have hpow1 : (2:ℕ) ^ ((d + 1 + 1) / 2) ≤ 2 ^ (D + 1) :=
+    Nat.pow_le_pow_right (by norm_num) (by omega)
+  have hpow2 : (2:ℕ) ^ ((D + 1) / 2) ≤ 2 ^ (D + 1) :=
+    Nat.pow_le_pow_right (by norm_num) (by omega)
+  have hdiv : n / 2 ^ (d + 1) + 3 ≤ (n + 2) * 4 := by
+    have := Nat.div_le_self n (2 ^ (d + 1))
+    omega
+  have hR : repSharp E n D (d + 1)
+      ≤ 2 ^ (6 + (Nat.log 2 (E + 1) + 1) + (D + 1) + (D + 1)
+          + (Nat.log 2 (n + 2) + 3)) := by
+    unfold repSharp
+    have h35 : 1 + 34 * E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (n / 2 ^ (d + 1) + 3)
+        ≤ 64 * E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ (d + 1) + 3) := by
+      have hone : 1 ≤ E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ (d + 1) + 3) := by
+        have h0 : (0:ℕ) < E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+            * (n / 2 ^ (d + 1) + 3) := by positivity
+        omega
+      have e1 : 64 * E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ (d + 1) + 3)
+          = 34 * (E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n / 2 ^ (d + 1) + 3))
+            + 30 * (E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n / 2 ^ (d + 1) + 3)) := by ring
+      have e2 : 34 * E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ (d + 1) + 3)
+          = 34 * (E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n / 2 ^ (d + 1) + 3)) := by ring
+      omega
+    have hn4 : n / 2 ^ (d + 1) + 3 ≤ 2 ^ (Nat.log 2 (n + 2) + 3) := by
+      have e1 : (2:ℕ) ^ (Nat.log 2 (n + 2) + 3)
+          = 2 ^ (Nat.log 2 (n + 2) + 1) * 4 := by
+        rw [show Nat.log 2 (n + 2) + 3 = (Nat.log 2 (n + 2) + 1) + 2 by omega,
+          Nat.pow_add]
+      have h2 : (n + 2) * 4 ≤ 2 ^ (Nat.log 2 (n + 2) + 1) * 4 :=
+        Nat.mul_le_mul_right _ hnp
+      omega
+    have h64 : (64:ℕ) ≤ 2 ^ 6 := by norm_num
+    calc 1 + 34 * E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (n / 2 ^ (d + 1) + 3)
+        ≤ 64 * E * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ (d + 1) + 3) := h35
+      _ ≤ 2 ^ 6 * 2 ^ (Nat.log 2 (E + 1) + 1) * (2 ^ (D + 1) * 2 ^ (D + 1))
+          * 2 ^ (Nat.log 2 (n + 2) + 3) :=
+          Nat.mul_le_mul (Nat.mul_le_mul (Nat.mul_le_mul h64 hEp)
+            (Nat.mul_le_mul hpow1 hpow2)) hn4
+      _ = 2 ^ (6 + (Nat.log 2 (E + 1) + 1) + (D + 1) + (D + 1)
+          + (Nat.log 2 (n + 2) + 3)) := by
+          rw [← Nat.pow_add, ← Nat.pow_add, ← Nat.pow_add, ← Nat.pow_add]
+          congr 1
+          ring
+  have hRR : repSharp E n D (d + 1) * repSharp E n D (d + 1) + 1
+      ≤ 2 ^ (2 * (6 + (Nat.log 2 (E + 1) + 1) + (D + 1) + (D + 1)
+          + (Nat.log 2 (n + 2) + 3)) + 1) := by
+    have h1 := Nat.mul_le_mul hR hR
+    have h2 : (2:ℕ) ^ (6 + (Nat.log 2 (E + 1) + 1) + (D + 1) + (D + 1)
+          + (Nat.log 2 (n + 2) + 3))
+        * 2 ^ (6 + (Nat.log 2 (E + 1) + 1) + (D + 1) + (D + 1)
+          + (Nat.log 2 (n + 2) + 3))
+        = 2 ^ (2 * (6 + (Nat.log 2 (E + 1) + 1) + (D + 1) + (D + 1)
+          + (Nat.log 2 (n + 2) + 3))) := by
+      rw [← Nat.pow_add]
+      congr 1
+      ring
+    have h3 : (0:ℕ) < 2 ^ (2 * (6 + (Nat.log 2 (E + 1) + 1) + (D + 1) + (D + 1)
+        + (Nat.log 2 (n + 2) + 3))) := by positivity
+    have h4 : (2:ℕ) ^ (2 * (6 + (Nat.log 2 (E + 1) + 1) + (D + 1) + (D + 1)
+          + (Nat.log 2 (n + 2) + 3)) + 1)
+        = 2 ^ (2 * (6 + (Nat.log 2 (E + 1) + 1) + (D + 1) + (D + 1)
+          + (Nat.log 2 (n + 2) + 3))) * 2 := Nat.pow_succ 2 _
+    omega
+  refine le_trans hRR (Nat.pow_le_pow_right (by norm_num) ?_)
+  unfold LGsharp
+  omega
+
+set_option maxHeartbeats 1000000 in
+/-- One internal node's cost, multiplied by `2^d`, fits in the flat budget. -/
+theorem internal_node_flat {ε : ℚ} (hε0 : 0 < ε) (n D d : ℕ) (A B : SparseFun)
+    (hd : d < D)
+    (hA : A.length ≤ repSharp ⌈1 / ε⌉₊ n D (d + 1))
+    (hB : B.length ≤ repSharp ⌈1 / ε⌉₊ n D (d + 1))
+    (hbump : bumpSteps (deltaSharp ε D d) 1 (massOf (conv A B))
+      ≤ 34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ d + 2)) :
+    2 ^ d * (convCost A B + sparsifyCost (deltaSharp ε D d) (conv A B))
+      ≤ FLAT ⌈1 / ε⌉₊ n D (LGsharp ⌈1 / ε⌉₊ n D) := by
+  have hE : 1 ≤ ⌈1 / ε⌉₊ := one_le_invE hε0
+  have hLG : 40 ≤ LGsharp ⌈1 / ε⌉₊ n D := by
+    unfold LGsharp
+    omega
+  have hRR := Nat.mul_le_mul hA hB
+  have hsort := le_LGsharp_pow ⌈1 / ε⌉₊ n D
+    (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1))
+    (internal_sort_arg hE hd)
+  have hconvlen := conv_length_le A B
+  -- node ≤ (LG+3)·(R² + 1) + bump-term
+  have hnode : convCost A B + sparsifyCost (deltaSharp ε D d) (conv A B)
+      ≤ (LGsharp ⌈1 / ε⌉₊ n D + 3)
+          * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1)
+        + 34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ d + 2) := by
+    unfold convCost sparsifyCost
+    have h1 : sortCost (A.length * B.length)
+        ≤ (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1)
+          * LGsharp ⌈1 / ε⌉₊ n D := by
+      calc sortCost (A.length * B.length)
+          ≤ sortCost (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1)) :=
+            sortCost_mono hRR
+        _ ≤ (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1)
+              * LGsharp ⌈1 / ε⌉₊ n D := hsort
+    have h2 : (conv A B).length
+        ≤ repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) :=
+      le_trans hconvlen hRR
+    have e1 : (LGsharp ⌈1 / ε⌉₊ n D + 3)
+        * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1)
+        = (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1)
+            * LGsharp ⌈1 / ε⌉₊ n D
+          + 3 * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1) := by
+      ring
+    omega
+  -- 2^d·(R²+1) is flat across levels.
+  have hkey : 2 ^ d * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1)
+      ≤ 4901 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (n + 3 * 2 ^ D + 4) ^ 2 := by
+    have hR35 : repSharp ⌈1 / ε⌉₊ n D (d + 1)
+        ≤ 35 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ (d + 1) + 3) := by
+      unfold repSharp
+      have hone : 1 ≤ ⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ (d + 1) + 3) := by
+        have h0 : (0:ℕ) < ⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+            * (n / 2 ^ (d + 1) + 3) := by positivity
+        omega
+      have e1 : 35 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ (d + 1) + 3)
+          = 34 * (⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n / 2 ^ (d + 1) + 3))
+            + ⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n / 2 ^ (d + 1) + 3) := by ring
+      have e2 : 34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ (d + 1) + 3)
+          = 34 * (⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n / 2 ^ (d + 1) + 3)) := by ring
+      omega
+    -- (2^{(d+2)/2})² ≤ 2^{d+2}; regroup so the 2^d cancels into the level count.
+    have hsq : 2 ^ d * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1))
+        ≤ 4900 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n + 3 * 2 ^ D + 4) ^ 2 := by
+      have h1 := Nat.mul_le_mul hR35 hR35
+      have hp22 : (2:ℕ) ^ ((d + 1 + 1) / 2) * 2 ^ ((d + 1 + 1) / 2) ≤ 2 ^ (d + 2) := by
+        rw [← Nat.pow_add]
+        exact Nat.pow_le_pow_right (by norm_num) (by omega)
+      -- 2^d · (2^{(d+2)/2})² · (n/2^{d+1}+3)² ≤ 4·(2^d·(n/2^{d+1}+3))² and
+      -- 2^d·(n/2^{d+1}+3) ≤ n + 3·2^D + 4.
+      have hlin : 2 ^ d * (n / 2 ^ (d + 1) + 3) ≤ n + 3 * 2 ^ D + 4 := by
+        have hdm : n / 2 ^ (d + 1) * 2 ^ (d + 1) ≤ n := Nat.div_mul_le_self _ _
+        have hpow : (2:ℕ) ^ (d + 1) = 2 ^ d * 2 := Nat.pow_succ 2 d
+        have h2D : (2:ℕ) ^ d ≤ 2 ^ D := Nat.pow_le_pow_right (by norm_num) (by omega)
+        nlinarith [Nat.zero_le (n / 2 ^ (d + 1))]
+      calc 2 ^ d * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1))
+          ≤ 2 ^ d * ((35 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n / 2 ^ (d + 1) + 3))
+            * (35 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1 + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n / 2 ^ (d + 1) + 3))) := Nat.mul_le_mul_left _ h1
+        _ = 1225 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+            * ((2 ^ ((d + 1 + 1) / 2) * 2 ^ ((d + 1 + 1) / 2))
+              * (2 ^ d * ((n / 2 ^ (d + 1) + 3) * (n / 2 ^ (d + 1) + 3)))) := by
+            ring
+        _ ≤ 1225 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+            * (2 ^ (d + 2) * (2 ^ d * ((n / 2 ^ (d + 1) + 3) * (n / 2 ^ (d + 1) + 3)))) := by
+            refine Nat.mul_le_mul_left _ (Nat.mul_le_mul_right _ hp22)
+        _ = 4900 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+            * ((2 ^ d * (n / 2 ^ (d + 1) + 3)) * (2 ^ d * (n / 2 ^ (d + 1) + 3))) := by
+            rw [show (2:ℕ) ^ (d + 2) = 2 ^ d * 4 by rw [Nat.pow_add]]
+            ring
+        _ ≤ 4900 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+            * ((n + 3 * 2 ^ D + 4) * (n + 3 * 2 ^ D + 4)) := by
+            exact Nat.mul_le_mul_left _ (Nat.mul_le_mul hlin hlin)
+        _ = 4900 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+            * (n + 3 * 2 ^ D + 4) ^ 2 := by
+            ring
+    have h2d : 2 ^ d ≤ ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (n + 3 * 2 ^ D + 4) ^ 2 := by
+      have h1 : (2:ℕ) ^ d ≤ 2 ^ D := Nat.pow_le_pow_right (by norm_num) (by omega)
+      have h2 : (2:ℕ) ^ D ≤ 2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2) := by
+        rw [← Nat.pow_add]
+        exact Nat.pow_le_pow_right (by norm_num) (by omega)
+      have h3 : 1 ≤ (n + 3 * 2 ^ D + 4) ^ 2 := Nat.one_le_pow _ _ (by omega)
+      have h4 : ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n + 3 * 2 ^ D + 4) ^ 2
+          ≥ 1 * 1 * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * 1 :=
+        Nat.mul_le_mul (Nat.mul_le_mul (Nat.mul_le_mul hE hE) le_rfl) h3
+      have h5 : 1 * 1 * ((2:ℕ) ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * 1
+          = 2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2) := by ring
+      omega
+    have e1 : 2 ^ d * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1)
+        = 2 ^ d * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1))
+          + 2 ^ d := by ring
+    have e2 : 4901 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (n + 3 * 2 ^ D + 4) ^ 2
+        = 4900 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n + 3 * 2 ^ D + 4) ^ 2
+          + ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n + 3 * 2 ^ D + 4) ^ 2 := by ring
+    omega
+  -- The bump term times 2^d is also flat.
+  have hbump2 : 2 ^ d * (34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2))
+      * (n / 2 ^ d + 2))
+      ≤ 34 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (n + 3 * 2 ^ D + 4) ^ 2 := by
+    have hp1 : (2:ℕ) ^ ((d + 1) / 2) ≤ 2 ^ ((D + 1) / 2) :=
+      Nat.pow_le_pow_right (by norm_num) (by omega)
+    have hlin2 : 2 ^ d * (n / 2 ^ d + 2) ≤ n + 3 * 2 ^ D + 4 := by
+      have hdm : n / 2 ^ d * 2 ^ d ≤ n := Nat.div_mul_le_self _ _
+      have h2D : (2:ℕ) ^ d ≤ 2 ^ D := Nat.pow_le_pow_right (by norm_num) (by omega)
+      have e : 2 ^ d * (n / 2 ^ d + 2) = n / 2 ^ d * 2 ^ d + 2 * 2 ^ d := by ring
+      omega
+    have hsq2 : n + 3 * 2 ^ D + 4 ≤ (n + 3 * 2 ^ D + 4) ^ 2 :=
+      Nat.le_self_pow (by omega) _
+    calc 2 ^ d * (34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (n / 2 ^ d + 2))
+        = 34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (2 ^ d * (n / 2 ^ d + 2)) := by ring
+      _ ≤ 34 * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (2 ^ d * (n / 2 ^ d + 2)) := by
+          refine Nat.mul_le_mul_right _ (Nat.mul_le_mul_left _ ?_)
+          exact Nat.mul_le_mul_right _ hp1
+      _ ≤ 34 * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n + 3 * 2 ^ D + 4) := Nat.mul_le_mul_left _ hlin2
+      _ ≤ 34 * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n + 3 * 2 ^ D + 4) ^ 2 := Nat.mul_le_mul_left _ hsq2
+      _ ≤ 34 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n + 3 * 2 ^ D + 4) ^ 2 := by
+          have e : 34 * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n + 3 * 2 ^ D + 4) ^ 2
+              = 34 * ⌈1 / ε⌉₊ * 1 * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n + 3 * 2 ^ D + 4) ^ 2 := by ring
+          rw [e]
+          exact Nat.mul_le_mul_right _ (Nat.mul_le_mul_right _
+            (Nat.mul_le_mul_left _ hE))
+  -- Assemble into FLAT.
+  have hmul := Nat.mul_le_mul_left (2 ^ d) hnode
+  have hdist : 2 ^ d * ((LGsharp ⌈1 / ε⌉₊ n D + 3)
+      * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1)
+      + 34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ d + 2))
+      = (LGsharp ⌈1 / ε⌉₊ n D + 3)
+        * (2 ^ d * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1))
+        + 2 ^ d * (34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ d + 2)) := by ring
+  have hLGmul := Nat.mul_le_mul_left (LGsharp ⌈1 / ε⌉₊ n D + 3) hkey
+  have hflat : FLAT ⌈1 / ε⌉₊ n D (LGsharp ⌈1 / ε⌉₊ n D)
+      = (LGsharp ⌈1 / ε⌉₊ n D + 3) * (4901 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n + 3 * 2 ^ D + 4) ^ 2)
+        + (LGsharp ⌈1 / ε⌉₊ n D + 3) * (99 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n + 3 * 2 ^ D + 4) ^ 2) := by
+    unfold FLAT
+    ring
+  have hb3 : 2 ^ d * (34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2))
+      * (n / 2 ^ d + 2))
+      ≤ (LGsharp ⌈1 / ε⌉₊ n D + 3) * (99 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊
+        * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n + 3 * 2 ^ D + 4) ^ 2) := by
+    have h1 : 34 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+        * (n + 3 * 2 ^ D + 4) ^ 2
+        ≤ (LGsharp ⌈1 / ε⌉₊ n D + 3) * (99 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n + 3 * 2 ^ D + 4) ^ 2) := by
+      have h2 : 34 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n + 3 * 2 ^ D + 4) ^ 2
+          = 34 * (⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+            * (n + 3 * 2 ^ D + 4) ^ 2) := by ring
+      have h3 : (LGsharp ⌈1 / ε⌉₊ n D + 3) * (99 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n + 3 * 2 ^ D + 4) ^ 2)
+          = ((LGsharp ⌈1 / ε⌉₊ n D + 3) * 99)
+            * (⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+              * (n + 3 * 2 ^ D + 4) ^ 2) := by ring
+      have h4 : 34 ≤ (LGsharp ⌈1 / ε⌉₊ n D + 3) * 99 := by omega
+      have h5 := Nat.mul_le_mul_right
+        (⌈1 / ε⌉₊ * ⌈1 / ε⌉₊ * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n + 3 * 2 ^ D + 4) ^ 2) h4
+      omega
+    exact le_trans hbump2 h1
+  calc 2 ^ d * (convCost A B + sparsifyCost (deltaSharp ε D d) (conv A B))
+      ≤ 2 ^ d * ((LGsharp ⌈1 / ε⌉₊ n D + 3)
+          * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1)
+        + 34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n / 2 ^ d + 2)) :=
+        hmul
+    _ = (LGsharp ⌈1 / ε⌉₊ n D + 3)
+          * (2 ^ d * (repSharp ⌈1 / ε⌉₊ n D (d + 1) * repSharp ⌈1 / ε⌉₊ n D (d + 1) + 1))
+        + 2 ^ d * (34 * ⌈1 / ε⌉₊ * (2 ^ ((d + 1) / 2) * 2 ^ ((D + 1) / 2))
+          * (n / 2 ^ d + 2)) := hdist
+    _ ≤ (LGsharp ⌈1 / ε⌉₊ n D + 3) * (4901 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n + 3 * 2 ^ D + 4) ^ 2)
+        + (LGsharp ⌈1 / ε⌉₊ n D + 3) * (99 * ⌈1 / ε⌉₊ * ⌈1 / ε⌉₊
+          * (2 ^ ((D + 1) / 2) * 2 ^ ((D + 1) / 2)) * (n + 3 * 2 ^ D + 4) ^ 2) := by
+        omega
+    _ = FLAT ⌈1 / ε⌉₊ n D (LGsharp ⌈1 / ε⌉₊ n D) := hflat.symm
+
 end SparseFun
