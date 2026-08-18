@@ -226,3 +226,15 @@ theorem arrayKernel_close (hA : ArraysOK F Wsel δ γ)
         (Finset.sum_congr rfl heq).symm
     _ ≤ 4 * (3 * δ) + 3 * γ := hmain
     _ = 12 * δ + 3 * γ := by ring
+
+/-- **The pipeline is inhabited**: the exact (executable) count arrays
+meet the stored-array spec with `δ = γ = 0`. Any faster construction
+replaces this instance without touching anything downstream. -/
+theorem exactArraysOK :
+    ArraysOK (fun S s => ((count S s : ℕ) : ℚ)) (fun _ s => range (s + 1)) 0 0 where
+  lo := fun S s => by norm_num
+  hi := fun S s => by norm_num
+  wsub := fun S s => Finset.Subset.refl _
+  wdrop := fun S s => by
+    rw [Finset.sdiff_self]
+    simp
