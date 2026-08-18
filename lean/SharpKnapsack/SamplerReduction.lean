@@ -466,3 +466,23 @@ theorem small_sets_card_le (n d : ℕ) (hn : 0 < n) :
         rw [Finset.sum_const, smul_eq_mul, Nat.card_Icc]
         have : d + 1 - 1 = d := by omega
         rw [this]
+
+/-! ### D.5: bipartite double counting - the skeleton of Feng-Jin Lemma 3.4
+
+Their Ω^△ bound compares minimum degree on one side with maximum degree on
+the other side of a bipartite graph (Claims 3.5/3.6). The counting core: -/
+theorem bipartite_double_count {α β : Type} [DecidableEq α] [DecidableEq β]
+    (A : Finset α) (B : Finset β) (E : α → β → Bool)
+    (dA dB : ℕ)
+    (hdA : ∀ a ∈ A, dA ≤ (B.filter (fun b => E a b)).card)
+    (hdB : ∀ b ∈ B, (A.filter (fun a => E a b)).card ≤ dB) :
+    A.card * dA ≤ B.card * dB := by
+  have hedges : (∑ a ∈ A, (B.filter (fun b => E a b)).card) =
+      ∑ b ∈ B, (A.filter (fun a => E a b)).card := by
+    simp only [Finset.card_filter]
+    rw [Finset.sum_comm]
+  calc A.card * dA = ∑ _a ∈ A, dA := by rw [Finset.sum_const, smul_eq_mul]
+    _ ≤ ∑ a ∈ A, (B.filter (fun b => E a b)).card := Finset.sum_le_sum hdA
+    _ = ∑ b ∈ B, (A.filter (fun a => E a b)).card := hedges
+    _ ≤ ∑ _b ∈ B, dB := Finset.sum_le_sum hdB
+    _ = B.card * dB := by rw [Finset.sum_const, smul_eq_mul]
