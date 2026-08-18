@@ -55,7 +55,7 @@ f(x)g(y) < D^{A+1}·D^{B+1} ≤ D^{C[s]−1}. There are ≤ s+1 diagonal pairs, 
 the non-attaining mass is < (s+1)·D^{C[s]−1} ≤ δ·D^{C[s]}. Any attaining
 pair has f(x)g(y) ≥ D^{A}D^{B} = D^{C[s]}. ∎  (Machine-checked:
 `diagonal_witness_domination`, same file. Empirically: worst attaining
-fraction 1.0000 over 520 queries, `scratchpad/sublevel_sampler.py`.)
+fraction 1.0000 over 520 queries, `experiments/sublevel_sampler.py`.)
 
 This means the sampler may work with attaining pairs only; the excluded
 mass is the same ≤ δ-fraction their eq. (41) already charges.

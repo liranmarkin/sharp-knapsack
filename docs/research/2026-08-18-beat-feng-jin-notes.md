@@ -83,7 +83,7 @@ wants *before* attempting the problem), not a new algorithm.
 
 ## Empirical ground-truth on direction 1 (the blocker is real)
 
-`scratchpad/probe_logconcave.py`: computed the exact subset-count-by-weight
+`experiments/probe_logconcave.py`: computed the exact subset-count-by-weight
 array f (coeffs of ∏(1+x^{w_i})) on random bounded-ratio weight-class
 instances and general instances, and counted log-concavity /unimodality
 violations. Result: on **every** instance, ~half the interior support points
@@ -130,7 +130,7 @@ adaptive gain there. Construction is unchanged at Õ(n^1.5).
 whose outcome is deterministically ∅, so the output distribution is
 *identical* to the unpruned sampler (empirically confirmed: TV 0.016 vs
 0.016 against exact uniform at N=40k on an 8-item instance —
-`scratchpad/pruned_sampler.py`; work/sample savings 2.75×→3.94× as n
+`experiments/pruned_sampler.py`; work/sample savings 2.75×→3.94× as n
 64→256).
 
 **Status vs the goal.** This is a genuine, checkable improvement of the SOTA
@@ -211,8 +211,8 @@ and the sub-n^1.5 question deserve the effort more than hardness does.
 ## BREAKTHROUGH CANDIDATE: Õ(n^1.5 + n^{4/3}·ε^-2) - beating Feng-Jin for all ε = o(1)
 
 The (P) barrier is broken in the form the sampler actually needs, by combining
-five mechanisms - each validated in prototype (`scratchpad/witness_sampler.py`,
-`scratchpad/sublevel_sampler.py`, `scratchpad/pruned_sampler.py`):
+five mechanisms - each validated in prototype (`experiments/witness_sampler.py`,
+`experiments/sublevel_sampler.py`, `experiments/pruned_sampler.py`):
 
 1. **Witness-measure sampling.** The merged arrays' own values are
    h(z) = D^{C[z]}·w[z] with w[z] = Σ_{witness pairs} u[x]v[y] (their §6.2).
