@@ -95,3 +95,56 @@ there is no shape structure to exploit for o(L)-per-node sampling of
 would need a fundamentally different sketch (e.g. exploiting the (1±δ)-sum-
 approx *smoothing* of prefix sums, not pointwise shape) - an open data-
 structure question, not a session-sized fix.
+
+## Result: an instance-adaptive refinement (validated, written up)
+
+**Theorem (refinement of Feng-Jin).** The Feng-Jin FPRAS can be modified to
+run in time Õ(n^1.5 + n·√ℓ·ε^-2), where ℓ ∈ [2, 8n] is the popular-class
+parameter of the instance (their Lemma 3.1). Since ℓ ≤ 8n this never exceeds
+their Õ(n^1.5·ε^-2); for every instance with ℓ = o(n) it is strictly better,
+and in the natural regime ε ≥ 1/polylog it leaves the bound at Õ(n^1.5).
+
+**The modification (pruned lazy descent).** In the query stage of the merged
+sampler (their Lemma 4.7), descend a subtree only if its sampled portion is
+nonempty:
+1. At each node, the capacity-split draw `y ∝ f̂_L(y)·f̂_R^≤(x−y)` already
+   determines the left child's *exact* rounded weight y. If y = 0 and the
+   weight-0 stratum of the left child consists of the empty set alone
+   (f̂ ⁺_L(0) = 0 for the ∅-removed counting function f̂⁺ := f̂ − 1·[weight 0],
+   maintained through merges at no extra cost), output ∅ for that subtree
+   and do not descend.
+2. Mid-tree re-rounding can send nonempty subsets to weight 0 (when
+   m > ℓ·polylog), so descent into a weight-0-but-nonempty stratum still
+   happens - but each such descent delivers ≥ 1 item of the sample, so the
+   number of such events per sample is ≤ |X₊|·depth.
+
+**Cost accounting.** A partial sample has |X₊| ≤ t = Õ(ℓ) items. The visited
+nodes form the path-union of ≤ |X₊| leaves; with L_h = Õ(ℓ/2^{h/2}) the
+scan cost is Σ_h min(2^h, |X₊|)·ℓ/2^{h/2} = O(ℓ·√|X₊|) = Õ(ℓ^{1.5}) worst
+case, and Õ(ℓ√k) for samples of size k. Total sampling:
+N·Õ(ℓ√ℓ) = Õ(n/(ℓε²))·ℓ^{1.5} = Õ(n√ℓ·ε^-2). The same pruning applies to
+the second-phase sampler (Lemma 5.15's tree over I₀), giving the analogous
+adaptive gain there. Construction is unchanged at Õ(n^1.5).
+
+**Correctness.** The split-draw is unchanged; pruning only skips descents
+whose outcome is deterministically ∅, so the output distribution is
+*identical* to the unpruned sampler (empirically confirmed: TV 0.016 vs
+0.016 against exact uniform at N=40k on an 8-item instance —
+`scratchpad/pruned_sampler.py`; work/sample savings 2.75×→3.94× as n
+64→256).
+
+**Status vs the goal.** This is a genuine, checkable improvement of the SOTA
+*algorithm* (undominated: better on all ℓ = o(n) instances, never worse),
+but NOT a worst-case improvement: at ℓ = Θ(n) it ties. The worst case funnels
+entirely into the crux problem:
+
+**Problem (P).** Preprocess nonneg arrays a, b of length L in Õ(L) so that
+given query x, one can sample y ∝ a_y·b^≤(x−y) in polylog time (small TV
+error allowed). Solving (P) upgrades the bound to Õ(n^1.5 + n·ε^-2)
+uniformly. Shown tonight: the natural approaches fail - (i) dyadic-rectangle
+decomposition of {y+z ≤ x} needs Θ(L) rectangles (triangle boundary);
+(ii) rejection from the product has exponentially bad acceptance;
+(iii) per-x precomputation costs L² per node; (iv) f̂ has no shape structure
+(log-concavity empirically dead). (P) appears to be an open data-structure
+problem; it is *the* bottleneck between here and beating Feng-Jin
+in the small-ε regime.
