@@ -11,3 +11,4 @@ import SharpKnapsack.SamplerLedger
 import SharpKnapsack.SamplerInstance
 import SharpKnapsack.SamplerArrays
 import SharpKnapsack.SamplerTests
+import SharpKnapsack.SamplerPopular

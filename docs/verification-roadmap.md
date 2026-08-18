@@ -38,8 +38,11 @@ meaningful theorem; later stages depend only on earlier ones.
   fully constructive hitting set: h greedy rounds leave ≤ |F|·((n−s)/n)^h
   of any family of >s-sized sets unhit - plus `pow_shrink` (each n/s
   rounds halve the unhit family, via Bernoulli over ℚ). Replaces their
-  probabilistic method deterministically. Remaining: Lemma 3.4 (the
-  popular-class structural lemma for the general case).
+  probabilistic method deterministically. D.3 (done, `SamplerPopular.lean`):
+  Feng-Jin Lemma 3.1 - `popular_class`: some dyadic class ℓ = 2^k ∈ [2,8n]
+  holds ≥ ℓ/(8⌈log₂ 4n⌉) items (dyadic assignment + fiberwise pigeonhole,
+  all conditions multiplicative). Remaining in D: Lemmas 3.2/3.4 (the
+  d-band mapping and the Ω^△ bound feeding Lemma 3.3's constant).
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);
