@@ -22,10 +22,14 @@ meaningful theorem; later stages depend only on earlier ones.
   `kernel_l1_of_approx` (a (1±δ)-perturbed, witness-restricted kernel with
   γ dropped mass has L1 error ≤ 4δ + 3γ - the shape Stage 0's domination
   provides). Standard axioms only.
-- [ ] **Stage C - the estimator**: Monte Carlo mean of indicators over N
-  samples; multiplicative concentration (Chebyshev suffices for ε⁻² sample
-  complexity); combine with Stage B's TV to get the (1±ε, 3/4) guarantee
-  relative to the ratio being estimated.
+- [x] **Stage C - the estimator** (`SamplerEstimator.lean`, done): finite
+  product measures over sample vectors (`prodMass_total`), mean and
+  variance of the empirical sum with the independence cross-term vanishing
+  (`sum_dev_zero`, `sum_sq_dev`), the Chebyshev tail bound
+  `estimator_chebyshev` (≤ 1/(4Na²) for indicators - the ε⁻² engine), and
+  robustness: product-measure L1 subadditivity `prodMass_l1` +
+  `event_prob_diff`, the bridge that lets the estimator run on Stage B's
+  approximate sampler. Standard axioms only.
 - [ ] **Stage D - the combinatorial reductions**: Feng-Jin's Lemma 3.1
   (popular class) and Lemma 3.3 (hitting-set ratio ≥ ℓ/Õ(n)) - finite
   injection arguments; connects Stage C's ratio to |Ω|.
