@@ -61,9 +61,11 @@ meaningful theorem; later stages depend only on earlier ones.
   ≥ 2^g₀ neighbor solutions), `claim_36` (each solution neighbors at most
   (m₁+1)n^{m₁+1}·(m₂+1)n^{m₂+1} of them), `lemma_34` (100·|Ω^△| ≤ |Ω|,
   parametrized by the paper's arithmetic conditions incl. the exponent
-  gap). Remaining in D: discharging the parameter conditions from ℓ's
-  bounds (their ℓ > 100 log² choice) and composing Lemma 3.3's final
-  constant with the greedy hitting set.
+  gap). D.11 (done): `exponent_gap` -
+  lemma_34's hexp discharged from a linear exponent inequality. Remaining
+  in D: the ℕ-division arithmetic choosing (m₁, m₂, g₀) from ℓ ≥ C·L²
+  (params_choice), and composing Lemma 3.3's final constant with the
+  greedy hitting set.
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);
