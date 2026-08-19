@@ -38,13 +38,13 @@ def WitnessOracle (f g : ℕ → ℚ) (lv lw : ℕ → ℤ) (h : ℕ → ℚ) : 
 /-- **The merge dominates** (single-merge instance of Stage 0's diagonal
 domination): with 3-divisible level sums and the level sandwiches, the
 oracle's array is pointwise within `[convQ/(1+δ), convQ]`. -/
-theorem merge_dominates (D δ : ℚ) (hD : 1 < D) (hδ : 0 < δ)
+theorem merge_dominates (D δ : ℚ) (r : ℤ) (hD : 1 < D) (hδ : 0 < δ)
     (f g : ℕ → ℚ) (lv lw : ℕ → ℤ) (h : ℕ → ℚ)
     (hor : WitnessOracle f g lv lw h)
     (hnn : ∀ y, 0 ≤ f y) (hnn' : ∀ z, 0 ≤ g z)
     (hlvf : ∀ y, f y ≠ 0 → D ^ lv y ≤ f y ∧ f y < D ^ (lv y + 1))
     (hlwg : ∀ z, g z ≠ 0 → D ^ lw z ≤ g z ∧ g z < D ^ (lw z + 1))
-    (hsep3 : ∀ y z : ℕ, (3 : ℤ) ∣ lv y + lw z)
+    (hsep3 : ∀ y z : ℕ, f y ≠ 0 → g z ≠ 0 → (lv y + lw z) % 3 = r)
     (s : ℕ) (hs : (s + 1 : ℚ) ≤ δ * D) :
     h s ≤ convQ f g s ∧ convQ f g s ≤ (1 + δ) * h s := by
   classical
@@ -123,9 +123,13 @@ theorem merge_dominates (D δ : ℚ) (hD : 1 < D) (hδ : 0 < δ)
         rcases eq_or_lt_of_le hle with heq | hlt
         · exact Or.inl heq
         · right
-          have hd1 := hsep3 y (s - y)
+          have hfy : f y ≠ 0 := fun h0 => hy.2 (by rw [h0, zero_mul])
+          have hgy : g (s - y) ≠ 0 := fun h0 => hy.2 (by rw [h0, mul_zero])
+          have hd1 := hsep3 y (s - y) hfy hgy
           obtain ⟨y₀, hy₀, hy₀ne, hy₀C⟩ := hatt hzero
-          have hd2 : (3 : ℤ) ∣ C := hy₀C ▸ hsep3 y₀ (s - y₀)
+          have hf₀ : f y₀ ≠ 0 := fun h0 => hy₀ne (by rw [h0, zero_mul])
+          have hg₀ : g (s - y₀) ≠ 0 := fun h0 => hy₀ne (by rw [h0, mul_zero])
+          have hd2 : C % 3 = r := hy₀C ▸ hsep3 y₀ (s - y₀) hf₀ hg₀
           omega)
       (by
         obtain ⟨y₀, hy₀, hy₀ne, hy₀C⟩ := hatt hzero
@@ -175,7 +179,7 @@ theorem convQ_sandwich (f g cf cg : ℕ → ℚ) (δ₁ δ₂ : ℚ)
 `(1±δᵢ)` of reference arrays, plus a witness oracle, give a parent within
 `[(1−δ₁)(1−δ₂)/(1+δ), (1+δ₁)(1+δ₂)]` of the exact convolution of the
 references - the multiplicative form of the compounding `δ`-budget. -/
-theorem merge_spec (D δ δ₁ δ₂ : ℚ) (hD : 1 < D) (hδ : 0 < δ)
+theorem merge_spec (D δ δ₁ δ₂ : ℚ) (r : ℤ) (hD : 1 < D) (hδ : 0 < δ)
     (hδ₁ : 0 ≤ δ₁) (hδ₂ : 0 ≤ δ₂) (hδ₁1 : δ₁ ≤ 1) (hδ₂1 : δ₂ ≤ 1)
     (f g cf cg : ℕ → ℚ) (lv lw : ℕ → ℤ) (h : ℕ → ℚ)
     (hor : WitnessOracle f g lv lw h)
@@ -185,11 +189,11 @@ theorem merge_spec (D δ δ₁ δ₂ : ℚ) (hD : 1 < D) (hδ : 0 < δ)
     (hg : ∀ z, (1 - δ₂) * cg z ≤ g z ∧ g z ≤ (1 + δ₂) * cg z)
     (hlvf : ∀ y, f y ≠ 0 → D ^ lv y ≤ f y ∧ f y < D ^ (lv y + 1))
     (hlwg : ∀ z, g z ≠ 0 → D ^ lw z ≤ g z ∧ g z < D ^ (lw z + 1))
-    (hsep3 : ∀ y z : ℕ, (3 : ℤ) ∣ lv y + lw z)
+    (hsep3 : ∀ y z : ℕ, f y ≠ 0 → g z ≠ 0 → (lv y + lw z) % 3 = r)
     (s : ℕ) (hs : (s + 1 : ℚ) ≤ δ * D) :
     (1 - δ₁) * (1 - δ₂) * convQ cf cg s ≤ (1 + δ) * h s ∧
       h s ≤ (1 + δ₁) * (1 + δ₂) * convQ cf cg s := by
-  obtain ⟨hdom1, hdom2⟩ := merge_dominates D δ hD hδ f g lv lw h hor hnn hnn'
+  obtain ⟨hdom1, hdom2⟩ := merge_dominates D δ r hD hδ f g lv lw h hor hnn hnn'
     hlvf hlwg hsep3 s hs
   obtain ⟨hs1, hs2⟩ := convQ_sandwich f g cf cg δ₁ δ₂ hδ₁ hδ₂ hδ₁1 hδ₂1
     hcf hcg hnn hnn' hf hg s
@@ -252,3 +256,65 @@ theorem slowOracle_spec (f g : ℕ → ℚ) (lv lw : ℕ → ℤ) :
     obtain ⟨y₀, hy₀, hy₀eq⟩ := hmax
     rw [diagSupport, Finset.mem_filter] at hy₀
     exact ⟨y₀, hy₀.1, hy₀.2, hy₀eq⟩
+
+/-! ### The mod-3 piece decomposition
+
+Real arrays have arbitrary level residues; splitting each factor by level
+residue mod 3 yields nine piece-pairs, each with constant level-sum
+residue on its support - exactly the `hsep3` hypothesis above. -/
+
+/-- The level-residue-`i` piece of an array. -/
+def pieceOf (lv : ℕ → ℤ) (i : ℤ) (f : ℕ → ℚ) : ℕ → ℚ :=
+  fun y => if lv y % 3 = i then f y else 0
+
+theorem pieceOf_support (lv : ℕ → ℤ) (i : ℤ) (f : ℕ → ℚ) (y : ℕ)
+    (h : pieceOf lv i f y ≠ 0) : lv y % 3 = i ∧ f y ≠ 0 := by
+  by_cases hi : lv y % 3 = i
+  · refine ⟨hi, ?_⟩
+    rw [pieceOf, if_pos hi] at h
+    exact h
+  · rw [pieceOf, if_neg hi] at h
+    exact absurd rfl h
+
+/-- Each piece-pair has constant level-sum residue on its support. -/
+theorem pieceOf_residue (lv lw : ℕ → ℤ) (i j : ℤ) (f g : ℕ → ℚ)
+    (y z : ℕ) (hy : pieceOf lv i f y ≠ 0) (hz : pieceOf lw j g z ≠ 0) :
+    (lv y + lw z) % 3 = (i + j) % 3 := by
+  obtain ⟨hi, -⟩ := pieceOf_support lv i f y hy
+  obtain ⟨hj, -⟩ := pieceOf_support lw j g z hz
+  omega
+
+/-- The three pieces reassemble the array. -/
+theorem pieceOf_sum (lv : ℕ → ℤ) (f : ℕ → ℚ) (y : ℕ) :
+    pieceOf lv 0 f y + pieceOf lv 1 f y + pieceOf lv 2 f y = f y := by
+  have h3 : lv y % 3 = 0 ∨ lv y % 3 = 1 ∨ lv y % 3 = 2 := by omega
+  rcases h3 with h | h | h <;>
+    simp [pieceOf, h]
+
+/-- The convolution decomposes over the nine piece-pairs. -/
+theorem convQ_pieces (lv lw : ℕ → ℤ) (f g : ℕ → ℚ) (s : ℕ) :
+    convQ f g s =
+      ∑ i ∈ range 3, ∑ j ∈ range 3,
+        convQ (pieceOf lv i f) (pieceOf lw j g) s := by
+  simp only [convQ]
+  have hstep1 : ∀ i : ℕ, (∑ j ∈ range 3, ∑ y ∈ range (s + 1),
+      pieceOf lv i f y * pieceOf lw j g (s - y)) =
+      ∑ y ∈ range (s + 1), ∑ j ∈ range 3,
+        pieceOf lv i f y * pieceOf lw j g (s - y) := fun i => Finset.sum_comm
+  rw [Finset.sum_congr rfl (fun i _ => hstep1 i), Finset.sum_comm]
+  apply Finset.sum_congr rfl
+  intro y _
+  have hexp : (∑ i ∈ range 3, ∑ j ∈ range 3,
+      pieceOf lv i f y * pieceOf lw j g (s - y)) =
+      (∑ i ∈ range 3, pieceOf lv i f y) *
+        ∑ j ∈ range 3, pieceOf lw j g (s - y) := by
+    rw [Finset.sum_mul_sum]
+  have hfs : (∑ i ∈ range 3, pieceOf lv (i : ℤ) f y) = f y := by
+    rw [Finset.sum_range_succ, Finset.sum_range_succ, Finset.sum_range_one]
+    push_cast
+    exact pieceOf_sum lv f y
+  have hgs : (∑ j ∈ range 3, pieceOf lw (j : ℤ) g (s - y)) = g (s - y) := by
+    rw [Finset.sum_range_succ, Finset.sum_range_succ, Finset.sum_range_one]
+    push_cast
+    exact pieceOf_sum lw g (s - y)
+  rw [hexp, hfs, hgs]

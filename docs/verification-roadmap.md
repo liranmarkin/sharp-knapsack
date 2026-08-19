@@ -94,7 +94,9 @@ meaningful theorem; later stages depend only on earlier ones.
   the merge layer - `WitnessOracle` (Theorem 6.1's postcondition),
   `merge_dominates` (oracle output pointwise within [convQ/(1+δ), convQ]),
   `convQ_sandwich`, and `merge_spec` (the full induction step: children
-  within (1±δᵢ) + oracle ⇒ parent within the compounded budget).
+  within (1±δᵢ) + oracle ⇒ parent within the compounded budget), now with
+  residue-class separation and the mod-3 piece decomposition
+  (`pieceOf_residue`, `convQ_pieces`) discharging it for arbitrary arrays.
   The oracle is inhabited by verified
   executable code (`slowOracle`, `slowOracle_spec`), so The construction-side cost
   accounting is also verified (`construction_ledger`: the balanced
