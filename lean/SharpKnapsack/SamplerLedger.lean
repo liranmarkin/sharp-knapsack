@@ -225,3 +225,158 @@ theorem ledger_sqrt (B k D : ℕ) :
         ∑ h ∈ (range D).filter (fun h => ¬ h < H + 2), (k * B) / 2 ^ (h / 2)
       ≤ 8 * B * Nat.sqrt k + 8 * B * Nat.sqrt k := add_le_add hpart1 hpart2
     _ ≤ 32 * B * (Nat.sqrt k + 1) := by nlinarith [Nat.zero_le (B * Nat.sqrt k)]
+
+/-! ### The construction ledger: the `n^{1.5}` accounting
+
+Per tree level `h`: `2^h` nodes, arrays of length `L/2^(h/2)`, oracle cost
+`length · √(value-range)` with range `M/2^h`. The balanced schedule makes
+every level cost `O(L·√M)`; over `D+1` levels the total is
+`O(D·L·√M)` - the machine-checked shape of the `Õ(n^{1.5})` construction
+bound, with the oracle's own cost as the unit. -/
+
+/-- `√(M/2^h)` is within one of `√M / 2^(h/2)`. -/
+theorem sqrt_div_pow_le (M h : ℕ) :
+    Nat.sqrt (M / 2 ^ h) ≤ Nat.sqrt M / 2 ^ (h / 2) + 1 := by
+  set x := Nat.sqrt (M / 2 ^ h) with hx
+  rcases Nat.eq_zero_or_pos x with h0 | hpos
+  · rw [h0]
+    exact Nat.zero_le _
+  · have hxsq : x * x ≤ M / 2 ^ h := by
+      have h := Nat.sqrt_le' (M / 2 ^ h)
+      rw [pow_two] at h
+      exact h
+    have h1 : (x - 1) * 2 ^ (h / 2) ≤ Nat.sqrt M := by
+      apply Nat.le_sqrt.mpr
+      have e1 : (x - 1) * 2 ^ (h / 2) * ((x - 1) * 2 ^ (h / 2)) =
+          ((x - 1) * (x - 1)) * (2 ^ (h / 2) * 2 ^ (h / 2)) := by ring
+      rw [e1]
+      have h2 : (x - 1) * (x - 1) ≤ x * x :=
+        Nat.mul_le_mul (by omega) (by omega)
+      have h3 : (2:ℕ) ^ (h / 2) * 2 ^ (h / 2) ≤ 2 ^ h := by
+        rw [← pow_add]
+        exact Nat.pow_le_pow_right (by norm_num) (by omega)
+      calc ((x - 1) * (x - 1)) * (2 ^ (h / 2) * 2 ^ (h / 2))
+          ≤ (M / 2 ^ h) * 2 ^ h := by
+            apply Nat.mul_le_mul (le_trans h2 hxsq) h3
+        _ ≤ M := by
+            rw [mul_comm]
+            exact Nat.mul_div_le M (2 ^ h)
+    have h4 : x - 1 ≤ Nat.sqrt M / 2 ^ (h / 2) := by
+      rw [Nat.le_div_iff_mul_le (by positivity)]
+      exact h1
+    omega
+
+/-- **The construction ledger**: total oracle cost over the tree is
+`O(D·L·(√M + 1))` - the `Õ(n^{1.5})` shape with the per-node oracle cost
+`length·(√range + 1)` as the unit. -/
+theorem construction_ledger (L M D : ℕ) (hD : 2 ^ D ≤ 2 * M) :
+    (∑ h ∈ range (D + 1),
+      (2 ^ h * (L / 2 ^ (h / 2))) * (Nat.sqrt (M / 2 ^ h) + 1)) ≤
+      (2 * (D + 1) + 64) * (L * (Nat.sqrt M + 1)) := by
+  have hterm : ∀ h ∈ range (D + 1),
+      (2 ^ h * (L / 2 ^ (h / 2))) * (Nat.sqrt (M / 2 ^ h) + 1) ≤
+        2 * (L * (Nat.sqrt M + 1)) + 2 * (L * 2 ^ ((h + 1) / 2)) := by
+    intro h _
+    have hlen : 2 ^ h * (L / 2 ^ (h / 2)) ≤ L * 2 ^ ((h + 1) / 2) := by
+      have hsplitexp : (2:ℕ) ^ h = 2 ^ ((h + 1) / 2) * 2 ^ (h / 2) := by
+        rw [← pow_add]
+        congr 1
+        omega
+      calc 2 ^ h * (L / 2 ^ (h / 2))
+          = 2 ^ ((h + 1) / 2) * (2 ^ (h / 2) * (L / 2 ^ (h / 2))) := by
+            rw [hsplitexp]
+            ring
+        _ ≤ 2 ^ ((h + 1) / 2) * L := by
+            apply Nat.mul_le_mul_left
+            rw [mul_comm]
+            exact Nat.div_mul_le_self L (2 ^ (h / 2))
+        _ = L * 2 ^ ((h + 1) / 2) := Nat.mul_comm _ _
+    have hsqrt := sqrt_div_pow_le M h
+    -- split √M/2^(h/2) into the balanced part and the +2 slop
+    have hbal : 2 ^ ((h + 1) / 2) * (Nat.sqrt M / 2 ^ (h / 2)) ≤
+        2 * Nat.sqrt M := by
+      have h5 : (2:ℕ) ^ ((h + 1) / 2) ≤ 2 * 2 ^ (h / 2) := by
+        calc (2:ℕ) ^ ((h + 1) / 2) ≤ 2 ^ (h / 2 + 1) :=
+              Nat.pow_le_pow_right (by norm_num) (by omega)
+          _ = 2 * 2 ^ (h / 2) := by rw [pow_succ]; ring
+      calc 2 ^ ((h + 1) / 2) * (Nat.sqrt M / 2 ^ (h / 2))
+          ≤ (2 * 2 ^ (h / 2)) * (Nat.sqrt M / 2 ^ (h / 2)) :=
+            Nat.mul_le_mul_right _ h5
+        _ = 2 * (2 ^ (h / 2) * (Nat.sqrt M / 2 ^ (h / 2))) := by ring
+        _ ≤ 2 * Nat.sqrt M := by
+            apply Nat.mul_le_mul_left
+            rw [mul_comm]
+            exact Nat.div_mul_le_self _ _
+    calc (2 ^ h * (L / 2 ^ (h / 2))) * (Nat.sqrt (M / 2 ^ h) + 1)
+        ≤ (L * 2 ^ ((h + 1) / 2)) * (Nat.sqrt M / 2 ^ (h / 2) + 2) := by
+          apply Nat.mul_le_mul hlen
+          omega
+      _ = L * (2 ^ ((h + 1) / 2) * (Nat.sqrt M / 2 ^ (h / 2))) +
+          2 * (L * 2 ^ ((h + 1) / 2)) := by ring
+      _ ≤ L * (2 * Nat.sqrt M) + 2 * (L * 2 ^ ((h + 1) / 2)) := by
+          apply Nat.add_le_add_right
+          exact Nat.mul_le_mul_left _ hbal
+      _ ≤ 2 * (L * (Nat.sqrt M + 1)) + 2 * (L * 2 ^ ((h + 1) / 2)) := by
+          apply Nat.add_le_add_right
+          have : L * (2 * Nat.sqrt M) ≤ 2 * (L * Nat.sqrt M) := by
+            apply le_of_eq
+            ring
+          calc L * (2 * Nat.sqrt M) = 2 * (L * Nat.sqrt M) := by ring
+            _ ≤ 2 * (L * (Nat.sqrt M + 1)) := by
+                apply Nat.mul_le_mul_left
+                apply Nat.mul_le_mul_left
+                omega
+    -- (the +2·L·2^((h+1)/2) slop is summed via the staircase below)
+  calc (∑ h ∈ range (D + 1),
+        (2 ^ h * (L / 2 ^ (h / 2))) * (Nat.sqrt (M / 2 ^ h) + 1))
+      ≤ ∑ h ∈ range (D + 1),
+        (2 * (L * (Nat.sqrt M + 1)) + 2 * (L * 2 ^ ((h + 1) / 2))) :=
+        Finset.sum_le_sum hterm
+    _ = (D + 1) * (2 * (L * (Nat.sqrt M + 1))) +
+        2 * (L * ∑ h ∈ range (D + 1), 2 ^ ((h + 1) / 2)) := by
+        rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_range,
+          smul_eq_mul, ← Finset.mul_sum, ← Finset.mul_sum]
+    _ ≤ (D + 1) * (2 * (L * (Nat.sqrt M + 1))) +
+        2 * (L * 2 ^ ((D + 1) / 2 + 2)) := by
+        apply Nat.add_le_add_left
+        apply Nat.mul_le_mul_left
+        exact Nat.mul_le_mul_left _ (staircase_le (D + 1))
+    _ ≤ (2 * (D + 1) + 64) * (L * (Nat.sqrt M + 1)) := by
+        have hpow : (2:ℕ) ^ ((D + 1) / 2 + 2) ≤ 32 * (Nat.sqrt M + 1) := by
+          have h6 : (2:ℕ) ^ ((D + 1) / 2 + 2) = 2 ^ ((D + 1) / 2) * 4 := by
+            rw [pow_add]
+            norm_num
+          have h7 : (2:ℕ) ^ ((D + 1) / 2) ≤ 2 ^ (D / 2 + 1) :=
+            Nat.pow_le_pow_right (by norm_num) (by omega)
+          have h8 : (2:ℕ) ^ (D / 2) ≤ Nat.sqrt (2 * M) := by
+            apply Nat.le_sqrt.mpr
+            calc 2 ^ (D / 2) * 2 ^ (D / 2) = 2 ^ (D / 2 + D / 2) := by
+                  rw [pow_add]
+              _ ≤ 2 ^ D := Nat.pow_le_pow_right (by norm_num) (by omega)
+              _ ≤ 2 * M := hD
+          have h9 : Nat.sqrt (2 * M) ≤ 2 * (Nat.sqrt M + 1) := by
+            have h10 : 2 * M ≤ (2 * (Nat.sqrt M + 1)) * (2 * (Nat.sqrt M + 1)) := by
+              have h11 := Nat.lt_succ_sqrt M
+              simp only [Nat.succ_eq_add_one] at h11
+              nlinarith [Nat.sqrt_le' M]
+            calc Nat.sqrt (2 * M)
+                ≤ Nat.sqrt ((2 * (Nat.sqrt M + 1)) * (2 * (Nat.sqrt M + 1))) :=
+                  Nat.sqrt_le_sqrt h10
+              _ = 2 * (Nat.sqrt M + 1) := Nat.sqrt_eq _
+          calc (2:ℕ) ^ ((D + 1) / 2 + 2) = 2 ^ ((D + 1) / 2) * 4 := h6
+            _ ≤ 2 ^ (D / 2 + 1) * 4 := Nat.mul_le_mul_right _ h7
+            _ = 2 ^ (D / 2) * 8 := by rw [pow_succ]; ring
+            _ ≤ Nat.sqrt (2 * M) * 8 := Nat.mul_le_mul_right _ h8
+            _ ≤ (2 * (Nat.sqrt M + 1)) * 8 := Nat.mul_le_mul_right _ h9
+            _ ≤ 32 * (Nat.sqrt M + 1) := by omega
+        have e1 : (2 * (D + 1) + 64) * (L * (Nat.sqrt M + 1)) =
+            (D + 1) * (2 * (L * (Nat.sqrt M + 1))) +
+              64 * (L * (Nat.sqrt M + 1)) := by ring
+        have e2 : 2 * (L * 2 ^ ((D + 1) / 2 + 2)) ≤
+            64 * (L * (Nat.sqrt M + 1)) := by
+          calc 2 * (L * 2 ^ ((D + 1) / 2 + 2))
+              ≤ 2 * (L * (32 * (Nat.sqrt M + 1))) := by
+                apply Nat.mul_le_mul_left
+                exact Nat.mul_le_mul_left _ hpow
+            _ = 64 * (L * (Nat.sqrt M + 1)) := by ring
+        omega

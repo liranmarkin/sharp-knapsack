@@ -96,10 +96,13 @@ meaningful theorem; later stages depend only on earlier ones.
   `convQ_sandwich`, and `merge_spec` (the full induction step: children
   within (1±δᵢ) + oracle ⇒ parent within the compounded budget).
   The oracle is inhabited by verified
-  executable code (`slowOracle`, `slowOracle_spec`), so ONLY the speed of
-  the oracle remains: F.1b - the fast implementation (Feng-Jin Theorem 6.1
-  / BDP24: FFT + random primes) with its cost model - the last item of
-  the entire campaign.
+  executable code (`slowOracle`, `slowOracle_spec`), so The construction-side cost
+  accounting is also verified (`construction_ledger`: the balanced
+  schedule makes every tree level cost O(L·√M) oracle-units, total
+  O(D·L·√M) - the Õ(n^{1.5}) shape). ONLY the oracle's internal speed
+  remains: F.1b - the fast implementation (Feng-Jin Theorem 6.1 / BDP24:
+  FFT + random primes) meeting the per-call O(L·√M) unit - the last item
+  of the entire campaign.
 
 - [x] **Assembly** (`SamplerAssembly.lean`, done): `fpras_assembly` -
   Stages A+B+C composed into the top-level guarantee: under the
