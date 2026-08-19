@@ -90,9 +90,14 @@ meaningful theorem; later stages depend only on earlier ones.
   (`SamplerArrays.lean`): `ArraysOK` (the spec the construction must meet:
   pointwise (1±δ) arrays + witness sets with γ dropped mass) with
   `arrayKernel_ok` and `arrayKernel_close` (induced kernels are valid and
-  within local L1 12δ+3γ of exact). Remaining (F.1): produce ArraysOK
-  arrays in Õ(n^1.5) - Feng-Jin Theorem 6.1 / BDP24 with FFT and random
-  primes - the last and largest item.
+  within local L1 12δ+3γ of exact). F.1a (done, `SamplerMerge.lean`):
+  the merge layer - `WitnessOracle` (Theorem 6.1's postcondition),
+  `merge_dominates` (oracle output pointwise within [convQ/(1+δ), convQ]),
+  `convQ_sandwich`, and `merge_spec` (the full induction step: children
+  within (1±δᵢ) + oracle ⇒ parent within the compounded budget).
+  Remaining (F.1b): *implementing* the WitnessOracle fast - Feng-Jin
+  Theorem 6.1 / BDP24 with FFT and random primes, plus its cost model -
+  the last item of the entire campaign.
 
 - [x] **Assembly** (`SamplerAssembly.lean`, done): `fpras_assembly` -
   Stages A+B+C composed into the top-level guarantee: under the
