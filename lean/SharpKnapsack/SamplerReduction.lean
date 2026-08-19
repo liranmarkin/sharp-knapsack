@@ -705,3 +705,277 @@ theorem pool_exists (m₁ g₀ : ℕ) (Good X : Finset ℕ)
   rw [Finset.disjoint_left]
   intro a haG haX
   exact (Finset.mem_sdiff.mp (hGsub haG)).2 haX
+
+/-! ### D.10: Claims 3.5 and 3.6 assembled, and Lemma 3.4 -/
+
+/-- **Claim 3.5**: every few-large-items set has at least `2^g₀` neighbor
+solutions (extensions of its huge-free part by good items). -/
+theorem claim_35 (n T ℓ L2 m₁ g₀ : ℕ) (W : ℕ → ℕ) (X : Finset ℕ)
+    (hX : X ⊆ Finset.range n) (hL2 : 0 < L2)
+    (hsmall : 2 * (∑ j ∈ (Finset.range n).filter (fun j => W j * ℓ ≤ T), W j) ≤ T)
+    (hfew : (X.filter (fun j => T < W j * ℓ)).card ≤ m₁)
+    (hm₁ : 100 * m₁ * L2 ≤ ℓ)
+    (hg₀ : 20 * g₀ ≤ ℓ)
+    (hGood : g₀ + m₁ ≤
+      ((Finset.range n).filter (fun j => T < W j * ℓ ∧ W j * ℓ ≤ 2 * T)).card) :
+    2 ^ g₀ ≤ ((solSet n W T).filter (fun Y =>
+        X.filter (fun j => W j * ℓ < 40 * L2 * T) ⊆ Y ∧
+        Y \ X.filter (fun j => W j * ℓ < 40 * L2 * T) ⊆
+          (Finset.range n).filter
+            (fun j => T < W j * ℓ ∧ W j * ℓ ≤ 2 * T))).card := by
+  classical
+  set Gd := (Finset.range n).filter (fun j => T < W j * ℓ ∧ W j * ℓ ≤ 2 * T)
+    with hGd
+  set Xh := X.filter (fun j => W j * ℓ < 40 * L2 * T) with hXh
+  -- the pool
+  have hmeet : (Gd ∩ X).card ≤ m₁ := by
+    have hsub : Gd ∩ X ⊆ X.filter (fun j => T < W j * ℓ) := by
+      intro j hj
+      rw [Finset.mem_inter] at hj
+      have h1 := hj.1
+      rw [hGd, Finset.mem_filter] at h1
+      rw [Finset.mem_filter]
+      exact ⟨hj.2, h1.2.1⟩
+    exact le_trans (Finset.card_le_card hsub) hfew
+  obtain ⟨G, hGsub, hGcard, hGdisj⟩ := pool_exists m₁ g₀ Gd X hGood hmeet
+  -- pool weight: 10·Σ_G ≤ T
+  have hGw : 10 * (∑ j ∈ G, W j) ≤ T := by
+    have h1 : (∑ j ∈ G, W j) * ℓ ≤ g₀ * (2 * T) := by
+      rw [Finset.sum_mul]
+      calc (∑ j ∈ G, W j * ℓ) ≤ ∑ _j ∈ G, 2 * T := by
+            apply Finset.sum_le_sum
+            intro j hj
+            have := hGsub hj
+            rw [hGd, Finset.mem_filter] at this
+            exact this.2.2
+        _ = G.card * (2 * T) := by rw [Finset.sum_const, smul_eq_mul]
+        _ = g₀ * (2 * T) := by rw [hGcard]
+    rcases Nat.eq_zero_or_pos g₀ with hg | hg
+    · have hGe : G = ∅ := Finset.card_eq_zero.mp (by omega)
+      rw [hGe]
+      simp
+    · have key : g₀ * (2 * (10 * ∑ j ∈ G, W j)) ≤ g₀ * (2 * T) := by
+        calc g₀ * (2 * (10 * ∑ j ∈ G, W j))
+            = (∑ j ∈ G, W j) * (20 * g₀) := by ring
+          _ ≤ (∑ j ∈ G, W j) * ℓ := Nat.mul_le_mul_left _ hg₀
+          _ ≤ g₀ * (2 * T) := h1
+      have := Nat.le_of_mul_le_mul_left key hg
+      omega
+  -- the huge-free part fits with the pool under the capacity
+  have hXhw := hat_weight_le n T ℓ L2 m₁ W X hX hL2 hsmall hfew hm₁
+  have hcap : (∑ j ∈ Xh, W j) + (∑ j ∈ G, W j) ≤ T := by
+    rw [← hXh] at hXhw
+    omega
+  -- disjointness and ranges
+  have hXhsub : Xh ⊆ Finset.range n :=
+    Finset.Subset.trans (Finset.filter_subset _ _) hX
+  have hGrange : G ⊆ Finset.range n :=
+    Finset.Subset.trans hGsub (Finset.filter_subset _ _)
+  have hdisj : Disjoint Xh G := by
+    apply Finset.disjoint_of_subset_left (Finset.filter_subset _ _)
+    exact hGdisj.symm
+  -- count via the pool, then relax G to the full good set
+  calc 2 ^ g₀ = 2 ^ G.card := by rw [hGcard]
+    _ ≤ ((solSet n W T).filter (fun Y => Xh ⊆ Y ∧ Y \ Xh ⊆ G)).card :=
+        pool_neighbors_card n T W Xh G hXhsub hGrange hdisj hcap
+    _ ≤ ((solSet n W T).filter (fun Y => Xh ⊆ Y ∧ Y \ Xh ⊆ Gd)).card := by
+        apply Finset.card_le_card
+        intro Y hY
+        rw [Finset.mem_filter] at hY ⊢
+        exact ⟨hY.1, hY.2.1, Finset.Subset.trans hY.2.2 hGsub⟩
+
+/-- **Claim 3.6**: for a fixed solution `X`, at most
+`((m₁+1)·n^(m₁+1))·((m₂+1)·n^(m₂+1))` few-large-items sets have `X` as a
+neighbor. -/
+theorem claim_36 (n T ℓ L2 m₁ m₂ : ℕ) (W : ℕ → ℕ) (X : Finset ℕ)
+    (hn : 0 < n) (hT : 0 < T) (hL2 : 0 < L2)
+    (hm₂ : 2 * ℓ ≤ m₂ * (40 * L2))
+    (F : Finset (Finset ℕ))
+    (hF : ∀ Y ∈ F, Y ⊆ Finset.range n ∧ (∑ j ∈ Y, W j) ≤ 2 * T ∧
+      (Y.filter (fun j => T < W j * ℓ)).card ≤ m₁ ∧
+      Y.filter (fun j => W j * ℓ < 40 * L2 * T) ⊆ X ∧
+      X \ Y.filter (fun j => W j * ℓ < 40 * L2 * T) ⊆
+        (Finset.range n).filter (fun j => T < W j * ℓ ∧ W j * ℓ ≤ 2 * T)) :
+    F.card ≤ ((m₁ + 1) * n ^ (m₁ + 1)) * ((m₂ + 1) * n ^ (m₂ + 1)) := by
+  classical
+  set Gd := (Finset.range n).filter (fun j => T < W j * ℓ ∧ W j * ℓ ≤ 2 * T)
+    with hGd
+  set P := ((Finset.range n).powerset.filter (fun K => K.card < m₁ + 1)).image
+    (fun K => Gd \ K) with hP
+  set Q := (Finset.range n).powerset.filter (fun H => H.card < m₂ + 1) with hQ
+  have hdec : ∀ Y ∈ F, ∃ R ∈ P, ∃ H ∈ Q, Y = (X \ R) ∪ H := by
+    intro Y hY
+    obtain ⟨hYr, hYw, hYfew, hhat, hgood⟩ := hF Y hY
+    set Yh := Y.filter (fun j => W j * ℓ < 40 * L2 * T) with hYh
+    set Hu := Y.filter (fun j => ¬ W j * ℓ < 40 * L2 * T) with hHu
+    set K := Yh ∩ Gd with hK
+    refine ⟨Gd \ K, ?_, Hu, ?_, ?_⟩
+    · rw [hP, Finset.mem_image]
+      refine ⟨K, ?_, rfl⟩
+      rw [Finset.mem_filter, Finset.mem_powerset]
+      constructor
+      · calc K ⊆ Yh := Finset.inter_subset_left
+          _ ⊆ Y := Finset.filter_subset _ _
+          _ ⊆ Finset.range n := hYr
+      · have hKsub : K ⊆ Y.filter (fun j => T < W j * ℓ) := by
+          intro j hj
+          rw [hK, Finset.mem_inter] at hj
+          have h2 := hj.2
+          rw [hGd, Finset.mem_filter] at h2
+          rw [Finset.mem_filter]
+          exact ⟨Finset.filter_subset _ _ hj.1, h2.2.1⟩
+        have := Finset.card_le_card hKsub
+        omega
+    · rw [hQ, Finset.mem_filter, Finset.mem_powerset]
+      constructor
+      · exact Finset.Subset.trans (Finset.filter_subset _ _) hYr
+      · have hcount := huge_count_le T ℓ L2 W Y hYw
+        have hHuc : Hu.card * (40 * L2 * T) ≤ 2 * T * ℓ := by
+          rw [hHu]
+          have hiff : Y.filter (fun j => ¬ W j * ℓ < 40 * L2 * T) =
+              Y.filter (fun j => 40 * L2 * T ≤ W j * ℓ) := by
+            apply Finset.filter_congr
+            intro j _
+            exact not_lt
+          rw [hiff]
+          exact hcount
+        by_contra hcon
+        push Not at hcon
+        have h1 : (m₂ + 1) * (40 * L2 * T) ≤ Hu.card * (40 * L2 * T) :=
+          Nat.mul_le_mul_right _ (by omega)
+        have h2 : 2 * T * ℓ = (2 * ℓ) * T := by ring
+        have h3 : (2 * ℓ) * T ≤ (m₂ * (40 * L2)) * T :=
+          Nat.mul_le_mul_right _ hm₂
+        have h4 : (m₂ * (40 * L2)) * T = m₂ * (40 * L2 * T) := by ring
+        have h5 : (m₂ + 1) * (40 * L2 * T) = m₂ * (40 * L2 * T) + 40 * L2 * T := by
+          ring
+        have hpos : 0 < 40 * L2 * T := by positivity
+        omega
+    · -- the decomposition identity Y = (X \ (Gd \ K)) ∪ Hu
+      have hYsplit : Yh ∪ Hu = Y := by
+        rw [hYh, hHu]
+        exact Finset.filter_union_filter_not_eq _ Y
+      have hhat' : X \ Gd ⊆ Yh := by
+        intro x hx
+        rw [Finset.mem_sdiff] at hx
+        by_contra hxY
+        exact hx.2 (hgood (Finset.mem_sdiff.mpr ⟨hx.1, hxY⟩))
+      have hYheq : Yh = (X \ Gd) ∪ K := by
+        apply Finset.Subset.antisymm
+        · intro y hy
+          rw [Finset.mem_union, Finset.mem_sdiff]
+          by_cases hyGd : y ∈ Gd
+          · right
+            rw [hK, Finset.mem_inter]
+            exact ⟨hy, hyGd⟩
+          · left
+            exact ⟨hhat hy, hyGd⟩
+        · apply Finset.union_subset hhat'
+          rw [hK]
+          exact Finset.inter_subset_left
+      have hKX : K ⊆ X := by
+        rw [hK]
+        exact Finset.Subset.trans Finset.inter_subset_left hhat
+      have hXR : X \ (Gd \ K) = (X \ Gd) ∪ K := by
+        ext x
+        simp only [Finset.mem_sdiff, Finset.mem_union]
+        constructor
+        · rintro ⟨hxX, hnot⟩
+          by_cases hxGd : x ∈ Gd
+          · right
+            by_contra hxK
+            exact hnot ⟨hxGd, hxK⟩
+          · left
+            exact ⟨hxX, hxGd⟩
+        · rintro (⟨hxX, hxGd⟩ | hxK)
+          · exact ⟨hxX, fun h => hxGd h.1⟩
+          · exact ⟨hKX hxK, fun h => h.2 hxK⟩
+      rw [hXR, ← hYheq]
+      exact hYsplit.symm
+  exact le_trans (fiber_card_le F X P Q hdec) (by
+    have hPcard : P.card ≤ (m₁ + 1) * n ^ (m₁ + 1) := by
+      calc P.card ≤ ((Finset.range n).powerset.filter
+          (fun K => K.card < m₁ + 1)).card := Finset.card_image_le
+        _ ≤ (m₁ + 1) * n ^ (m₁ + 1) := card_small_subsets_lt n (m₁ + 1) hn
+    have hQcard : Q.card ≤ (m₂ + 1) * n ^ (m₂ + 1) :=
+      card_small_subsets_lt n (m₂ + 1) hn
+    exact Nat.mul_le_mul hPcard hQcard)
+
+/-- **Feng-Jin Lemma 3.4** (parametrized): the family Ω^△ of `(T, 2T]`-
+weight subsets with at most `m₁` large items is at most a 1/100-fraction
+of the solution set, whenever the parameters satisfy the (paper's-choice)
+inequalities - in particular the exponent gap
+`100·((m₁+1)n^{m₁+1})·((m₂+1)n^{m₂+1}) ≤ 2^{g₀}`. -/
+theorem lemma_34 (n T ℓ L2 m₁ m₂ g₀ : ℕ) (W : ℕ → ℕ)
+    (hn : 0 < n) (hT : 0 < T) (hL2 : 0 < L2)
+    (hsmall : 2 * (∑ j ∈ (Finset.range n).filter (fun j => W j * ℓ ≤ T), W j) ≤ T)
+    (hm₁ : 100 * m₁ * L2 ≤ ℓ)
+    (hg₀ : 20 * g₀ ≤ ℓ)
+    (hGood : g₀ + m₁ ≤
+      ((Finset.range n).filter (fun j => T < W j * ℓ ∧ W j * ℓ ≤ 2 * T)).card)
+    (hm₂ : 2 * ℓ ≤ m₂ * (40 * L2))
+    (hexp : 100 * (((m₁ + 1) * n ^ (m₁ + 1)) * ((m₂ + 1) * n ^ (m₂ + 1))) ≤ 2 ^ g₀) :
+    100 * ((Finset.range n).powerset.filter (fun Y =>
+        T < (∑ j ∈ Y, W j) ∧ (∑ j ∈ Y, W j) ≤ 2 * T ∧
+        (Y.filter (fun j => T < W j * ℓ)).card ≤ m₁)).card ≤
+      (solSet n W T).card := by
+  classical
+  set A := (Finset.range n).powerset.filter (fun Y =>
+    T < (∑ j ∈ Y, W j) ∧ (∑ j ∈ Y, W j) ≤ 2 * T ∧
+    (Y.filter (fun j => T < W j * ℓ)).card ≤ m₁) with hA
+  set Gd := (Finset.range n).filter (fun j => T < W j * ℓ ∧ W j * ℓ ≤ 2 * T)
+    with hGd
+  set E : Finset ℕ → Finset ℕ → Bool := fun Y X =>
+    decide (Y.filter (fun j => W j * ℓ < 40 * L2 * T) ⊆ X ∧
+      X \ Y.filter (fun j => W j * ℓ < 40 * L2 * T) ⊆ Gd) with hE
+  set dB := ((m₁ + 1) * n ^ (m₁ + 1)) * ((m₂ + 1) * n ^ (m₂ + 1)) with hdB
+  have hdc := bipartite_double_count A (solSet n W T) E (2 ^ g₀) dB
+    (by
+      intro Y hY
+      rw [hA, Finset.mem_filter, Finset.mem_powerset] at hY
+      obtain ⟨hYr, -, -, hYfew⟩ := hY
+      have h35 := claim_35 n T ℓ L2 m₁ g₀ W Y hYr hL2 hsmall hYfew hm₁ hg₀
+        (by rw [← hGd] at *; exact hGood)
+      calc 2 ^ g₀ ≤ ((solSet n W T).filter (fun X =>
+            Y.filter (fun j => W j * ℓ < 40 * L2 * T) ⊆ X ∧
+            X \ Y.filter (fun j => W j * ℓ < 40 * L2 * T) ⊆ Gd)).card := by
+            rw [hGd]
+            exact h35
+        _ = ((solSet n W T).filter (fun X => E Y X)).card := by
+            congr 1
+            apply Finset.filter_congr
+            intro X _
+            rw [hE]
+            simp
+      )
+    (by
+      intro X hX
+      have h36 := claim_36 n T ℓ L2 m₁ m₂ W X hn hT hL2 hm₂
+        (A.filter (fun Y => E Y X))
+        (by
+          intro Y hY
+          rw [Finset.mem_filter] at hY
+          obtain ⟨hYA, hYE⟩ := hY
+          rw [hA, Finset.mem_filter, Finset.mem_powerset] at hYA
+          rw [hE] at hYE
+          simp only [decide_eq_true_eq] at hYE
+          rw [hGd] at hYE
+          exact ⟨hYA.1, le_of_lt hYA.2.1 |>.trans (le_refl _) |> fun _ => hYA.2.2.1,
+            hYA.2.2.2, hYE.1, hYE.2⟩)
+      rw [← hdB] at h36
+      exact h36)
+  -- conclude: cancel dB
+  have hdBpos : 0 < dB := by
+    rw [hdB]
+    positivity
+  by_contra hcon
+  push Not at hcon
+  have h1 : (solSet n W T).card * dB < (100 * A.card) * dB :=
+    (Nat.mul_lt_mul_right hdBpos).mpr hcon
+  have h2 : (100 * A.card) * dB = A.card * (100 * dB) := by ring
+  have h3 : A.card * (100 * dB) ≤ A.card * 2 ^ g₀ := by
+    apply Nat.mul_le_mul_left
+    calc 100 * dB = 100 * (((m₁ + 1) * n ^ (m₁ + 1)) * ((m₂ + 1) * n ^ (m₂ + 1))) := by
+          rw [hdB]
+      _ ≤ 2 ^ g₀ := hexp
+  omega

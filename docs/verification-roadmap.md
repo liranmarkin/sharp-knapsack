@@ -56,9 +56,14 @@ meaningful theorem; later stages depend only on earlier ones.
   D.8-D.9 (done): `hat_weight_le`
   (the huge-stripped set weighs ≤ 9T/10), `huge_count_le` (≤ ℓ/(20L²) huge
   items fit under 2T), `pool_exists` (a g₀-pool of good items disjoint
-  from X remains). Remaining in D: assembling Claims 3.5/3.6 from these
-  pieces, the exponent comparison 2^{g₀} vs the fiber bound, Lemma 3.4
-  itself, and composing Lemma 3.3's final constant.
+  from X remains). D.10 (done): **Claims 3.5 and
+  3.6 assembled and Lemma 3.4 proven** - `claim_35` (every Ω^△ member has
+  ≥ 2^g₀ neighbor solutions), `claim_36` (each solution neighbors at most
+  (m₁+1)n^{m₁+1}·(m₂+1)n^{m₂+1} of them), `lemma_34` (100·|Ω^△| ≤ |Ω|,
+  parametrized by the paper's arithmetic conditions incl. the exponent
+  gap). Remaining in D: discharging the parameter conditions from ℓ's
+  bounds (their ℓ > 100 log² choice) and composing Lemma 3.3's final
+  constant with the greedy hitting set.
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);
