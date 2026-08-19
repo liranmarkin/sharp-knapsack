@@ -194,3 +194,61 @@ theorem merge_spec (D δ δ₁ δ₂ : ℚ) (hD : 1 < D) (hδ : 0 < δ)
   obtain ⟨hs1, hs2⟩ := convQ_sandwich f g cf cg δ₁ δ₂ hδ₁ hδ₂ hδ₁1 hδ₂1
     hcf hcg hnn hnn' hf hg s
   exact ⟨le_trans hs1 hdom2, le_trans hdom1 hs2⟩
+
+/-! ### The oracle is inhabited: a verified (slow) implementation
+
+The fast implementation (FFT + random primes) is Stage F.1b; this
+executable one meets the same spec, so every interface of the pipeline is
+inhabited by verified code and only the *speed* claim remains open. -/
+
+/-- The support of a diagonal. -/
+def diagSupport (f g : ℕ → ℚ) (s : ℕ) : Finset ℕ :=
+  (range (s + 1)).filter (fun y => f y * g (s - y) ≠ 0)
+
+/-- The maximal supported level sum (0 on an empty diagonal). -/
+def slowC (f g : ℕ → ℚ) (lv lw : ℕ → ℤ) (s : ℕ) : ℤ :=
+  if h : (diagSupport f g s).Nonempty then
+    ((diagSupport f g s).image (fun y => lv y + lw (s - y))).max'
+      (h.image (fun y => lv y + lw (s - y)))
+  else 0
+
+/-- The attaining-diagonal mass at the maximal level. -/
+def slowOracle (f g : ℕ → ℚ) (lv lw : ℕ → ℤ) (s : ℕ) : ℚ :=
+  ∑ y ∈ (range (s + 1)).filter
+      (fun y => lv y + lw (s - y) = slowC f g lv lw s),
+    f y * g (s - y)
+
+theorem slowOracle_spec (f g : ℕ → ℚ) (lv lw : ℕ → ℤ) :
+    WitnessOracle f g lv lw (slowOracle f g lv lw) := by
+  classical
+  intro s
+  refine ⟨slowC f g lv lw s, ?_, ?_, rfl⟩
+  · intro y hy hne
+    have hmem : y ∈ diagSupport f g s := by
+      rw [diagSupport, Finset.mem_filter]
+      exact ⟨hy, hne⟩
+    have hne' : (diagSupport f g s).Nonempty := ⟨y, hmem⟩
+    rw [slowC, dif_pos hne']
+    exact Finset.le_max' _ _
+      (Finset.mem_image_of_mem (fun y => lv y + lw (s - y)) hmem)
+  · intro hconv
+    have hne' : (diagSupport f g s).Nonempty := by
+      by_contra hcon
+      apply hconv
+      rw [Finset.not_nonempty_iff_eq_empty, diagSupport] at hcon
+      rw [convQ]
+      apply Finset.sum_eq_zero
+      intro y hy
+      by_contra h0
+      have : y ∈ (range (s + 1)).filter (fun y => f y * g (s - y) ≠ 0) :=
+        Finset.mem_filter.mpr ⟨hy, h0⟩
+      rw [hcon] at this
+      exact absurd this (Finset.notMem_empty y)
+    rw [slowC, dif_pos hne']
+    have hmax := Finset.max'_mem
+      ((diagSupport f g s).image (fun y => lv y + lw (s - y)))
+      (hne'.image (fun y => lv y + lw (s - y)))
+    rw [Finset.mem_image] at hmax
+    obtain ⟨y₀, hy₀, hy₀eq⟩ := hmax
+    rw [diagSupport, Finset.mem_filter] at hy₀
+    exact ⟨y₀, hy₀.1, hy₀.2, hy₀eq⟩

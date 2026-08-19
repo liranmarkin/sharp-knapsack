@@ -95,9 +95,11 @@ meaningful theorem; later stages depend only on earlier ones.
   `merge_dominates` (oracle output pointwise within [convQ/(1+δ), convQ]),
   `convQ_sandwich`, and `merge_spec` (the full induction step: children
   within (1±δᵢ) + oracle ⇒ parent within the compounded budget).
-  Remaining (F.1b): *implementing* the WitnessOracle fast - Feng-Jin
-  Theorem 6.1 / BDP24 with FFT and random primes, plus its cost model -
-  the last item of the entire campaign.
+  The oracle is inhabited by verified
+  executable code (`slowOracle`, `slowOracle_spec`), so ONLY the speed of
+  the oracle remains: F.1b - the fast implementation (Feng-Jin Theorem 6.1
+  / BDP24: FFT + random primes) with its cost model - the last item of
+  the entire campaign.
 
 - [x] **Assembly** (`SamplerAssembly.lean`, done): `fpras_assembly` -
   Stages A+B+C composed into the top-level guarantee: under the
