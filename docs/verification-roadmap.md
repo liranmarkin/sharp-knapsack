@@ -119,6 +119,16 @@ meaningful theorem; later stages depend only on earlier ones.
   within `a + (η₀ + η·#nodes)` of the expectation under the EXACT uniform
   solution distribution, except with probability ≤ 1/(4Na²).
 
+- [x] **Introduced mechanisms audit** (`SamplerMechanisms.lean`, done):
+  the four remaining prose-only mechanisms of `witness-sampler.md` are now
+  machine-checked - the de-rounding layer (`div_preimage_interval`,
+  `roundedDraw_exact`: the grid draw is exact), rectangle enumeration
+  bounded by levels (`levels_card_le`), the correlation-count identity
+  (`corr_count`), and the class-envelope rejection (`rejection_exact`,
+  `rejection_accept_ge`). **Every mechanism introduced by this work is now
+  in Lean**; reliance on Feng-Jin is limited to their published pipeline
+  structure and the Theorem 6.1 subroutine.
+
 Stages A-E verify everything new in this result plus the probabilistic
 glue, treating the construction as a specified interface; Stage F closes
 the loop on Feng-Jin's side. Status lives in this file; each completed

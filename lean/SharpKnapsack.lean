@@ -14,3 +14,4 @@ import SharpKnapsack.SamplerTests
 import SharpKnapsack.SamplerPopular
 import SharpKnapsack.SamplerMerge
 import SharpKnapsack.SamplerHeadline
+import SharpKnapsack.SamplerMechanisms
