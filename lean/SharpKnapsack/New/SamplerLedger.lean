@@ -427,3 +427,61 @@ theorem cache_collapse (n ℓ E : ℕ) :
         apply Nat.mul_le_mul_right
         exact Nat.div_mul_le_self _ _
     _ = n ^ 3 * E := by ring
+
+/-- The sharpened cache mode: a build at `(u, s)` enumerates at most
+`min(M_u, L_u)` rectangles (a level occupies at least one array cell), so
+each tree level costs at most `2L²` and the whole tree `Õ(L²)`. -/
+theorem cache_ledger2 (L M D : ℕ) :
+    (∑ h ∈ range (D + 1),
+      2 ^ h * ((L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2)))) ≤
+      2 * (D + 1) * (L * L) := by
+  have hterm : ∀ h ∈ range (D + 1),
+      2 ^ h * ((L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2))) ≤
+        2 * (L * L) := by
+    intro h _
+    have h1 : (2:ℕ) ^ h ≤ 2 * (2 ^ (h / 2) * 2 ^ (h / 2)) := by
+      calc (2:ℕ) ^ h ≤ 2 ^ (h / 2 + h / 2 + 1) :=
+            Nat.pow_le_pow_right (by norm_num) (by omega)
+        _ = 2 * (2 ^ (h / 2) * 2 ^ (h / 2)) := by
+            rw [pow_succ, pow_add]
+            ring
+    have h2 : (L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2)) ≤
+        (L / 2 ^ (h / 2)) * (L / 2 ^ (h / 2)) :=
+      Nat.mul_le_mul_left _ (min_le_right _ _)
+    calc 2 ^ h * ((L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2)))
+        ≤ (2 * (2 ^ (h / 2) * 2 ^ (h / 2))) *
+            ((L / 2 ^ (h / 2)) * (L / 2 ^ (h / 2))) :=
+          Nat.mul_le_mul h1 h2
+      _ = 2 * ((2 ^ (h / 2) * (L / 2 ^ (h / 2))) *
+            (2 ^ (h / 2) * (L / 2 ^ (h / 2)))) := by ring
+      _ ≤ 2 * (L * L) := by
+          apply Nat.mul_le_mul_left
+          apply Nat.mul_le_mul <;>
+            · rw [mul_comm]
+              exact Nat.div_mul_le_self L (2 ^ (h / 2))
+  calc (∑ h ∈ range (D + 1),
+      2 ^ h * ((L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2))))
+      ≤ ∑ _h ∈ range (D + 1), 2 * (L * L) := Finset.sum_le_sum hterm
+    _ = 2 * (D + 1) * (L * L) := by
+        rw [Finset.sum_const, Finset.card_range, smul_eq_mul]
+        ring
+
+/-- The sharpened collapse: against the rebuild mode `n²E/ℓ`, the ε-free
+`ℓ²` mode balances at `ℓ = (n²E)^{1/3}`, i.e. the sampling work is at
+most `(n⁴E²)^{1/3} = n^{4/3}·ε^{-4/3}` - cube form `min³ ≤ n⁴E²`. -/
+theorem cache_collapse2 (n ℓ E : ℕ) :
+    (min ((n * n * E) / ℓ) (ℓ * ℓ)) ^ 3 ≤ n ^ 4 * E ^ 2 := by
+  have h1 : (min ((n * n * E) / ℓ) (ℓ * ℓ)) ^ 3 ≤
+      (((n * n * E) / ℓ) * ((n * n * E) / ℓ)) * (ℓ * ℓ) := by
+    have e : (min ((n * n * E) / ℓ) (ℓ * ℓ)) ^ 3 =
+        ((min ((n * n * E) / ℓ) (ℓ * ℓ)) * (min ((n * n * E) / ℓ) (ℓ * ℓ))) *
+          (min ((n * n * E) / ℓ) (ℓ * ℓ)) := by ring
+    rw [e]
+    exact Nat.mul_le_mul
+      (Nat.mul_le_mul (min_le_left _ _) (min_le_left _ _)) (min_le_right _ _)
+  calc (min ((n * n * E) / ℓ) (ℓ * ℓ)) ^ 3
+      ≤ (((n * n * E) / ℓ) * ((n * n * E) / ℓ)) * (ℓ * ℓ) := h1
+    _ = (((n * n * E) / ℓ) * ℓ) * (((n * n * E) / ℓ) * ℓ) := by ring
+    _ ≤ (n * n * E) * (n * n * E) := by
+        apply Nat.mul_le_mul <;> exact Nat.div_mul_le_self _ _
+    _ = n ^ 4 * E ^ 2 := by ring

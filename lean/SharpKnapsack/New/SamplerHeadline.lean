@@ -215,3 +215,53 @@ theorem fprasSharper
   · calc N * k ≤ N * (8 * ℓ) := Nat.mul_le_mul_left _ hk
       _ = 8 * (N * ℓ) := by ring
       _ ≤ 8 * (n * E) := Nat.mul_le_mul_left _ hNE
+
+/-! ### The sharpened amortized headline (v2) -/
+
+/-- Cache-build cost with the rectangle count correctly capped by the
+array length: a build at `(u, s)` enumerates at most `min(M_u, L_u)`
+rectangles, since every level present occupies at least one array cell. -/
+def cacheLedger2 (A B D : ℕ) : ℕ :=
+  ∑ h ∈ range (D + 1), 2 ^ h * ((B / 2 ^ (h / 2)) * min (A / 2 ^ h) (B / 2 ^ (h / 2)))
+
+/-- **The sharpened amortized headline.** Everything `fprasSharper`
+states, plus the corrected cache mode: builds cost `Õ(ℓ²)` per class
+(ε-FREE and n-free!). With `cache_collapse2` (min(n²E/ℓ, ℓ²)³ ≤ n⁴E²)
+certifying the balance point `ℓ = (n²E)^{1/3}`, the total time is
+
+    `Õ( n^{1.5} + min(n^{4/3}·ε^{-4/3}, n²) + n·ε⁻² )`
+
+- strictly below the `fprasSharp` bound `n^{4/3}ε⁻²` for EVERY ε < 1,
+flat at `Õ(n^{1.5})` for all ε ≥ n^{-1/8}, and output-optimal `n·ε⁻²`
+once ε ≤ n^{-1/2}. -/
+theorem fprasSharpest
+    (S : List ℕ) (t : ℕ) (f : List Bool → ℚ)
+    (hind : ∀ x, f x * f x = f x) (hf01 : ∀ x, 0 ≤ f x ∧ f x ≤ 1)
+    (ρ ε : ℚ) (hρ : 0 < ρ) (hε : 0 < ε)
+    (hp : ρ ≤ expect1 (maskFinset S.length) (samplerMass S t) f)
+    (N n ℓ k A B D E : ℕ) (hN : 0 < N)
+    (hNbig : 1 ≤ N * (ε ^ 2 * ρ ^ 2))
+    (hℓ : 0 < ℓ) (hA : A ≤ n) (hB : B ≤ 8 * ℓ) (hk : k ≤ 8 * ℓ)
+    (hNE : N * ℓ ≤ n * E) :
+    -- correctness and the enumeration modes, as in `fprasSharp`
+    ((∑ v ∈ (vecs (maskFinset S.length) N).filter
+        (fun v => ε * expect1 (maskFinset S.length) (samplerMass S t) f ≤
+          |sumStat f v / N - expect1 (maskFinset S.length) (samplerMass S t) f|),
+      prodMass (samplerMass S t) v) ≤ 1 / 4) ∧
+    (N * perSampleLedger k A B D) * ℓ ≤ (D + 1) * (n * n * E) ∧
+    N * perSampleLedger k A B D ≤ 1024 * (Nat.sqrt ℓ + 1) * (n * E) ∧
+    (N * perSampleLedger k A B D) ^ 3 ≤ 4194304 * (D + 1) * (n ^ 4 * E ^ 3) ∧
+    -- the v1 cache mode and the output-linear draws
+    cacheLedger A B D ≤ 32 * (ℓ * n) ∧
+    N * k ≤ 8 * (n * E) ∧
+    -- NEW (v2): builds with the rectangle count capped by the array
+    -- length cost Õ(ℓ²) - free of both ε and n
+    cacheLedger2 A B D ≤ 128 * (D + 1) * (ℓ * ℓ) := by
+  obtain ⟨h1, h2, h3, h4, h5, h6⟩ := fprasSharper S t f hind hf01 ρ ε hρ hε hp
+    N n ℓ k A B D E hN hNbig hℓ hA hB hk hNE
+  refine ⟨h1, h2, h3, h4, h5, h6, ?_⟩
+  calc cacheLedger2 A B D ≤ 2 * (D + 1) * (B * B) := cache_ledger2 B A D
+    _ ≤ 2 * (D + 1) * ((8 * ℓ) * (8 * ℓ)) := by
+        apply Nat.mul_le_mul_left
+        exact Nat.mul_le_mul hB hB
+    _ = 128 * (D + 1) * (ℓ * ℓ) := by ring

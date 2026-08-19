@@ -141,5 +141,12 @@ stage updates the checkbox and lands in CI.
 - [x] `fprasSharper` - the composed headline: fprasSharp ∧ cache mode
   (builds ≤ 32·ℓ·n, draws N·k ≤ 8·n·E). Total:
   Õ(n^1.5 + min(n^{4/3}ε⁻², n^{1.5}ε⁻¹) + n·ε⁻²).
-- [ ] Open sub-problem: cache builds in o(M_u) per position would kill
-  the n^{1.5}ε⁻¹ kink → uniform Õ(n^1.5 + n·ε⁻²).
+- [x] `cache_ledger2` - rectangle count capped by array length: mode
+  C' ≤ 2(D+1)·L² (ε- and n-free).
+- [x] `cache_collapse2` - min(n²E/ℓ, ℓ²)³ ≤ n⁴E² (the n^{4/3}ε^{-4/3}
+  exponent).
+- [x] `fprasSharpest` - the composed v2 headline. Total:
+  Õ(n^1.5 + min(n^{4/3}ε^{-4/3}, n²) + n·ε⁻²) - strictly below
+  n^{4/3}ε⁻² for every ε < 1, flat Õ(n^1.5) for ε ≥ n^{-1/8}.
+- [ ] Open sub-problem: builds in o(min(M,L)) per position, or an
+  ε-free mode below ℓ² → uniform Õ(n^1.5 + n·ε⁻²).
