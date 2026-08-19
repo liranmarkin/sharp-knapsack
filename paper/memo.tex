@@ -1,0 +1,193 @@
+\documentclass[11pt]{article}
+\usepackage[margin=2.6cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{hyperref}
+\newcommand{\OO}{\widetilde{O}}
+\newtheorem{theorem}{Theorem}
+\setlength{\parskip}{3pt}
+
+\title{A Faster FPRAS for \#Knapsack}
+\author{Liran Markin}
+\date{August 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+The fastest known approximation scheme for counting knapsack solutions
+is the $\OO(n^{1.5}\varepsilon^{-2})$ FPRAS of Feng and Jin (SODA 2025).
+We observe that the arrays their construction stores are, exactly, a
+product-form factorization of the distribution their sampler needs, and
+that sampling along this factorization -- instead of scanning arrays --
+drops the total running time to
+$\OO(n^{1.5}+\min(n\sqrt{\ell},n^{2}/\ell)\cdot\varepsilon^{-2})
+\le\OO(n^{1.5}+n^{4/3}\varepsilon^{-2})$:
+never worse, and strictly faster for every
+$\varepsilon=o(1)$.\footnote{A Lean~4 development accompanying this memo
+machine-checks the components introduced here; see the repository.}
+\end{abstract}
+
+\section{The problem and the result}
+
+\#Knapsack asks: given item weights $W_1,\dots,W_n$ and a capacity $T$,
+how many of the $2^{n}$ subsets have total weight at most $T$? The
+problem is \#P-hard, so one settles for a randomized
+$(1\pm\varepsilon)$-approximation (an FPRAS). After two decades of
+progress (Dyer's $\OO(n^{2.5}\varepsilon^{-2})$~\cite{Dyer03} through
+several deterministic and randomized improvements), the record is the
+$\OO(n^{1.5}\varepsilon^{-2})$ algorithm of Feng and Jin~\cite{FJ25}.
+
+\begin{theorem}\label{thm:main}
+The Feng--Jin FPRAS can be implemented in time
+\[
+\OO\!\left(n^{1.5}
+  \;+\;\min\!\left(n\sqrt{\ell},\;\tfrac{n^{2}}{\ell}\right)\cdot
+  \varepsilon^{-2}\right)
+\;\le\;
+\OO\!\left(n^{1.5}+n^{4/3}\,\varepsilon^{-2}\right),
+\]
+where $\ell\in[2,8n]$ is the instance's popular weight-class parameter
+{\rm(\cite{FJ25}, Lemma~3.1)}.
+\end{theorem}
+
+At $\varepsilon=\Theta(1)$ the two bounds coincide at $n^{1.5}$; the
+moment $\varepsilon$ shrinks, the $\varepsilon^{-2}$ term dominates and
+the coefficient drops from $n^{1.5}$ to at most $n^{4/3}$. For scale:
+at $\varepsilon=1/\sqrt n$, their bound reads $n^{2.5}$, ours
+$n^{11/6}$.
+
+\section{Where their time goes}
+
+Feng--Jin follow Dyer's recipe: count a rounded, easier instance
+exactly-ish, then correct the count by estimating, via random sampling,
+the fraction of rounded solutions that are true solutions. Both halves
+run on the same data structure: a divide-and-conquer tree over the
+items, where each node stores an array approximating the counting
+function of its sub-instance ($\text{array}[s]\approx$ number of
+sub-solutions of rounded weight $s$).
+
+Construction of all arrays costs $\OO(n^{1.5})$. The expensive half is
+\emph{sampling}: drawing one uniform random rounded solution means
+walking the tree from the root, and at every node splitting the
+remaining weight between the two children with probability proportional
+to a product of the children's array entries. Their sampler draws this
+split by scanning the arrays -- length $\OO(\ell)$ at the top of a class
+tree -- so each of the $N=\OO(n/(\ell\varepsilon^{2}))$ samples costs
+$\OO(\ell\sqrt m)$, and the sampling stage totals
+$\OO(n^{1.5}\varepsilon^{-2})$. That scan is the entire
+$\varepsilon^{-2}$ bottleneck.
+
+\section{The observation}
+
+The improvement comes from looking closely at the \emph{representation}
+Feng--Jin already use. Array entries are counts as large as $2^{n}$, so
+to multiply arrays in subquadratic time they store every entry in the
+form $D^{\text{level}}\cdot\text{residual}$ with the residual in
+$[1,D)$, $\log D=\mathrm{polylog}$, and merge two children with a
+bounded $(\max,+)$-convolution that also returns \emph{witness counts}
+(their Theorem~6.1): for each output position, the total mass of the
+level-sum-\emph{maximal} pairs.
+
+Unwinding their definitions, the merged value stored at position $s$
+satisfies, exactly,
+\[
+h(s)\;=\;\sum_{\substack{y+z=s\\ \text{level-sum attaining}}}
+  f_{L}(y)\,f_{R}(z),
+\]
+because on every witness pair the level scaling cancels:
+$D^{C}\cdot u(y)v(z)=f_{L}(y)f_{R}(z)$. This is an identity, not an
+approximation. In words:
+
+\begin{quote}
+\emph{The arrays already store a product-form factorization of the
+distribution the sampler needs. The witness machinery was built to
+\emph{compute} the arrays fast; as an unused by-product, it makes them
+\emph{samplable} fast.}
+\end{quote}
+
+A sampler that draws each split proportionally to this stored
+factorization therefore introduces \emph{no additional error at all} --
+the tree of arrays defines a distribution, and we sample exactly it, so
+the Feng--Jin correctness analysis (which compares that distribution to
+the uniform one) applies verbatim.
+
+\section{The sampler}
+
+One sample proceeds as follows.
+
+\begin{enumerate}\itemsep2pt
+\item \textbf{Root draw.} Draw the total rounded weight
+$s\propto\hat f_{\mathrm{root}}(s)$ over $s\le T$, by one binary search
+in a precomputed prefix table. This is the \emph{only} place the
+capacity constraint appears.
+\item \textbf{De-rounding.} Positions are re-rounded to coarser grids up
+the tree. Rounding is a monotone floor, so each coarse position's
+preimage is a contiguous interval of the finer grid; drawing the fine
+position within it is another exact interval draw. Consequently every
+recursive step below receives an \emph{exact} child weight -- no
+differences of approximate quantities ever arise.
+\item \textbf{Split draw.} At a node with exact position $s$, draw an
+attaining pair $(y,\,s-y)$ with probability $\propto u(y)v(s-y)$. The
+attaining pairs organize into \emph{level rectangles} -- pairs of
+intervals with a fixed level sum -- and there are only
+$M=\OO(\text{subtree items}/\mathrm{polylog})$ of them, far fewer than
+the array length near the root, which is exactly where the old scans
+were expensive. Within a rectangle the residuals span a polylog range,
+so a factor-2 bucketing of values plus precomputed indicator
+convolutions (all shifts at once, one FFT per node, inside the
+construction budget) supports an exact draw with at most four expected
+rejections.
+\item \textbf{Pruning.} If a child's drawn weight is $0$ and its only
+weight-$0$ subset is the empty set, emit $\varnothing$ without
+descending. This is distribution-exact, and it means a sample that
+contains $k$ items visits only the $\OO(k)$ tree paths of those items.
+\end{enumerate}
+
+\section{Why this is $n^{4/3}$}
+
+Per sample, at depth $h$ of a weight-class tree, the pruned walk visits
+$\min(2^{h},k)$ nodes, and each split draw costs
+$\min(\text{items}/2^{h},\;\ell/2^{h/2})$ -- the rectangle count capped
+by the plain scan (the new method is never slower than the old one).
+Summing over depths,
+\[
+\text{per sample}\;=\;\OO\!\big(\min(n_m,\;\ell\sqrt{k})\big),
+\qquad k=\OO(\ell),
+\]
+and multiplying by the sample count $N=\OO(n/(\ell\varepsilon^{2}))$:
+\[
+N\cdot\text{per sample}
+\;=\;\OO\!\left(\min\!\Big(\tfrac{n^{2}}{\ell},\;n\sqrt{\ell}\Big)\,
+\varepsilon^{-2}\right).
+\]
+The two branches cross at $\ell=n^{2/3}$, where the value is
+$n^{4/3}\varepsilon^{-2}$ -- the worst case of
+Theorem~\ref{thm:main}. At the extremes ($\ell=\mathrm{polylog}$ or
+$\ell=\Theta(n)$) the bound improves further, to
+$\OO(n^{1.5}+n\,\varepsilon^{-2})$.
+
+\section{Discussion}
+
+Two remarks. First, the bound is \emph{instance-adaptive}: $\ell$ is
+computable in $\OO(n)$ time, so the algorithm knows its own speed in
+advance, and only a narrow band of instances around
+$\ell\approx n^{2/3}$ realizes the worst case. Second, the remaining
+bottleneck is transparent: the per-draw rectangle enumeration. Removing
+it -- sampling a rectangle in polylog time -- would give
+$\OO(n^{1.5}+n\,\varepsilon^{-2})$ uniformly, and any further progress
+below $n^{1.5}$ is blocked by the bounded monotone
+$(\max,+)$-convolution frontier, matching the open problems stated
+in~\cite{FJ25}.
+
+\begin{thebibliography}{9}
+\bibitem{FJ25} W.~Feng, C.~Jin.
+\emph{A Faster Algorithm for Counting Knapsack Solutions}.
+SODA 2025. arXiv:2410.22267.
+\bibitem{Dyer03} M.~Dyer.
+\emph{Approximate counting by dynamic programming}. STOC 2003.
+\bibitem{GMW18} P.~Gawrychowski, L.~Markin, O.~Weimann.
+\emph{A Faster FPTAS for \#Knapsack}. ICALP 2018.
+\end{thebibliography}
+
+\end{document}
