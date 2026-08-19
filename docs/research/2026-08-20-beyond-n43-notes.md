@@ -57,3 +57,34 @@ Domination: ≤ the old bound for every (ℓ, ε); strictly below it for all
 Key accounting to validate empirically before proving:
 distinct-s per node ≤ min(visits, L_u), and the mode-C sum tracking
 Õ(ℓ·n) on simulated visit patterns.
+
+## Night addendum: v2 and the dead ends beyond it
+
+v2 landed: builds enumerate at most min(M_u, L_u) rectangles, mode
+C' = Õ(ℓ²), total Õ(n^1.5 + min(n^{4/3}ε^{-4/3}, n²) + n·ε⁻²).
+Tightness check: at the adversarial ℓ = (n²/ε²)^{1/3} the two per-node
+crossovers (visits vs positions, levels vs positions) COINCIDE, and the
+true sum Σ_u min(N_u,L_u)·min(M_u,L_u) concentrates at that level and
+realizes n^{4/3}ε^{-4/3} - the accounting is tight for this schedule;
+further progress needs a new mechanism, not a finer sum.
+
+Dead ends probed for killing the residual term (all hit the L·M
+information wall):
+1. Prefix-window witness queries W(s, [y1,y2]) for binary-search
+   sampling: a fresh (s, window) query has no small certificate;
+   their Thm 6.1 magic is batch-only (all s at once via FFT).
+2. Random-prime/root-of-unity sketches: give evaluations of
+   Σ ζ^{A+B}, not per-diagonal extraction, and never sampling.
+3. Separable rejection via the shared diagonal factor D^c: the level
+   part IS flat on the anti-diagonal, but residuals span [1, D) with
+   log D = polylog BITS, so residual ratios are quasi-polynomial -
+   flat rejection dies; factor-2 residual classes bring back
+   per-(class-pair, level-pair) tables = the wall.
+4. Incremental alias across adjacent positions: masses at s and s+1
+   are unrelated (independent corr lookups).
+5. Fewer distinct positions per node: traffic is mass-proportional,
+   adversary-controlled; Θ(min(N_u, L_u)) is realizable.
+
+Open sub-problem (the one that would give uniform Õ(n^1.5 + n·ε⁻²)):
+answer fresh single-position witness-structure queries in o(min(M, L)),
+or find an ε-free build mode below ℓ².
