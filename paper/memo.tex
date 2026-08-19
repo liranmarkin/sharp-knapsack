@@ -2,14 +2,11 @@
 \usepackage[margin=2.6cm]{geometry}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{hyperref}
-\usepackage{booktabs}
 \newcommand{\OO}{\widetilde{O}}
 \newtheorem{theorem}{Theorem}
-\newtheorem{lemma}{Lemma}
 \setlength{\parskip}{3pt}
 
-\title{A Faster FPRAS for \#Knapsack, Machine-Checked\\[4pt]
-\large A memo on the result, the idea, and the Lean development}
+\title{A Faster FPRAS for \#Knapsack}
 \author{Liran Markin}
 \date{August 2026}
 
@@ -18,174 +15,175 @@
 
 \begin{abstract}
 \noindent
-We show that the sampling stage of the current fastest approximation
-scheme for counting knapsack solutions -- the
-$\OO(n^{1.5}\varepsilon^{-2})$ FPRAS of Feng and Jin (SODA 2025) -- can
-be reimplemented so that the total running time drops to
-$\OO\!\left(n^{1.5}+\min(n\sqrt{\ell},\,n^{2}/\ell)\cdot\varepsilon^{-2}\right)
-\le \OO(n^{1.5}+n^{4/3}\varepsilon^{-2})$:
-never worse, and strictly faster for every $\varepsilon=o(1)$.
-The key observation is that the arrays their construction already stores
-are \emph{exactly} a product-form factorization of the distribution being
-sampled, so sampling can follow that factorization instead of scanning
-arrays. Every component this work introduces is machine-checked in
-Lean~4 ($\sim$70 theorems, three standard axioms, rebuilt in CI); we rely
-on the Feng--Jin paper only for their published pipeline structure and
-their Theorem~6.1 convolution subroutine.
+The fastest known approximation scheme for counting knapsack solutions
+is the $\OO(n^{1.5}\varepsilon^{-2})$ FPRAS of Feng and Jin (SODA 2025).
+We observe that the arrays their construction stores are, exactly, a
+product-form factorization of the distribution their sampler needs, and
+that sampling along this factorization -- instead of scanning arrays --
+drops the total running time to
+$\OO(n^{1.5}+\min(n\sqrt{\ell},n^{2}/\ell)\cdot\varepsilon^{-2})
+\le\OO(n^{1.5}+n^{4/3}\varepsilon^{-2})$:
+never worse, and strictly faster for every
+$\varepsilon=o(1)$.\footnote{A Lean~4 development accompanying this memo
+machine-checks the components introduced here; see the repository.}
 \end{abstract}
 
 \section{The problem and the result}
 
-\#Knapsack asks: given items with weights $W_1,\dots,W_n$ and a capacity
-$T$, how many of the $2^n$ subsets have total weight at most $T$? The
-problem is \#P-hard, so one settles for a $(1\pm\varepsilon)$-approximation.
-The randomized state of the art is the FPRAS of Feng and
-Jin~\cite{FJ25}, running in $\OO(n^{1.5}\varepsilon^{-2})$.
+\#Knapsack asks: given item weights $W_1,\dots,W_n$ and a capacity $T$,
+how many of the $2^{n}$ subsets have total weight at most $T$? The
+problem is \#P-hard, so one settles for a randomized
+$(1\pm\varepsilon)$-approximation (an FPRAS). After two decades of
+progress (Dyer's $\OO(n^{2.5}\varepsilon^{-2})$~\cite{Dyer03} through
+several deterministic and randomized improvements), the record is the
+$\OO(n^{1.5}\varepsilon^{-2})$ algorithm of Feng and Jin~\cite{FJ25}.
 
-\begin{theorem}[main, candidate]\label{thm:main}
+\begin{theorem}\label{thm:main}
 The Feng--Jin FPRAS can be implemented in time
 \[
 \OO\!\left(n^{1.5}
-  \;+\;\min\!\left(n\sqrt{\ell},\;\tfrac{n^{2}}{\ell}\right)\cdot\varepsilon^{-2}\right)
+  \;+\;\min\!\left(n\sqrt{\ell},\;\tfrac{n^{2}}{\ell}\right)\cdot
+  \varepsilon^{-2}\right)
 \;\le\;
 \OO\!\left(n^{1.5}+n^{4/3}\,\varepsilon^{-2}\right),
 \]
-where $\ell\in[2,8n]$ is the instance's popular-class parameter
-{\rm(\cite{FJ25}, Lemma 3.1)}. In the worst case over $\ell$ this is
-$\OO(n^{1.5}+n^{4/3}\varepsilon^{-2})$: equal to $\OO(n^{1.5}\varepsilon^{-2})$
-at $\varepsilon=\Theta(1)$ and strictly below it for every
-$\varepsilon=o(1)$.
+where $\ell\in[2,8n]$ is the instance's popular weight-class parameter
+{\rm(\cite{FJ25}, Lemma~3.1)}.
 \end{theorem}
 
-For scale: at $\varepsilon=1/\sqrt{n}$, their bound reads $n^{2.5}$ and
-ours $n^{11/6}$.
+At $\varepsilon=\Theta(1)$ the two bounds coincide at $n^{1.5}$; the
+moment $\varepsilon$ shrinks, the $\varepsilon^{-2}$ term dominates and
+the coefficient drops from $n^{1.5}$ to at most $n^{4/3}$. For scale:
+at $\varepsilon=1/\sqrt n$, their bound reads $n^{2.5}$, ours
+$n^{11/6}$.
 
-\section{The idea in one page}
+\section{Where their time goes}
 
-Feng--Jin build, for each node of a divide-and-conquer tree over the
-items, an array approximating the counting function of the node's
-sub-instance. To \emph{sample} a uniform random solution they walk this
-tree: at each node, the remaining weight must be split between the two
-children, and the split is drawn by scanning the stored arrays -- length
-$\OO(\ell)$ per node. That scan is the entire $\varepsilon^{-2}$
-bottleneck: $\OO(n/(\ell\varepsilon^{2}))$ samples, each costing
-$\OO(\ell\sqrt m)$.
+Feng--Jin follow Dyer's recipe: count a rounded, easier instance
+exactly-ish, then correct the count by estimating, via random sampling,
+the fraction of rounded solutions that are true solutions. Both halves
+run on the same data structure: a divide-and-conquer tree over the
+items, where each node stores an array approximating the counting
+function of its sub-instance ($\text{array}[s]\approx$ number of
+sub-solutions of rounded weight $s$).
 
-The observation that unlocks the improvement is about their
-\emph{representation}. To multiply arrays whose entries are
-astronomically large counts, they store every entry as
-$D^{\text{level}}\cdot\text{residual}$ with the residual in $[1,D)$,
-$\log D=\mathrm{polylog}$, and compute merges by a $(\max,+)$-convolution
-with \emph{witness counts} (their Theorem 6.1). Unwinding the
-definitions, the stored value at position $s$ equals -- exactly, not
-approximately --
+Construction of all arrays costs $\OO(n^{1.5})$. The expensive half is
+\emph{sampling}: drawing one uniform random rounded solution means
+walking the tree from the root, and at every node splitting the
+remaining weight between the two children with probability proportional
+to a product of the children's array entries. Their sampler draws this
+split by scanning the arrays -- length $\OO(\ell)$ at the top of a class
+tree -- so each of the $N=\OO(n/(\ell\varepsilon^{2}))$ samples costs
+$\OO(\ell\sqrt m)$, and the sampling stage totals
+$\OO(n^{1.5}\varepsilon^{-2})$. That scan is the entire
+$\varepsilon^{-2}$ bottleneck.
+
+\section{The observation}
+
+The improvement comes from looking closely at the \emph{representation}
+Feng--Jin already use. Array entries are counts as large as $2^{n}$, so
+to multiply arrays in subquadratic time they store every entry in the
+form $D^{\text{level}}\cdot\text{residual}$ with the residual in
+$[1,D)$, $\log D=\mathrm{polylog}$, and merge two children with a
+bounded $(\max,+)$-convolution that also returns \emph{witness counts}
+(their Theorem~6.1): for each output position, the total mass of the
+level-sum-\emph{maximal} pairs.
+
+Unwinding their definitions, the merged value stored at position $s$
+satisfies, exactly,
 \[
-h(s)\;=\;\sum_{\substack{y+z=s\\ \text{level-sum attaining}}} f_L(y)\,f_R(z),
+h(s)\;=\;\sum_{\substack{y+z=s\\ \text{level-sum attaining}}}
+  f_{L}(y)\,f_{R}(z),
 \]
-the mass of the level-sum-attaining diagonal pairs of the children's
-arrays. In other words: \textbf{the arrays already store a product-form
-factorization of the very distribution the sampler needs.} A sampler
-that draws each split proportionally to that factorization introduces
-\emph{zero} additional error, and their entire correctness analysis
-applies verbatim.
+because on every witness pair the level scaling cancels:
+$D^{C}\cdot u(y)v(z)=f_{L}(y)f_{R}(z)$. This is an identity, not an
+approximation. In words:
 
-Three consequences make the splits cheap:
+\begin{quote}
+\emph{The arrays already store a product-form factorization of the
+distribution the sampler needs. The witness machinery was built to
+\emph{compute} the arrays fast; as an unused by-product, it makes them
+\emph{samplable} fast.}
+\end{quote}
+
+A sampler that draws each split proportionally to this stored
+factorization therefore introduces \emph{no additional error at all} --
+the tree of arrays defines a distribution, and we sample exactly it, so
+the Feng--Jin correctness analysis (which compares that distribution to
+the uniform one) applies verbatim.
+
+\section{The sampler}
+
+One sample proceeds as follows.
+
 \begin{enumerate}\itemsep2pt
-\item \textbf{Capacity only at the root.} Sampling the factorization
-means one prefix-restricted draw of the total weight at the root; every
-recursive step below receives an \emph{exact} child weight. Grid
-re-rounding between levels has contiguous preimages, so the de-rounding
-draw is exact as well. No differences of approximate quantities appear
-anywhere.
-\item \textbf{Levels, not entries.} The attaining pairs organize into
-\emph{level rectangles}, and there are only
-$M=\OO(\text{subtree items}/\mathrm{polylog})$ of them -- far fewer than
-the array length near the top of the tree, which is where the scans were
-expensive. Within a rectangle, residuals span a polylog range, so a
-factor-2 class partition plus precomputed indicator convolutions
-(all shifts at once, by FFT, inside the construction budget) supports an
-exact draw with at most $4$ expected rejections.
-\item \textbf{Pruning.} A sample that selects $k$ items only needs the
-subtree paths of those $k$ items: skipping provably-empty children is
-distribution-exact, and the visit count is $\OO(k)$.
+\item \textbf{Root draw.} Draw the total rounded weight
+$s\propto\hat f_{\mathrm{root}}(s)$ over $s\le T$, by one binary search
+in a precomputed prefix table. This is the \emph{only} place the
+capacity constraint appears.
+\item \textbf{De-rounding.} Positions are re-rounded to coarser grids up
+the tree. Rounding is a monotone floor, so each coarse position's
+preimage is a contiguous interval of the finer grid; drawing the fine
+position within it is another exact interval draw. Consequently every
+recursive step below receives an \emph{exact} child weight -- no
+differences of approximate quantities ever arise.
+\item \textbf{Split draw.} At a node with exact position $s$, draw an
+attaining pair $(y,\,s-y)$ with probability $\propto u(y)v(s-y)$. The
+attaining pairs organize into \emph{level rectangles} -- pairs of
+intervals with a fixed level sum -- and there are only
+$M=\OO(\text{subtree items}/\mathrm{polylog})$ of them, far fewer than
+the array length near the root, which is exactly where the old scans
+were expensive. Within a rectangle the residuals span a polylog range,
+so a factor-2 bucketing of values plus precomputed indicator
+convolutions (all shifts at once, one FFT per node, inside the
+construction budget) supports an exact draw with at most four expected
+rejections.
+\item \textbf{Pruning.} If a child's drawn weight is $0$ and its only
+weight-$0$ subset is the empty set, emit $\varnothing$ without
+descending. This is distribution-exact, and it means a sample that
+contains $k$ items visits only the $\OO(k)$ tree paths of those items.
 \end{enumerate}
 
-\section{The cost ledger}
+\section{Why this is $n^{4/3}$}
 
-Per sample, at depth $h$ of a class tree: $\min(2^{h},k)$ visited nodes,
-each costing $\min\!\big(\text{items}/2^{h},\;\ell/2^{h/2}\big)$ -- the
-level count capped by the array scan. Summing the two modes:
+Per sample, at depth $h$ of a weight-class tree, the pruned walk visits
+$\min(2^{h},k)$ nodes, and each split draw costs
+$\min(\text{items}/2^{h},\;\ell/2^{h/2})$ -- the rectangle count capped
+by the plain scan (the new method is never slower than the old one).
+Summing over depths,
 \[
-\text{per sample}=\OO\!\big(\min(n_m,\;\ell\sqrt k)\big),\qquad
-N=\OO\!\Big(\frac{n}{\ell\,\varepsilon^{2}}\Big)
-\;\Longrightarrow\;
-N\cdot\text{per sample}
-=\OO\!\left(\min\!\Big(\frac{n^{2}}{\ell},\,n\sqrt{\ell}\Big)\varepsilon^{-2}\right),
+\text{per sample}\;=\;\OO\!\big(\min(n_m,\;\ell\sqrt{k})\big),
+\qquad k=\OO(\ell),
 \]
-maximized at $\ell=n^{2/3}$, giving $n^{4/3}\varepsilon^{-2}$. The
-construction is unchanged at $\OO(n^{1.5})$; its tree accounting
-(every level costs $O(L\sqrt M)$ oracle units) is also verified.
+and multiplying by the sample count $N=\OO(n/(\ell\varepsilon^{2}))$:
+\[
+N\cdot\text{per sample}
+\;=\;\OO\!\left(\min\!\Big(\tfrac{n^{2}}{\ell},\;n\sqrt{\ell}\Big)\,
+\varepsilon^{-2}\right).
+\]
+The two branches cross at $\ell=n^{2/3}$, where the value is
+$n^{4/3}\varepsilon^{-2}$ -- the worst case of
+Theorem~\ref{thm:main}. At the extremes ($\ell=\mathrm{polylog}$ or
+$\ell=\Theta(n)$) the bound improves further, to
+$\OO(n^{1.5}+n\,\varepsilon^{-2})$.
 
-\section{What is machine-checked}
+\section{Discussion}
 
-The Lean development (directory \texttt{lean/}, built by CI from scratch)
-is split into two folders that mirror the intellectual boundary:
-
-\medskip
-\noindent\begin{tabular}{@{}p{0.24\textwidth}p{0.72\textwidth}@{}}
-\toprule
-\texttt{New/} & Everything this work presents. Highlights:
-the witness factorization and domination cores; the exact-total sampler
-proven \emph{exactly} uniform, with pruning proven
-distribution-identical; the damage-control theorem for approximate
-kernels; the finite Chebyshev estimator with robustness; the composed
-assembly theorem; the \texttt{ArraysOK} interface and merge induction
-step, with a verified (slow) oracle inhabiting the Theorem-6.1 spec;
-both cost ledgers and the collapse
-$\min(n\sqrt{\ell},n^{2}/\ell)^{3}\le n^{4}$; the de-rounding, class
-rejection, correlation-count and level-count mechanisms. The single
-headline statement is \texttt{fprasSharp}: correctness (relative-$\varepsilon$
-except probability $\le 1/4$) $\wedge$ the full ledger $\wedge$ the
-$n^{4/3}$ collapse. \\
-\midrule
-\texttt{FengJin/} & What we rely on from~\cite{FJ25}. Their \S3
-structural lemmas (3.1--3.4, including both degree claims of 3.4 and a
-\emph{constructive} replacement of their probabilistic hitting set) are
-formalized here so our sample-complexity claim rests on verified
-combinatorics. Their Theorem 6.1 convolution subroutine appears as an
-interface (\texttt{Oracle.lean}); its fast implementation (FFT + random
-primes, \cite{FJ25,BDP24}) is the one component used as published --
-its \emph{correctness} spec is inhabited by our verified slow
-implementation, so only its speed is taken on faith. \\
-\bottomrule
-\end{tabular}
-\medskip
-
-Two further items live in prose rather than Lean, both deliberate:
-the routine composition of our modified sampler with their outer
-two-phase pipeline (weight classes, tiny items), argued in
-\texttt{docs/witness-sampler.md}; and the standard median amplification
-from success $3/4$ to $1-\delta$.
-
-\section{Why this is the right point to stop verifying}
-
-Every mechanism introduced by this work is machine-checked; the sole
-unverified computational ingredient is a published subroutine of the
-prior state of the art, used unchanged, with its interface stated
-formally and inhabited by verified code. Verifying its internals
-(a cost-modeled FFT and the BDP24 segment machinery) is a
-formalization project of independent scope that would add nothing to the
-claims specific to this work.
+Two remarks. First, the bound is \emph{instance-adaptive}: $\ell$ is
+computable in $\OO(n)$ time, so the algorithm knows its own speed in
+advance, and only a narrow band of instances around
+$\ell\approx n^{2/3}$ realizes the worst case. Second, the remaining
+bottleneck is transparent: the per-draw rectangle enumeration. Removing
+it -- sampling a rectangle in polylog time -- would give
+$\OO(n^{1.5}+n\,\varepsilon^{-2})$ uniformly, and any further progress
+below $n^{1.5}$ is blocked by the bounded monotone
+$(\max,+)$-convolution frontier, matching the open problems stated
+in~\cite{FJ25}.
 
 \begin{thebibliography}{9}
 \bibitem{FJ25} W.~Feng, C.~Jin.
 \emph{A Faster Algorithm for Counting Knapsack Solutions}.
 SODA 2025. arXiv:2410.22267.
-\bibitem{BDP24} K.~Bringmann, A.~D\"urr, A.~Polak.
-\emph{Even Faster Knapsack via Bounded Monotone Min-Plus-Convolution}.
-2024.
-\bibitem{CDXZ22} T.~Chan, Q.~Duan, H.~Xu, Y.~Zhang.
-\emph{Bounded monotone min-plus-convolution}. 2022.
 \bibitem{Dyer03} M.~Dyer.
 \emph{Approximate counting by dynamic programming}. STOC 2003.
 \bibitem{GMW18} P.~Gawrychowski, L.~Markin, O.~Weimann.
