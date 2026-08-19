@@ -165,3 +165,154 @@ theorem fprasSharp
             exact Nat.mul_le_mul_left _ hsq
         _ = (4194304 * (D + 1) * (n ^ 4 * E ^ 3)) * ℓ := by ring
     exact Nat.le_of_mul_le_mul_right hkey hℓ
+
+/-! ### The amortized headline (branch `beyond-n43`) -/
+
+/-- Cache-build cost over a class tree: at depth `h`, up to `2^h` nodes
+each build alias tables for at most `B/2^(h/2)` distinct positions
+(the array length bounds distinct queries), at `A/2^h` per build. -/
+def cacheLedger (A B D : ℕ) : ℕ :=
+  ∑ h ∈ range (D + 1), 2 ^ h * ((B / 2 ^ (h / 2)) * (A / 2 ^ h))
+
+/-- **The amortized headline theorem.** Everything `fprasSharp` states,
+plus the amortized-cache mode: cache builds are ε-FREE
+(`cacheLedger ≤ 32·ℓ·n`) and post-cache draws are output-linear
+(`N·k ≤ 8·n·E`). With `cache_collapse` and `ledger_collapse` certifying
+the exponents, the total sampling work is
+
+    `Õ( min(n^{4/3}·ε⁻², n^{1.5}·ε⁻¹) + n·ε⁻² )`
+
+- dominating the `fprasSharp` bound for every `ε < n^{-1/6}` and tending
+to the output-optimal `n·ε⁻²` as `ε → 0`. -/
+theorem fprasSharper
+    (S : List ℕ) (t : ℕ) (f : List Bool → ℚ)
+    (hind : ∀ x, f x * f x = f x) (hf01 : ∀ x, 0 ≤ f x ∧ f x ≤ 1)
+    (ρ ε : ℚ) (hρ : 0 < ρ) (hε : 0 < ε)
+    (hp : ρ ≤ expect1 (maskFinset S.length) (samplerMass S t) f)
+    (N n ℓ k A B D E : ℕ) (hN : 0 < N)
+    (hNbig : 1 ≤ N * (ε ^ 2 * ρ ^ 2))
+    (hℓ : 0 < ℓ) (hA : A ≤ n) (hB : B ≤ 8 * ℓ) (hk : k ≤ 8 * ℓ)
+    (hNE : N * ℓ ≤ n * E) :
+    -- correctness and the two enumeration modes, as in `fprasSharp`
+    ((∑ v ∈ (vecs (maskFinset S.length) N).filter
+        (fun v => ε * expect1 (maskFinset S.length) (samplerMass S t) f ≤
+          |sumStat f v / N - expect1 (maskFinset S.length) (samplerMass S t) f|),
+      prodMass (samplerMass S t) v) ≤ 1 / 4) ∧
+    (N * perSampleLedger k A B D) * ℓ ≤ (D + 1) * (n * n * E) ∧
+    N * perSampleLedger k A B D ≤ 1024 * (Nat.sqrt ℓ + 1) * (n * E) ∧
+    (N * perSampleLedger k A B D) ^ 3 ≤ 4194304 * (D + 1) * (n ^ 4 * E ^ 3) ∧
+    -- NEW: the amortized-cache mode - ε-free builds, output-linear draws
+    cacheLedger A B D ≤ 32 * (ℓ * n) ∧
+    N * k ≤ 8 * (n * E) := by
+  obtain ⟨h1, h2, h3, h4⟩ := fprasSharp S t f hind hf01 ρ ε hρ hε hp
+    N n ℓ k A B D E hN hNbig hℓ hA hB hk hNE
+  refine ⟨h1, h2, h3, h4, ?_, ?_⟩
+  · calc cacheLedger A B D ≤ 4 * (B * A) := cache_ledger B A D
+      _ ≤ 4 * ((8 * ℓ) * n) := by
+          apply Nat.mul_le_mul_left
+          exact Nat.mul_le_mul hB hA
+      _ = 32 * (ℓ * n) := by ring
+  · calc N * k ≤ N * (8 * ℓ) := Nat.mul_le_mul_left _ hk
+      _ = 8 * (N * ℓ) := by ring
+      _ ≤ 8 * (n * E) := Nat.mul_le_mul_left _ hNE
+
+/-! ### The sharpened amortized headline (v2) -/
+
+/-- Cache-build cost with the rectangle count correctly capped by the
+array length: a build at `(u, s)` enumerates at most `min(M_u, L_u)`
+rectangles, since every level present occupies at least one array cell. -/
+def cacheLedger2 (A B D : ℕ) : ℕ :=
+  ∑ h ∈ range (D + 1), 2 ^ h * ((B / 2 ^ (h / 2)) * min (A / 2 ^ h) (B / 2 ^ (h / 2)))
+
+/-- **The sharpened amortized headline.** Everything `fprasSharper`
+states, plus the corrected cache mode: builds cost `Õ(ℓ²)` per class
+(ε-FREE and n-free!). With `cache_collapse2` (min(n²E/ℓ, ℓ²)³ ≤ n⁴E²)
+certifying the balance point `ℓ = (n²E)^{1/3}`, the total time is
+
+    `Õ( n^{1.5} + min(n^{4/3}·ε^{-4/3}, n²) + n·ε⁻² )`
+
+- strictly below the `fprasSharp` bound `n^{4/3}ε⁻²` for EVERY ε < 1,
+flat at `Õ(n^{1.5})` for all ε ≥ n^{-1/8}, and output-optimal `n·ε⁻²`
+once ε ≤ n^{-1/2}. -/
+theorem fprasSharpest
+    (S : List ℕ) (t : ℕ) (f : List Bool → ℚ)
+    (hind : ∀ x, f x * f x = f x) (hf01 : ∀ x, 0 ≤ f x ∧ f x ≤ 1)
+    (ρ ε : ℚ) (hρ : 0 < ρ) (hε : 0 < ε)
+    (hp : ρ ≤ expect1 (maskFinset S.length) (samplerMass S t) f)
+    (N n ℓ k A B D E : ℕ) (hN : 0 < N)
+    (hNbig : 1 ≤ N * (ε ^ 2 * ρ ^ 2))
+    (hℓ : 0 < ℓ) (hA : A ≤ n) (hB : B ≤ 8 * ℓ) (hk : k ≤ 8 * ℓ)
+    (hNE : N * ℓ ≤ n * E) :
+    -- correctness and the enumeration modes, as in `fprasSharp`
+    ((∑ v ∈ (vecs (maskFinset S.length) N).filter
+        (fun v => ε * expect1 (maskFinset S.length) (samplerMass S t) f ≤
+          |sumStat f v / N - expect1 (maskFinset S.length) (samplerMass S t) f|),
+      prodMass (samplerMass S t) v) ≤ 1 / 4) ∧
+    (N * perSampleLedger k A B D) * ℓ ≤ (D + 1) * (n * n * E) ∧
+    N * perSampleLedger k A B D ≤ 1024 * (Nat.sqrt ℓ + 1) * (n * E) ∧
+    (N * perSampleLedger k A B D) ^ 3 ≤ 4194304 * (D + 1) * (n ^ 4 * E ^ 3) ∧
+    -- the v1 cache mode and the output-linear draws
+    cacheLedger A B D ≤ 32 * (ℓ * n) ∧
+    N * k ≤ 8 * (n * E) ∧
+    -- NEW (v2): builds with the rectangle count capped by the array
+    -- length cost Õ(ℓ²) - free of both ε and n
+    cacheLedger2 A B D ≤ 128 * (D + 1) * (ℓ * ℓ) := by
+  obtain ⟨h1, h2, h3, h4, h5, h6⟩ := fprasSharper S t f hind hf01 ρ ε hρ hε hp
+    N n ℓ k A B D E hN hNbig hℓ hA hB hk hNE
+  refine ⟨h1, h2, h3, h4, h5, h6, ?_⟩
+  calc cacheLedger2 A B D ≤ 2 * (D + 1) * (B * B) := cache_ledger2 B A D
+    _ ≤ 2 * (D + 1) * ((8 * ℓ) * (8 * ℓ)) := by
+        apply Nat.mul_le_mul_left
+        exact Nat.mul_le_mul hB hB
+    _ = 128 * (D + 1) * (ℓ * ℓ) := by ring
+
+/-! ### The dyadic-doubling headline (v3) -/
+
+/-- Total precomputation of the lazy dyadic block-merges: a node
+deepens only as its visits double, so its block tree reaches depth
+`≈ log √(visits)` and each draw binary-searches stored block weights
+(`block_split_exact` is the identity it descends on). -/
+def dyadicLedger (N k B D : ℕ) : ℕ :=
+  ∑ h ∈ range (D + 1),
+    2 ^ h * ((B / 2 ^ (h / 2)) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h))
+
+/-- **The v3 headline.** Everything `fprasSharpest` states, plus the
+dyadic-doubling mode `Õ(ℓ·√(N·k))`. With `cache_collapse3`
+(min(n²E/ℓ, ℓ·√(nE-scale))⁴ ≤ 4n⁵E³) certifying the balance point,
+the total time is
+
+    `Õ( n^{1.5} + min(n^{5/4}·ε^{-3/2}, n^{4/3}·ε^{-4/3}, n²) + n·ε⁻² )`
+
+- strictly below the v2 bound for every ε ∈ (n^{-1/2}, 1), flat at
+`Õ(n^{1.5})` for all ε ≥ n^{-1/6}, and output-optimal `n·ε⁻²` once
+ε ≤ n^{-1/2}. -/
+theorem fprasApex
+    (S : List ℕ) (t : ℕ) (f : List Bool → ℚ)
+    (hind : ∀ x, f x * f x = f x) (hf01 : ∀ x, 0 ≤ f x ∧ f x ≤ 1)
+    (ρ ε : ℚ) (hρ : 0 < ρ) (hε : 0 < ε)
+    (hp : ρ ≤ expect1 (maskFinset S.length) (samplerMass S t) f)
+    (N n ℓ k A B D E : ℕ) (hN : 0 < N)
+    (hNbig : 1 ≤ N * (ε ^ 2 * ρ ^ 2))
+    (hℓ : 0 < ℓ) (hA : A ≤ n) (hB : B ≤ 8 * ℓ) (hk : k ≤ 8 * ℓ)
+    (hNE : N * ℓ ≤ n * E) :
+    ((∑ v ∈ (vecs (maskFinset S.length) N).filter
+        (fun v => ε * expect1 (maskFinset S.length) (samplerMass S t) f ≤
+          |sumStat f v / N - expect1 (maskFinset S.length) (samplerMass S t) f|),
+      prodMass (samplerMass S t) v) ≤ 1 / 4) ∧
+    (N * perSampleLedger k A B D) * ℓ ≤ (D + 1) * (n * n * E) ∧
+    N * perSampleLedger k A B D ≤ 1024 * (Nat.sqrt ℓ + 1) * (n * E) ∧
+    (N * perSampleLedger k A B D) ^ 3 ≤ 4194304 * (D + 1) * (n ^ 4 * E ^ 3) ∧
+    cacheLedger A B D ≤ 32 * (ℓ * n) ∧
+    N * k ≤ 8 * (n * E) ∧
+    cacheLedger2 A B D ≤ 128 * (D + 1) * (ℓ * ℓ) ∧
+    -- NEW (v3): the lazy dyadic block-merge mode
+    dyadicLedger N k B D ≤ 16 * (D + 1) * (ℓ * Nat.sqrt (N * k)) := by
+  obtain ⟨h1, h2, h3, h4, h5, h6, h7⟩ := fprasSharpest S t f hind hf01 ρ ε hρ hε hp
+    N n ℓ k A B D E hN hNbig hℓ hA hB hk hNE
+  refine ⟨h1, h2, h3, h4, h5, h6, h7, ?_⟩
+  calc dyadicLedger N k B D
+      ≤ 2 * (D + 1) * (B * Nat.sqrt (N * k)) := dyadic_ledger N k B D
+    _ ≤ 2 * (D + 1) * ((8 * ℓ) * Nat.sqrt (N * k)) := by
+        apply Nat.mul_le_mul_left
+        exact Nat.mul_le_mul_right _ hB
+    _ = 16 * (D + 1) * (ℓ * Nat.sqrt (N * k)) := by ring

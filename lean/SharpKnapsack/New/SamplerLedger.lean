@@ -380,3 +380,214 @@ theorem construction_ledger (L M D : ℕ) (hD : 2 ^ D ≤ 2 * M) :
                 exact Nat.mul_le_mul_left _ hpow
             _ = 64 * (L * (Nat.sqrt M + 1)) := by ring
         omega
+
+/-! ### The amortized-cache ledger (branch `beyond-n43`)
+
+Distinct query positions at a node never exceed its array length, so
+per-(node, position) alias caches amortize the rectangle enumeration.
+The cache build cost summed over a class tree is the new, ε-free mode:
+every level costs at most `L·M/2^{h/2}`, hence `O(L·M)` in total. -/
+theorem cache_ledger (L M D : ℕ) :
+    (∑ h ∈ range (D + 1), 2 ^ h * ((L / 2 ^ (h / 2)) * (M / 2 ^ h))) ≤
+      4 * (L * M) := by
+  have hterm : ∀ h ∈ range (D + 1),
+      2 ^ h * ((L / 2 ^ (h / 2)) * (M / 2 ^ h)) ≤ (L * M) / 2 ^ (h / 2) := by
+    intro h _
+    have h1 : (L / 2 ^ (h / 2)) * ((M / 2 ^ h) * 2 ^ h) ≤
+        (L / 2 ^ (h / 2)) * M := by
+      apply Nat.mul_le_mul_left
+      rw [mul_comm]
+      exact Nat.mul_div_le M (2 ^ h)
+    have h2 : (L / 2 ^ (h / 2)) * M ≤ (L * M) / 2 ^ (h / 2) := by
+      rw [Nat.le_div_iff_mul_le (by positivity)]
+      calc L / 2 ^ (h / 2) * M * 2 ^ (h / 2)
+          = (L / 2 ^ (h / 2) * 2 ^ (h / 2)) * M := by ring
+        _ ≤ L * M := Nat.mul_le_mul_right _ (Nat.div_mul_le_self _ _)
+    calc 2 ^ h * ((L / 2 ^ (h / 2)) * (M / 2 ^ h))
+        = (L / 2 ^ (h / 2)) * ((M / 2 ^ h) * 2 ^ h) := by ring
+      _ ≤ (L / 2 ^ (h / 2)) * M := h1
+      _ ≤ (L * M) / 2 ^ (h / 2) := h2
+  calc (∑ h ∈ range (D + 1), 2 ^ h * ((L / 2 ^ (h / 2)) * (M / 2 ^ h)))
+      ≤ ∑ h ∈ range (D + 1), (L * M) / 2 ^ (h / 2) :=
+        Finset.sum_le_sum hterm
+    _ ≤ 4 * (L * M) := geom_half_root (D + 1) (L * M)
+
+/-- The cache-mode collapse: against the rebuild mode `n²E/ℓ`, the ε-free
+mode `nℓ` collapses to `n^{1.5}·√E` - squared form `min² ≤ n³·E`. -/
+theorem cache_collapse (n ℓ E : ℕ) :
+    (min ((n * n * E) / ℓ) (n * ℓ)) ^ 2 ≤ n ^ 3 * E := by
+  have h1 : (min ((n * n * E) / ℓ) (n * ℓ)) ^ 2 ≤
+      ((n * n * E) / ℓ) * (n * ℓ) := by
+    rw [pow_two]
+    exact Nat.mul_le_mul (min_le_left _ _) (min_le_right _ _)
+  calc (min ((n * n * E) / ℓ) (n * ℓ)) ^ 2
+      ≤ ((n * n * E) / ℓ) * (n * ℓ) := h1
+    _ = ((n * n * E) / ℓ * ℓ) * n := by ring
+    _ ≤ (n * n * E) * n := by
+        apply Nat.mul_le_mul_right
+        exact Nat.div_mul_le_self _ _
+    _ = n ^ 3 * E := by ring
+
+/-- The sharpened cache mode: a build at `(u, s)` enumerates at most
+`min(M_u, L_u)` rectangles (a level occupies at least one array cell), so
+each tree level costs at most `2L²` and the whole tree `Õ(L²)`. -/
+theorem cache_ledger2 (L M D : ℕ) :
+    (∑ h ∈ range (D + 1),
+      2 ^ h * ((L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2)))) ≤
+      2 * (D + 1) * (L * L) := by
+  have hterm : ∀ h ∈ range (D + 1),
+      2 ^ h * ((L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2))) ≤
+        2 * (L * L) := by
+    intro h _
+    have h1 : (2:ℕ) ^ h ≤ 2 * (2 ^ (h / 2) * 2 ^ (h / 2)) := by
+      calc (2:ℕ) ^ h ≤ 2 ^ (h / 2 + h / 2 + 1) :=
+            Nat.pow_le_pow_right (by norm_num) (by omega)
+        _ = 2 * (2 ^ (h / 2) * 2 ^ (h / 2)) := by
+            rw [pow_succ, pow_add]
+            ring
+    have h2 : (L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2)) ≤
+        (L / 2 ^ (h / 2)) * (L / 2 ^ (h / 2)) :=
+      Nat.mul_le_mul_left _ (min_le_right _ _)
+    calc 2 ^ h * ((L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2)))
+        ≤ (2 * (2 ^ (h / 2) * 2 ^ (h / 2))) *
+            ((L / 2 ^ (h / 2)) * (L / 2 ^ (h / 2))) :=
+          Nat.mul_le_mul h1 h2
+      _ = 2 * ((2 ^ (h / 2) * (L / 2 ^ (h / 2))) *
+            (2 ^ (h / 2) * (L / 2 ^ (h / 2)))) := by ring
+      _ ≤ 2 * (L * L) := by
+          apply Nat.mul_le_mul_left
+          apply Nat.mul_le_mul <;>
+            · rw [mul_comm]
+              exact Nat.div_mul_le_self L (2 ^ (h / 2))
+  calc (∑ h ∈ range (D + 1),
+      2 ^ h * ((L / 2 ^ (h / 2)) * min (M / 2 ^ h) (L / 2 ^ (h / 2))))
+      ≤ ∑ _h ∈ range (D + 1), 2 * (L * L) := Finset.sum_le_sum hterm
+    _ = 2 * (D + 1) * (L * L) := by
+        rw [Finset.sum_const, Finset.card_range, smul_eq_mul]
+        ring
+
+/-- The sharpened collapse: against the rebuild mode `n²E/ℓ`, the ε-free
+`ℓ²` mode balances at `ℓ = (n²E)^{1/3}`, i.e. the sampling work is at
+most `(n⁴E²)^{1/3} = n^{4/3}·ε^{-4/3}` - cube form `min³ ≤ n⁴E²`. -/
+theorem cache_collapse2 (n ℓ E : ℕ) :
+    (min ((n * n * E) / ℓ) (ℓ * ℓ)) ^ 3 ≤ n ^ 4 * E ^ 2 := by
+  have h1 : (min ((n * n * E) / ℓ) (ℓ * ℓ)) ^ 3 ≤
+      (((n * n * E) / ℓ) * ((n * n * E) / ℓ)) * (ℓ * ℓ) := by
+    have e : (min ((n * n * E) / ℓ) (ℓ * ℓ)) ^ 3 =
+        ((min ((n * n * E) / ℓ) (ℓ * ℓ)) * (min ((n * n * E) / ℓ) (ℓ * ℓ))) *
+          (min ((n * n * E) / ℓ) (ℓ * ℓ)) := by ring
+    rw [e]
+    exact Nat.mul_le_mul
+      (Nat.mul_le_mul (min_le_left _ _) (min_le_left _ _)) (min_le_right _ _)
+  calc (min ((n * n * E) / ℓ) (ℓ * ℓ)) ^ 3
+      ≤ (((n * n * E) / ℓ) * ((n * n * E) / ℓ)) * (ℓ * ℓ) := h1
+    _ = (((n * n * E) / ℓ) * ℓ) * (((n * n * E) / ℓ) * ℓ) := by ring
+    _ ≤ (n * n * E) * (n * n * E) := by
+        apply Nat.mul_le_mul <;> exact Nat.div_mul_le_self _ _
+    _ = n ^ 4 * E ^ 2 := by ring
+
+/-- The dyadic-doubling ledger (v3): a node deepens its precomputed
+block-merge tree only as visits double, keeping block size near
+`L/√visits`; per depth-`h` tree level the cost is at most
+`2·B·√(N·k)`, since `2^{h/2}·√(N·min(2^h,k)/2^h) ≤ √(N·k)`. -/
+theorem dyadic_ledger (N k B D : ℕ) :
+    (∑ h ∈ range (D + 1),
+      2 ^ h * ((B / 2 ^ (h / 2)) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h))) ≤
+      2 * (D + 1) * (B * Nat.sqrt (N * k)) := by
+  have hterm : ∀ h ∈ range (D + 1),
+      2 ^ h * ((B / 2 ^ (h / 2)) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h)) ≤
+        2 * (B * Nat.sqrt (N * k)) := by
+    intro h _
+    have h1 : (2:ℕ) ^ h ≤ 2 * (2 ^ (h / 2) * 2 ^ (h / 2)) := by
+      calc (2:ℕ) ^ h ≤ 2 ^ (h / 2 + h / 2 + 1) :=
+            Nat.pow_le_pow_right (by norm_num) (by omega)
+        _ = 2 * (2 ^ (h / 2) * 2 ^ (h / 2)) := by
+            rw [pow_succ, pow_add]
+            ring
+    have hsq : 2 ^ (h / 2) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h) ≤
+        Nat.sqrt (N * k) := by
+      rw [Nat.le_sqrt]
+      have e1 : (2 ^ (h / 2) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h)) *
+          (2 ^ (h / 2) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h)) =
+          (2 ^ (h / 2) * 2 ^ (h / 2)) *
+            (Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h) *
+              Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h)) := by ring
+      rw [e1]
+      calc (2 ^ (h / 2) * 2 ^ (h / 2)) *
+          (Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h) *
+            Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h))
+          ≤ (2 ^ (h / 2) * 2 ^ (h / 2)) * ((N * min (2 ^ h) k) / 2 ^ h) := by
+            apply Nat.mul_le_mul_left
+            simpa [pow_two] using Nat.sqrt_le' ((N * min (2 ^ h) k) / 2 ^ h)
+        _ ≤ 2 ^ h * ((N * min (2 ^ h) k) / 2 ^ h) := by
+            apply Nat.mul_le_mul_right
+            rw [← pow_add]
+            exact Nat.pow_le_pow_right (by norm_num) (by omega)
+        _ ≤ N * min (2 ^ h) k := Nat.mul_div_le _ _
+        _ ≤ N * k := Nat.mul_le_mul_left _ (min_le_right _ _)
+    calc 2 ^ h * ((B / 2 ^ (h / 2)) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h))
+        ≤ (2 * (2 ^ (h / 2) * 2 ^ (h / 2))) *
+            ((B / 2 ^ (h / 2)) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h)) :=
+          Nat.mul_le_mul_right _ h1
+      _ = 2 * ((2 ^ (h / 2) * (B / 2 ^ (h / 2))) *
+            (2 ^ (h / 2) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h))) := by ring
+      _ ≤ 2 * (B * Nat.sqrt (N * k)) := by
+          apply Nat.mul_le_mul_left
+          apply Nat.mul_le_mul _ hsq
+          rw [mul_comm]
+          exact Nat.div_mul_le_self B (2 ^ (h / 2))
+  calc (∑ h ∈ range (D + 1),
+      2 ^ h * ((B / 2 ^ (h / 2)) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h)))
+      ≤ ∑ _h ∈ range (D + 1), 2 * (B * Nat.sqrt (N * k)) :=
+        Finset.sum_le_sum hterm
+    _ = 2 * (D + 1) * (B * Nat.sqrt (N * k)) := by
+        rw [Finset.sum_const, Finset.card_range, smul_eq_mul]
+        ring
+
+/-- The v3 collapse: against the rebuild mode `n²E/ℓ`, the dyadic mode
+`ℓ·(√(NE-scale))` balances at value `n^{5/4}·E^{3/4}` - fourth-power
+form `min⁴ ≤ 4·n⁵E³`. -/
+theorem cache_collapse3 (n ℓ E : ℕ) (hnE : 1 ≤ n * E) :
+    (min ((n * n * E) / ℓ) (ℓ * (Nat.sqrt (n * E) + 1))) ^ 4 ≤
+      4 * (n ^ 5 * E ^ 3) := by
+  have hs1 : 1 ≤ Nat.sqrt (n * E) := by
+    rw [Nat.le_sqrt]
+    simpa using hnE
+  have hs2 : (Nat.sqrt (n * E) + 1) * (Nat.sqrt (n * E) + 1) ≤
+      4 * (n * E) := by
+    calc (Nat.sqrt (n * E) + 1) * (Nat.sqrt (n * E) + 1)
+        ≤ (2 * Nat.sqrt (n * E)) * (2 * Nat.sqrt (n * E)) := by
+          apply Nat.mul_le_mul <;> omega
+      _ = 4 * (Nat.sqrt (n * E) * Nat.sqrt (n * E)) := by ring
+      _ ≤ 4 * (n * E) := by
+          apply Nat.mul_le_mul_left
+          simpa [pow_two] using Nat.sqrt_le' (n * E)
+  have hxy : ((n * n * E) / ℓ) * (ℓ * (Nat.sqrt (n * E) + 1)) ≤
+      (n * n * E) * (Nat.sqrt (n * E) + 1) := by
+    calc ((n * n * E) / ℓ) * (ℓ * (Nat.sqrt (n * E) + 1))
+        = (((n * n * E) / ℓ) * ℓ) * (Nat.sqrt (n * E) + 1) := by ring
+      _ ≤ (n * n * E) * (Nat.sqrt (n * E) + 1) :=
+          Nat.mul_le_mul_right _ (Nat.div_mul_le_self _ _)
+  have hmin4 : (min ((n * n * E) / ℓ) (ℓ * (Nat.sqrt (n * E) + 1))) ^ 4 ≤
+      (((n * n * E) / ℓ) * (ℓ * (Nat.sqrt (n * E) + 1))) *
+        (((n * n * E) / ℓ) * (ℓ * (Nat.sqrt (n * E) + 1))) := by
+    have e : (min ((n * n * E) / ℓ) (ℓ * (Nat.sqrt (n * E) + 1))) ^ 4 =
+        ((min ((n * n * E) / ℓ) (ℓ * (Nat.sqrt (n * E) + 1))) *
+          (min ((n * n * E) / ℓ) (ℓ * (Nat.sqrt (n * E) + 1)))) *
+        ((min ((n * n * E) / ℓ) (ℓ * (Nat.sqrt (n * E) + 1))) *
+          (min ((n * n * E) / ℓ) (ℓ * (Nat.sqrt (n * E) + 1)))) := by ring
+    rw [e]
+    exact Nat.mul_le_mul
+      (Nat.mul_le_mul (min_le_left _ _) (min_le_right _ _))
+      (Nat.mul_le_mul (min_le_left _ _) (min_le_right _ _))
+  calc (min ((n * n * E) / ℓ) (ℓ * (Nat.sqrt (n * E) + 1))) ^ 4
+      ≤ (((n * n * E) / ℓ) * (ℓ * (Nat.sqrt (n * E) + 1))) *
+          (((n * n * E) / ℓ) * (ℓ * (Nat.sqrt (n * E) + 1))) := hmin4
+    _ ≤ ((n * n * E) * (Nat.sqrt (n * E) + 1)) *
+          ((n * n * E) * (Nat.sqrt (n * E) + 1)) :=
+        Nat.mul_le_mul hxy hxy
+    _ = ((n * n * E) * (n * n * E)) *
+          ((Nat.sqrt (n * E) + 1) * (Nat.sqrt (n * E) + 1)) := by ring
+    _ ≤ ((n * n * E) * (n * n * E)) * (4 * (n * E)) :=
+        Nat.mul_le_mul_left _ hs2
+    _ = 4 * (n ^ 5 * E ^ 3) := by ring

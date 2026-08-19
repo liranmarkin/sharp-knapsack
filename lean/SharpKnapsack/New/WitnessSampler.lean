@@ -171,3 +171,35 @@ theorem ledger_collapse (n ℓ : ℕ) :
     _ = n ^ 4 := by ring
 
 end SharpKnapsack
+
+/-- Correctness core of the dyadic block draw (v3): the witness mass of
+the global maximum splits exactly over blocks - a block contributes its
+own witness mass when its block-maximum matches the global maximum, and
+nothing otherwise. This is the identity the binary-search draw descends
+on. -/
+theorem block_split_exact {α : Type*} [DecidableEq α]
+    (P₁ P₂ : Finset α) (hd : Disjoint P₁ P₂) (g : α → ℕ) (w : α → ℚ) :
+    (∑ x ∈ (P₁ ∪ P₂).filter (fun x => g x = (P₁ ∪ P₂).sup g), w x) =
+      (if P₁.sup g = (P₁ ∪ P₂).sup g then
+        ∑ x ∈ P₁.filter (fun x => g x = P₁.sup g), w x else 0) +
+      (if P₂.sup g = (P₁ ∪ P₂).sup g then
+        ∑ x ∈ P₂.filter (fun x => g x = P₂.sup g), w x else 0) := by
+  rw [Finset.filter_union,
+    Finset.sum_union (hd.mono (Finset.filter_subset _ _) (Finset.filter_subset _ _))]
+  congr 1
+  · by_cases h : P₁.sup g = (P₁ ∪ P₂).sup g
+    · rw [if_pos h, h]
+    · rw [if_neg h, Finset.filter_false_of_mem, Finset.sum_empty]
+      intro x hx hgx
+      have h1 : g x ≤ P₁.sup g := Finset.le_sup hx
+      have h2 : P₁.sup g ≤ (P₁ ∪ P₂).sup g :=
+        Finset.sup_mono Finset.subset_union_left
+      omega
+  · by_cases h : P₂.sup g = (P₁ ∪ P₂).sup g
+    · rw [if_pos h, h]
+    · rw [if_neg h, Finset.filter_false_of_mem, Finset.sum_empty]
+      intro x hx hgx
+      have h1 : g x ≤ P₂.sup g := Finset.le_sup hx
+      have h2 : P₂.sup g ≤ (P₁ ∪ P₂).sup g :=
+        Finset.sup_mono Finset.subset_union_right
+      omega

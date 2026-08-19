@@ -133,3 +133,29 @@ Stages A-E verify everything new in this result plus the probabilistic
 glue, treating the construction as a specified interface; Stage F closes
 the loop on Feng-Jin's side. Status lives in this file; each completed
 stage updates the checkbox and lands in CI.
+
+## Branch `beyond-n43` (the amortized refinement)
+
+- [x] `cache_ledger` - the ε-free mode-C sum ≤ 4·L·M.
+- [x] `cache_collapse` - min(n²E/ℓ, nℓ)² ≤ n³E (the n^{1.5}√E exponent).
+- [x] `fprasSharper` - the composed headline: fprasSharp ∧ cache mode
+  (builds ≤ 32·ℓ·n, draws N·k ≤ 8·n·E). Total:
+  Õ(n^1.5 + min(n^{4/3}ε⁻², n^{1.5}ε⁻¹) + n·ε⁻²).
+- [x] `cache_ledger2` - rectangle count capped by array length: mode
+  C' ≤ 2(D+1)·L² (ε- and n-free).
+- [x] `cache_collapse2` - min(n²E/ℓ, ℓ²)³ ≤ n⁴E² (the n^{4/3}ε^{-4/3}
+  exponent).
+- [x] `fprasSharpest` - the composed v2 headline. Total:
+  Õ(n^1.5 + min(n^{4/3}ε^{-4/3}, n²) + n·ε⁻²) - strictly below
+  n^{4/3}ε⁻² for every ε < 1, flat Õ(n^1.5) for ε ≥ n^{-1/8}.
+- [x] `block_split_exact` - the exact witness-mass split over blocks
+  (the identity the v3 binary-search draw descends on).
+- [x] `dyadic_ledger` - lazy-doubling block-merges: mode D ≤
+  2(D+1)·B·√(N·k).
+- [x] `cache_collapse3` - min(n²E/ℓ, ℓ·(√(nE)+1))⁴ ≤ 4n⁵E³ (the
+  n^{5/4}ε^{-3/2} exponent).
+- [x] `fprasApex` - the composed v3 headline. Total:
+  Õ(n^1.5 + min(n^{5/4}ε^{-3/2}, n²) + n·ε⁻²) - flat Õ(n^1.5) for
+  ε ≥ n^{-1/6}, output-optimal below n^{-1/2}.
+- [ ] Open sub-problem: fresh-position witness queries below the
+  L·√(visits) doubling balance → uniform Õ(n^1.5 + n·ε⁻²).
