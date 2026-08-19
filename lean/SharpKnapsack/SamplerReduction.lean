@@ -979,3 +979,31 @@ theorem lemma_34 (n T ℓ L2 m₁ m₂ g₀ : ℕ) (W : ℕ → ℕ)
           rw [hdB]
       _ ≤ 2 ^ g₀ := hexp
   omega
+
+/-- The exponent gap of Lemma 3.4, generically: whenever the linear
+exponent inequality holds, the fiber bound is dominated by `2^g`. -/
+theorem exponent_gap (L g m₁ m₂ n : ℕ) (hn : n ≤ 2 ^ L)
+    (h : 7 + (m₁ + 1) * (L + 1) + (m₂ + 1) * (L + 1) ≤ g) :
+    100 * (((m₁ + 1) * n ^ (m₁ + 1)) * ((m₂ + 1) * n ^ (m₂ + 1))) ≤ 2 ^ g := by
+  have hfac : ∀ m : ℕ, (m + 1) * n ^ (m + 1) ≤ 2 ^ ((m + 1) * (L + 1)) := by
+    intro m
+    calc (m + 1) * n ^ (m + 1)
+        ≤ 2 ^ (m + 1) * n ^ (m + 1) := by
+          apply Nat.mul_le_mul_right
+          exact le_of_lt (Nat.lt_two_pow_self)
+      _ ≤ 2 ^ (m + 1) * (2 ^ L) ^ (m + 1) := by
+          apply Nat.mul_le_mul_left
+          exact Nat.pow_le_pow_left hn _
+      _ = 2 ^ ((m + 1) * (L + 1)) := by
+          rw [← pow_mul, ← pow_add]
+          congr 1
+          ring
+  calc 100 * (((m₁ + 1) * n ^ (m₁ + 1)) * ((m₂ + 1) * n ^ (m₂ + 1)))
+      ≤ 2 ^ 7 * (2 ^ ((m₁ + 1) * (L + 1)) * 2 ^ ((m₂ + 1) * (L + 1))) := by
+        apply Nat.mul_le_mul (by norm_num)
+        exact Nat.mul_le_mul (hfac m₁) (hfac m₂)
+    _ = 2 ^ (7 + (m₁ + 1) * (L + 1) + (m₂ + 1) * (L + 1)) := by
+        rw [← pow_add, ← pow_add]
+        congr 1
+        ring
+    _ ≤ 2 ^ g := Nat.pow_le_pow_right (by norm_num) h
