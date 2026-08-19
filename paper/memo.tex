@@ -167,6 +167,25 @@ Theorem~\ref{thm:main}. At the extremes ($\ell=\mathrm{polylog}$ or
 $\ell=\Theta(n)$) the bound improves further, to
 $\OO(n^{1.5}+n\,\varepsilon^{-2})$.
 
+\section{A further refinement: amortized caching}
+
+The per-draw rectangle enumeration can be amortized: the position
+queried at a node is an index into that node's array, so at most $L_u$
+distinct (node, position) pairs ever occur. Caching an alias table per
+pair on first visit adds an $\varepsilon$-free cost mode
+$\OO(\ell n)$, and the three-mode ledger then gives
+\[
+\OO\!\left(n^{1.5}
+ + \min\!\big(n^{4/3}\varepsilon^{-2},\; n^{1.5}\varepsilon^{-1}\big)
+ + n\,\varepsilon^{-2}\right),
+\]
+strictly below the bound of Theorem~\ref{thm:main} for every
+$\varepsilon<n^{-1/6}$, and equal to the output-optimal
+$n\varepsilon^{-2}$ once $\varepsilon\le n^{-1/2}$. The residual kink
+$n^{1.5}\varepsilon^{-1}$ sits exactly at the cost of building one cache
+($\Theta(M_u)$ per position); building in $o(M_u)$ is the remaining open
+sub-problem.
+
 \section{Discussion}
 
 Two remarks. First, the bound is \emph{instance-adaptive}: $\ell$ is

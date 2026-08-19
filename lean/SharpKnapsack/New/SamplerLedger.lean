@@ -380,3 +380,50 @@ theorem construction_ledger (L M D : ℕ) (hD : 2 ^ D ≤ 2 * M) :
                 exact Nat.mul_le_mul_left _ hpow
             _ = 64 * (L * (Nat.sqrt M + 1)) := by ring
         omega
+
+/-! ### The amortized-cache ledger (branch `beyond-n43`)
+
+Distinct query positions at a node never exceed its array length, so
+per-(node, position) alias caches amortize the rectangle enumeration.
+The cache build cost summed over a class tree is the new, ε-free mode:
+every level costs at most `L·M/2^{h/2}`, hence `O(L·M)` in total. -/
+theorem cache_ledger (L M D : ℕ) :
+    (∑ h ∈ range (D + 1), 2 ^ h * ((L / 2 ^ (h / 2)) * (M / 2 ^ h))) ≤
+      4 * (L * M) := by
+  have hterm : ∀ h ∈ range (D + 1),
+      2 ^ h * ((L / 2 ^ (h / 2)) * (M / 2 ^ h)) ≤ (L * M) / 2 ^ (h / 2) := by
+    intro h _
+    have h1 : (L / 2 ^ (h / 2)) * ((M / 2 ^ h) * 2 ^ h) ≤
+        (L / 2 ^ (h / 2)) * M := by
+      apply Nat.mul_le_mul_left
+      rw [mul_comm]
+      exact Nat.mul_div_le M (2 ^ h)
+    have h2 : (L / 2 ^ (h / 2)) * M ≤ (L * M) / 2 ^ (h / 2) := by
+      rw [Nat.le_div_iff_mul_le (by positivity)]
+      calc L / 2 ^ (h / 2) * M * 2 ^ (h / 2)
+          = (L / 2 ^ (h / 2) * 2 ^ (h / 2)) * M := by ring
+        _ ≤ L * M := Nat.mul_le_mul_right _ (Nat.div_mul_le_self _ _)
+    calc 2 ^ h * ((L / 2 ^ (h / 2)) * (M / 2 ^ h))
+        = (L / 2 ^ (h / 2)) * ((M / 2 ^ h) * 2 ^ h) := by ring
+      _ ≤ (L / 2 ^ (h / 2)) * M := h1
+      _ ≤ (L * M) / 2 ^ (h / 2) := h2
+  calc (∑ h ∈ range (D + 1), 2 ^ h * ((L / 2 ^ (h / 2)) * (M / 2 ^ h)))
+      ≤ ∑ h ∈ range (D + 1), (L * M) / 2 ^ (h / 2) :=
+        Finset.sum_le_sum hterm
+    _ ≤ 4 * (L * M) := geom_half_root (D + 1) (L * M)
+
+/-- The cache-mode collapse: against the rebuild mode `n²E/ℓ`, the ε-free
+mode `nℓ` collapses to `n^{1.5}·√E` - squared form `min² ≤ n³·E`. -/
+theorem cache_collapse (n ℓ E : ℕ) :
+    (min ((n * n * E) / ℓ) (n * ℓ)) ^ 2 ≤ n ^ 3 * E := by
+  have h1 : (min ((n * n * E) / ℓ) (n * ℓ)) ^ 2 ≤
+      ((n * n * E) / ℓ) * (n * ℓ) := by
+    rw [pow_two]
+    exact Nat.mul_le_mul (min_le_left _ _) (min_le_right _ _)
+  calc (min ((n * n * E) / ℓ) (n * ℓ)) ^ 2
+      ≤ ((n * n * E) / ℓ) * (n * ℓ) := h1
+    _ = ((n * n * E) / ℓ * ℓ) * n := by ring
+    _ ≤ (n * n * E) * n := by
+        apply Nat.mul_le_mul_right
+        exact Nat.div_mul_le_self _ _
+    _ = n ^ 3 * E := by ring

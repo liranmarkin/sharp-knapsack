@@ -165,3 +165,53 @@ theorem fprasSharp
             exact Nat.mul_le_mul_left _ hsq
         _ = (4194304 * (D + 1) * (n ^ 4 * E ^ 3)) * ℓ := by ring
     exact Nat.le_of_mul_le_mul_right hkey hℓ
+
+/-! ### The amortized headline (branch `beyond-n43`) -/
+
+/-- Cache-build cost over a class tree: at depth `h`, up to `2^h` nodes
+each build alias tables for at most `B/2^(h/2)` distinct positions
+(the array length bounds distinct queries), at `A/2^h` per build. -/
+def cacheLedger (A B D : ℕ) : ℕ :=
+  ∑ h ∈ range (D + 1), 2 ^ h * ((B / 2 ^ (h / 2)) * (A / 2 ^ h))
+
+/-- **The amortized headline theorem.** Everything `fprasSharp` states,
+plus the amortized-cache mode: cache builds are ε-FREE
+(`cacheLedger ≤ 32·ℓ·n`) and post-cache draws are output-linear
+(`N·k ≤ 8·n·E`). With `cache_collapse` and `ledger_collapse` certifying
+the exponents, the total sampling work is
+
+    `Õ( min(n^{4/3}·ε⁻², n^{1.5}·ε⁻¹) + n·ε⁻² )`
+
+- dominating the `fprasSharp` bound for every `ε < n^{-1/6}` and tending
+to the output-optimal `n·ε⁻²` as `ε → 0`. -/
+theorem fprasSharper
+    (S : List ℕ) (t : ℕ) (f : List Bool → ℚ)
+    (hind : ∀ x, f x * f x = f x) (hf01 : ∀ x, 0 ≤ f x ∧ f x ≤ 1)
+    (ρ ε : ℚ) (hρ : 0 < ρ) (hε : 0 < ε)
+    (hp : ρ ≤ expect1 (maskFinset S.length) (samplerMass S t) f)
+    (N n ℓ k A B D E : ℕ) (hN : 0 < N)
+    (hNbig : 1 ≤ N * (ε ^ 2 * ρ ^ 2))
+    (hℓ : 0 < ℓ) (hA : A ≤ n) (hB : B ≤ 8 * ℓ) (hk : k ≤ 8 * ℓ)
+    (hNE : N * ℓ ≤ n * E) :
+    -- correctness and the two enumeration modes, as in `fprasSharp`
+    ((∑ v ∈ (vecs (maskFinset S.length) N).filter
+        (fun v => ε * expect1 (maskFinset S.length) (samplerMass S t) f ≤
+          |sumStat f v / N - expect1 (maskFinset S.length) (samplerMass S t) f|),
+      prodMass (samplerMass S t) v) ≤ 1 / 4) ∧
+    (N * perSampleLedger k A B D) * ℓ ≤ (D + 1) * (n * n * E) ∧
+    N * perSampleLedger k A B D ≤ 1024 * (Nat.sqrt ℓ + 1) * (n * E) ∧
+    (N * perSampleLedger k A B D) ^ 3 ≤ 4194304 * (D + 1) * (n ^ 4 * E ^ 3) ∧
+    -- NEW: the amortized-cache mode - ε-free builds, output-linear draws
+    cacheLedger A B D ≤ 32 * (ℓ * n) ∧
+    N * k ≤ 8 * (n * E) := by
+  obtain ⟨h1, h2, h3, h4⟩ := fprasSharp S t f hind hf01 ρ ε hρ hε hp
+    N n ℓ k A B D E hN hNbig hℓ hA hB hk hNE
+  refine ⟨h1, h2, h3, h4, ?_, ?_⟩
+  · calc cacheLedger A B D ≤ 4 * (B * A) := cache_ledger B A D
+      _ ≤ 4 * ((8 * ℓ) * n) := by
+          apply Nat.mul_le_mul_left
+          exact Nat.mul_le_mul hB hA
+      _ = 32 * (ℓ * n) := by ring
+  · calc N * k ≤ N * (8 * ℓ) := Nat.mul_le_mul_left _ hk
+      _ = 8 * (N * ℓ) := by ring
+      _ ≤ 8 * (n * E) := Nat.mul_le_mul_left _ hNE
