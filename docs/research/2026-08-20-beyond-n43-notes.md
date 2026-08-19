@@ -88,3 +88,20 @@ information wall):
 Open sub-problem (the one that would give uniform Õ(n^1.5 + n·ε⁻²)):
 answer fresh single-position witness-structure queries in o(min(M, L)),
 or find an ε-free build mode below ℓ².
+
+## v3 addendum: mode D is deterministic
+
+The per-node visit counts V_u are random, but no expectation argument
+is needed: Cauchy-Schwarz gives
+Σ_u L_u·√V_u ≤ √((Σ_u L_u²)·(Σ_u V_u)), and both factors have hard
+bounds - Σ_u V_u ≤ N·k·depth (pruned path-unions, deterministic) and
+Σ_u L_u² = ℓ²·depth (each tree level sums to ℓ²). So mode D ≤
+ℓ·√(N·k)·depth on EVERY run, not just on average. The schedule-form
+`dyadic_ledger` in Lean certifies the same shape.
+
+v4 candidates examined and rejected tonight: leaf-block aliasing inside
+the dyadic tree (reduces to mode C' = ℓ² again - the C'/D trade is one
+wall seen from two sides); sub-√ doubling balance (build·draw product
+is fixed at L²·V per node, √ is optimal for that product). The
+remaining ε-term n^{5/4}ε^{-3/2} on ε ∈ (n^{-1/2}, n^{-1/6}) is the
+frontier this branch leaves open.
