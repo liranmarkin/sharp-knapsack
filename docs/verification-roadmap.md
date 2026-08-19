@@ -61,11 +61,14 @@ meaningful theorem; later stages depend only on earlier ones.
   ≥ 2^g₀ neighbor solutions), `claim_36` (each solution neighbors at most
   (m₁+1)n^{m₁+1}·(m₂+1)n^{m₂+1} of them), `lemma_34` (100·|Ω^△| ≤ |Ω|,
   parametrized by the paper's arithmetic conditions incl. the exponent
-  gap). D.11 (done): `exponent_gap` -
-  lemma_34's hexp discharged from a linear exponent inequality. Remaining
-  in D: the ℕ-division arithmetic choosing (m₁, m₂, g₀) from ℓ ≥ C·L²
-  (params_choice), and composing Lemma 3.3's final constant with the
-  greedy hitting set.
+  gap). D.11-D.12 (done):
+  `exponent_gap` + `params_choice` (parameters discharged from ℓ ≥ 4000L²)
+  and **`lemma_33` - Feng-Jin Lemma 3.3 proven**: 100·|Ω₁| ≤ (1+200h)·|Ω|,
+  composed from lemma_34, the core-restricted greedy hitting set
+  (`greedy_hitting_core`), and the H-local deletion mapping
+  (`band_hit_le'`). **Stage D is complete**: all of Feng-Jin §3 is
+  machine-checked (parametrized by explicit arithmetic hypotheses that
+  `params_choice`-style lemmas discharge).
 - [~] **Stage E - sampling cost** (`SamplerCost.lean`, E.1 done): the
   pruning payoff `sampler_visit_bound` - a sample selecting k items
   activates ≤ (⌈log₂ n⌉+1)·k tree nodes (`activeNodes_le`, `treeDepth_le`);

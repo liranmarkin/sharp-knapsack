@@ -1057,3 +1057,305 @@ theorem params_choice (ℓ L : ℕ) (hL : 2 ≤ L) (hℓ : 4000 * L ^ 2 ≤ ℓ)
     have e2 : g * (200 * L) = 20 * (10 * (g * L)) := by ring
     omega
   exact Nat.le_of_mul_le_mul_right hmain (by positivity)
+
+/-! ### D.12: Lemma 3.3 - the sample-complexity bound assembled -/
+
+/-- Core-restricted greedy hitting: hit only within each member's `core`
+(⊆ a universe `U`), with the shrink factor over `|U|`. -/
+theorem greedy_hitting_core (s : ℕ) (U : Finset ℕ) :
+    ∀ (h : ℕ) (F : Finset (Finset ℕ)) (core : Finset ℕ → Finset ℕ),
+    (∀ X ∈ F, core X ⊆ U ∧ s ≤ (core X).card) →
+    ∃ H : Finset ℕ, H ⊆ U ∧ H.card ≤ h ∧
+      ((F.filter (fun X => core X ∩ H = ∅)).card) * U.card ^ h ≤
+        F.card * (U.card - s) ^ h := by
+  intro h
+  induction h with
+  | zero =>
+    intro F core _
+    exact ⟨∅, Finset.empty_subset _, by simp, by simp⟩
+  | succ h ih =>
+    intro F core hF
+    rcases Nat.eq_zero_or_pos s with hs | hs
+    · refine ⟨∅, Finset.empty_subset _, by simp, ?_⟩
+      subst hs
+      simp only [Nat.sub_zero]
+      exact Nat.mul_le_mul_right _
+        (Finset.card_le_card (Finset.filter_subset _ _))
+    by_cases hFne : F.Nonempty
+    · have hUne : 0 < U.card := by
+        obtain ⟨X, hX⟩ := hFne
+        obtain ⟨hsub, hcard⟩ := hF X hX
+        have h1 : 0 < (core X).card := by omega
+        calc 0 < (core X).card := h1
+          _ ≤ U.card := Finset.card_le_card hsub
+      have hdouble : s * F.card ≤
+          ∑ e ∈ U, (F.filter (fun X => e ∈ core X)).card := by
+        have hswap : (∑ e ∈ U, (F.filter (fun X => e ∈ core X)).card) =
+            ∑ X ∈ F, (U.filter (fun e => e ∈ core X)).card := by
+          simp only [Finset.card_filter]
+          rw [Finset.sum_comm]
+        rw [hswap]
+        have hcard : ∀ X ∈ F, s ≤ (U.filter (fun e => e ∈ core X)).card := by
+          intro X hX
+          obtain ⟨hsub, hcard⟩ := hF X hX
+          have hfe : U.filter (fun e => e ∈ core X) = core X := by
+            apply Finset.ext
+            intro e
+            simp only [Finset.mem_filter]
+            exact ⟨fun he => he.2, fun he => ⟨hsub he, he⟩⟩
+          rw [hfe]
+          exact hcard
+        calc s * F.card = ∑ _X ∈ F, s := by
+              rw [Finset.sum_const, smul_eq_mul, mul_comm]
+          _ ≤ ∑ X ∈ F, (U.filter (fun e => e ∈ core X)).card :=
+              Finset.sum_le_sum hcard
+      have hexists : ∃ e ∈ U,
+          s * F.card ≤ U.card * (F.filter (fun X => e ∈ core X)).card := by
+        by_contra hcon
+        push Not at hcon
+        have hlt : ∀ e ∈ U,
+            U.card * (F.filter (fun X => e ∈ core X)).card + 1 ≤ s * F.card := by
+          intro e he
+          have := hcon e he
+          omega
+        have hsumlt : U.card * (∑ e ∈ U, (F.filter (fun X => e ∈ core X)).card)
+            + U.card ≤ U.card * (s * F.card) := by
+          calc U.card * (∑ e ∈ U, (F.filter (fun X => e ∈ core X)).card) + U.card
+              = ∑ e ∈ U, (U.card * (F.filter (fun X => e ∈ core X)).card + 1) := by
+                rw [Finset.sum_add_distrib, Finset.mul_sum, Finset.sum_const,
+                  smul_eq_mul, mul_one]
+            _ ≤ ∑ _e ∈ U, s * F.card := Finset.sum_le_sum hlt
+            _ = U.card * (s * F.card) := by
+                rw [Finset.sum_const, smul_eq_mul]
+        have := Nat.mul_le_mul_left U.card hdouble
+        omega
+      obtain ⟨e, he, hecount⟩ := hexists
+      set F' := F.filter (fun X => e ∉ core X) with hF'
+      have hF'sub : ∀ X ∈ F', core X ⊆ U ∧ s ≤ (core X).card := by
+        intro X hX
+        rw [hF', Finset.mem_filter] at hX
+        exact hF X hX.1
+      obtain ⟨H', hH'U, hH'card, hH'⟩ := ih F' core hF'sub
+      refine ⟨insert e H', Finset.insert_subset he hH'U, ?_, ?_⟩
+      · calc (insert e H').card ≤ H'.card + 1 := Finset.card_insert_le _ _
+          _ ≤ h + 1 := by omega
+      · have hsub : F.filter (fun X => core X ∩ insert e H' = ∅) ⊆
+            F'.filter (fun X => core X ∩ H' = ∅) := by
+          intro X hX
+          rw [Finset.mem_filter] at hX
+          have hnotin : e ∉ core X := by
+            intro hin
+            have : e ∈ core X ∩ insert e H' :=
+              Finset.mem_inter.mpr ⟨hin, Finset.mem_insert_self _ _⟩
+            rw [hX.2] at this
+            exact absurd this (Finset.notMem_empty e)
+          rw [Finset.mem_filter, hF', Finset.mem_filter]
+          refine ⟨⟨hX.1, hnotin⟩, ?_⟩
+          apply Finset.eq_empty_of_forall_notMem
+          intro x hx
+          rw [Finset.mem_inter] at hx
+          have : x ∈ core X ∩ insert e H' :=
+            Finset.mem_inter.mpr ⟨hx.1, Finset.mem_insert_of_mem hx.2⟩
+          rw [hX.2] at this
+          exact absurd this (Finset.notMem_empty x)
+        have hcards := Finset.card_le_card hsub
+        have hF'card : F'.card * U.card ≤ F.card * (U.card - s) := by
+          have hsplit : (F.filter (fun X => e ∈ core X)).card + F'.card = F.card := by
+            rw [hF']
+            exact Finset.card_filter_add_card_filter_not (s := F) _
+          have hs_le : s ≤ U.card := by
+            obtain ⟨X, hX⟩ := hFne
+            obtain ⟨hsub', hcard'⟩ := hF X hX
+            calc s ≤ (core X).card := hcard'
+              _ ≤ U.card := Finset.card_le_card hsub'
+          have e1 : F'.card * U.card + (F.filter (fun X => e ∈ core X)).card * U.card =
+              F.card * U.card := by
+            rw [← Nat.add_mul, Nat.add_comm, hsplit]
+          have e2 : s * F.card ≤ (F.filter (fun X => e ∈ core X)).card * U.card := by
+            calc s * F.card ≤ U.card * (F.filter (fun X => e ∈ core X)).card :=
+                  hecount
+              _ = (F.filter (fun X => e ∈ core X)).card * U.card := Nat.mul_comm _ _
+          have e3 : F.card * (U.card - s) + F.card * s = F.card * U.card := by
+            rw [← Nat.mul_add]
+            congr 1
+            omega
+          have e4 : s * F.card = F.card * s := Nat.mul_comm _ _
+          omega
+        calc (F.filter (fun X => core X ∩ insert e H' = ∅)).card * U.card ^ (h + 1)
+            ≤ (F'.filter (fun X => core X ∩ H' = ∅)).card * U.card ^ (h + 1) :=
+              Nat.mul_le_mul_right _ hcards
+          _ = ((F'.filter (fun X => core X ∩ H' = ∅)).card * U.card ^ h) * U.card := by
+              ring
+          _ ≤ (F'.card * (U.card - s) ^ h) * U.card := Nat.mul_le_mul_right _ hH'
+          _ = (F'.card * U.card) * (U.card - s) ^ h := by ring
+          _ ≤ (F.card * (U.card - s)) * (U.card - s) ^ h :=
+              Nat.mul_le_mul_right _ hF'card
+          _ = F.card * (U.card - s) ^ (h + 1) := by ring
+    · refine ⟨∅, Finset.empty_subset _, by simp, ?_⟩
+      rw [Finset.not_nonempty_iff_eq_empty] at hFne
+      subst hFne
+      simp
+
+/-- The mapping bound with `H`-local weights: it suffices that the
+*hitting-set members* exceed the gap. -/
+theorem band_hit_le' (n T g : ℕ) (W : ℕ → ℕ) (H : Finset ℕ)
+    (hw : ∀ i ∈ H, g < W i) :
+    ((bandSet n W T g).filter (fun X => (X ∩ H).Nonempty)).card ≤
+      H.card * (solSet n W T).card := by
+  classical
+  set B := (bandSet n W T g).filter (fun X => (X ∩ H).Nonempty) with hB
+  let pick : Finset ℕ → ℕ := fun X =>
+    if h : (X ∩ H).Nonempty then (X ∩ H).min' h else 0
+  have hpick : ∀ X ∈ B, pick X ∈ X ∩ H := by
+    intro X hX
+    rw [hB, Finset.mem_filter] at hX
+    simp only [pick, dif_pos hX.2]
+    exact Finset.min'_mem _ _
+  have hinj : ∀ X₁ ∈ B, ∀ X₂ ∈ B,
+      (pick X₁, X₁.erase (pick X₁)) = (pick X₂, X₂.erase (pick X₂)) → X₁ = X₂ := by
+    intro X₁ h₁ X₂ h₂ heq
+    have hp₁ := hpick X₁ h₁
+    have hp₂ := hpick X₂ h₂
+    rw [Finset.mem_inter] at hp₁ hp₂
+    have h1 : pick X₁ = pick X₂ := (Prod.mk.injEq _ _ _ _).mp heq |>.1
+    have h2 : X₁.erase (pick X₁) = X₂.erase (pick X₂) :=
+      (Prod.mk.injEq _ _ _ _).mp heq |>.2
+    calc X₁ = insert (pick X₁) (X₁.erase (pick X₁)) := (Finset.insert_erase hp₁.1).symm
+      _ = insert (pick X₂) (X₂.erase (pick X₂)) := by rw [h2, h1]
+      _ = X₂ := Finset.insert_erase hp₂.1
+  have hland : ∀ X ∈ B, (pick X, X.erase (pick X)) ∈ H ×ˢ solSet n W T := by
+    intro X hX
+    have hp := hpick X hX
+    rw [Finset.mem_inter] at hp
+    rw [hB, Finset.mem_filter] at hX
+    have hband := hX.1
+    rw [bandSet, Finset.mem_filter, Finset.mem_powerset] at hband
+    obtain ⟨hsub, -, hup⟩ := hband
+    rw [Finset.mem_product]
+    refine ⟨hp.2, ?_⟩
+    rw [solSet, Finset.mem_filter, Finset.mem_powerset]
+    refine ⟨Finset.Subset.trans (Finset.erase_subset _ _) hsub, ?_⟩
+    have hWx : g < W (pick X) := hw _ hp.2
+    have hsum : (∑ i ∈ X.erase (pick X), W i) + W (pick X) = ∑ i ∈ X, W i :=
+      Finset.sum_erase_add X W hp.1
+    show (∑ i ∈ X.erase (pick X), W i) ≤ T
+    omega
+  calc B.card ≤ (H ×ˢ solSet n W T).card :=
+        Finset.card_le_card_of_injOn (fun X => (pick X, X.erase (pick X)))
+          hland hinj
+    _ = H.card * (solSet n W T).card := Finset.card_product _ _
+
+/-- **Feng-Jin Lemma 3.3** (parametrized): the boundary band `Ω₁` is at
+most a `(1 + 200h)/100`-fraction of the solution set - the sample
+complexity of the whole algorithm. Composed from Lemma 3.4 (few-large-item
+members), the core-restricted greedy hitting set, and the deletion
+mapping (many-large-item members). -/
+theorem lemma_33 (n T ℓ L2 m₁ m₂ g₀ h gap : ℕ) (W : ℕ → ℕ)
+    (hn : 0 < n) (hT : 0 < T) (hL2 : 0 < L2) (_hℓ : 0 < ℓ) (hm₁pos : 1 ≤ m₁)
+    (hsmall : 2 * (∑ j ∈ (Finset.range n).filter (fun j => W j * ℓ ≤ T), W j) ≤ T)
+    (hm₁ : 100 * m₁ * L2 ≤ ℓ)
+    (hg₀ : 20 * g₀ ≤ ℓ)
+    (hGood : g₀ + m₁ ≤
+      ((Finset.range n).filter (fun j => T < W j * ℓ ∧ W j * ℓ ≤ 2 * T)).card)
+    (hm₂ : 2 * ℓ ≤ m₂ * (40 * L2))
+    (hexp : 100 * (((m₁ + 1) * n ^ (m₁ + 1)) * ((m₂ + 1) * n ^ (m₂ + 1))) ≤ 2 ^ g₀)
+    (hgap : gap * ℓ ≤ T) (hgapT : gap ≤ T)
+    (hhit : 2 * (((Finset.range n).filter (fun j => T < W j * ℓ)).card - m₁) ^ h ≤
+      ((Finset.range n).filter (fun j => T < W j * ℓ)).card ^ h) :
+    100 * (bandSet n W T gap).card ≤ (1 + 200 * h) * (solSet n W T).card := by
+  classical
+  set U := (Finset.range n).filter (fun j => T < W j * ℓ) with hU
+  set Ω₁ := bandSet n W T gap with hΩ₁
+  set core : Finset ℕ → Finset ℕ := fun X => X.filter (fun j => T < W j * ℓ)
+    with hcore
+  have hsplitΩ : (Ω₁.filter (fun X => (core X).card ≤ m₁)).card +
+      (Ω₁.filter (fun X => ¬ (core X).card ≤ m₁)).card = Ω₁.card :=
+    Finset.card_filter_add_card_filter_not (s := Ω₁) _
+  -- few-large part: inside Lemma 3.4's family
+  have h34 := lemma_34 n T ℓ L2 m₁ m₂ g₀ W hn hT hL2 hsmall hm₁ hg₀ hGood hm₂ hexp
+  have hA1card : 100 * (Ω₁.filter (fun X => (core X).card ≤ m₁)).card ≤
+      (solSet n W T).card := by
+    refine le_trans (Nat.mul_le_mul_left 100 (Finset.card_le_card ?_)) h34
+    intro X hX
+    rw [Finset.mem_filter] at hX
+    obtain ⟨hXΩ, hXcard⟩ := hX
+    rw [hΩ₁, bandSet, Finset.mem_filter, Finset.mem_powerset] at hXΩ
+    rw [Finset.mem_filter, Finset.mem_powerset]
+    exact ⟨hXΩ.1, hXΩ.2.1, by omega, hXcard⟩
+  -- many-large part
+  set F := Ω₁.filter (fun X => ¬ (core X).card ≤ m₁) with hFdef
+  have hFcore : ∀ X ∈ F, core X ⊆ U ∧ m₁ ≤ (core X).card := by
+    intro X hX
+    rw [hFdef, Finset.mem_filter] at hX
+    obtain ⟨hXΩ, hXcard⟩ := hX
+    rw [hΩ₁, bandSet, Finset.mem_filter, Finset.mem_powerset] at hXΩ
+    constructor
+    · intro j hj
+      rw [hcore, Finset.mem_filter] at hj
+      rw [hU, Finset.mem_filter]
+      exact ⟨hXΩ.1 hj.1, hj.2⟩
+    · omega
+  obtain ⟨H, hHU, hHcard, hHbound⟩ := greedy_hitting_core m₁ U h F core hFcore
+  by_cases hFne : F.Nonempty
+  · have hUpos : 0 < U.card := by
+      obtain ⟨X, hX⟩ := hFne
+      obtain ⟨hsub, hcard⟩ := hFcore X hX
+      calc 0 < (core X).card := by omega
+        _ ≤ U.card := Finset.card_le_card hsub
+    have hUpow : 0 < U.card ^ h := pow_pos hUpos h
+    have hunhit2 : 2 * (F.filter (fun X => core X ∩ H = ∅)).card ≤ F.card := by
+      have k1 : (2 * (F.filter (fun X => core X ∩ H = ∅)).card) * U.card ^ h ≤
+          F.card * U.card ^ h := by
+        calc (2 * (F.filter (fun X => core X ∩ H = ∅)).card) * U.card ^ h
+            = 2 * ((F.filter (fun X => core X ∩ H = ∅)).card * U.card ^ h) := by
+              ring
+          _ ≤ 2 * (F.card * (U.card - m₁) ^ h) :=
+              Nat.mul_le_mul_left 2 hHbound
+          _ = F.card * (2 * (U.card - m₁) ^ h) := by ring
+          _ ≤ F.card * U.card ^ h := Nat.mul_le_mul_left _ hhit
+      exact Nat.le_of_mul_le_mul_right k1 hUpow
+    have hhitsplit : (F.filter (fun X => core X ∩ H = ∅)).card +
+        (F.filter (fun X => ¬ core X ∩ H = ∅)).card = F.card :=
+      Finset.card_filter_add_card_filter_not (s := F) _
+    have hhitcard : (F.filter (fun X => ¬ core X ∩ H = ∅)).card ≤
+        h * (solSet n W T).card := by
+      have hmap : F.filter (fun X => ¬ core X ∩ H = ∅) ⊆
+          (bandSet n W T gap).filter (fun X => (X ∩ H).Nonempty) := by
+        intro X hX
+        rw [Finset.mem_filter] at hX
+        obtain ⟨hXF, hXhit⟩ := hX
+        rw [hFdef, Finset.mem_filter] at hXF
+        rw [Finset.mem_filter]
+        refine ⟨by rw [← hΩ₁]; exact hXF.1, ?_⟩
+        have hne : (core X ∩ H).Nonempty :=
+          Finset.nonempty_iff_ne_empty.mpr hXhit
+        obtain ⟨x, hx⟩ := hne
+        rw [Finset.mem_inter] at hx
+        exact ⟨x, Finset.mem_inter.mpr
+          ⟨Finset.filter_subset _ _ hx.1, hx.2⟩⟩
+      have hw : ∀ i ∈ H, gap < W i := by
+        intro i hi
+        have := hHU hi
+        rw [hU, Finset.mem_filter] at this
+        have hgapℓ : gap * ℓ < W i * ℓ := by omega
+        exact Nat.lt_of_mul_lt_mul_right hgapℓ
+      calc (F.filter (fun X => ¬ core X ∩ H = ∅)).card
+          ≤ ((bandSet n W T gap).filter (fun X => (X ∩ H).Nonempty)).card :=
+            Finset.card_le_card hmap
+        _ ≤ H.card * (solSet n W T).card := band_hit_le' n T gap W H hw
+        _ ≤ h * (solSet n W T).card :=
+            Nat.mul_le_mul_right _ hHcard
+    -- combine
+    have hF2 : F.card ≤ 2 * (h * (solSet n W T).card) := by omega
+    have hrhs : (1 + 200 * h) * (solSet n W T).card =
+        (solSet n W T).card + 200 * (h * (solSet n W T).card) := by ring
+    omega
+  · rw [Finset.not_nonempty_iff_eq_empty] at hFne
+    have hF0 : F.card = 0 := by rw [hFne]; simp
+    have hΩeq : Ω₁.card = (Ω₁.filter (fun X => (core X).card ≤ m₁)).card := by
+      omega
+    calc 100 * Ω₁.card = 100 * (Ω₁.filter (fun X => (core X).card ≤ m₁)).card := by
+          rw [hΩeq]
+      _ ≤ (solSet n W T).card := hA1card
+      _ ≤ (1 + 200 * h) * (solSet n W T).card :=
+          Nat.le_mul_of_pos_left _ (by omega)
