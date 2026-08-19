@@ -177,20 +177,26 @@ pair makes repeat draws free. Second, a build enumerates at most
 $\min(M_u, L_u)$ rectangles, not $M_u$: every witness level present in
 the array occupies at least one of its $L_u$ cells. Summed over a class
 tree, all cache builds together cost $\OO(\ell^2)$ -- free of both
-$\varepsilon$ and $n$ -- and balancing against the rebuild mode
-$n^2/(\ell\varepsilon^2)$ at $\ell=(n^2/\varepsilon^2)^{1/3}$ gives
+$\varepsilon$ and $n$. A third step goes further: precompute the
+witness merge on \emph{dyadic sub-blocks} of a child, deepening a node
+only as its visits double. The exact identity ``a block contributes its
+own witness mass when its block-maximum matches the global maximum,
+and nothing otherwise'' lets a draw binary-search the stored block
+weights, and the doubling schedule balances build against draw at
+$L_u\sqrt{\text{visits}}$ per node, i.e.\ $\OO(\ell\sqrt{N k})$ in
+total. Taking the best mode at each $\ell$:
 \[
 \OO\!\left(n^{1.5}
- + \min\!\big(n^{4/3}\varepsilon^{-4/3},\; n^{2}\big)
+ + \min\!\big(n^{5/4}\varepsilon^{-3/2},\; n^{2}\big)
  + n\,\varepsilon^{-2}\right).
 \]
 This is strictly below Theorem~\ref{thm:main}'s
 $n^{4/3}\varepsilon^{-2}$ for \emph{every} $\varepsilon<1$, stays flat
-at $\OO(n^{1.5})$ for all $\varepsilon\ge n^{-1/8}$, and reaches the
+at $\OO(n^{1.5})$ for all $\varepsilon\ge n^{-1/6}$, and reaches the
 output-optimal $n\varepsilon^{-2}$ once $\varepsilon\le n^{-1/2}$. The
-remaining $\varepsilon$-term sits exactly at the cost of the cache
-builds; pushing a build below $\min(M_u,L_u)$ per position is the open
-sub-problem this refinement exposes.
+remaining $\varepsilon$-term sits exactly at the doubling balance;
+answering a fresh position's witness query below $L\sqrt{\text{visits}}$
+is the open sub-problem this refinement exposes.
 
 \section{Discussion}
 

@@ -148,5 +148,14 @@ stage updates the checkbox and lands in CI.
 - [x] `fprasSharpest` - the composed v2 headline. Total:
   Õ(n^1.5 + min(n^{4/3}ε^{-4/3}, n²) + n·ε⁻²) - strictly below
   n^{4/3}ε⁻² for every ε < 1, flat Õ(n^1.5) for ε ≥ n^{-1/8}.
-- [ ] Open sub-problem: builds in o(min(M,L)) per position, or an
-  ε-free mode below ℓ² → uniform Õ(n^1.5 + n·ε⁻²).
+- [x] `block_split_exact` - the exact witness-mass split over blocks
+  (the identity the v3 binary-search draw descends on).
+- [x] `dyadic_ledger` - lazy-doubling block-merges: mode D ≤
+  2(D+1)·B·√(N·k).
+- [x] `cache_collapse3` - min(n²E/ℓ, ℓ·(√(nE)+1))⁴ ≤ 4n⁵E³ (the
+  n^{5/4}ε^{-3/2} exponent).
+- [x] `fprasApex` - the composed v3 headline. Total:
+  Õ(n^1.5 + min(n^{5/4}ε^{-3/2}, n²) + n·ε⁻²) - flat Õ(n^1.5) for
+  ε ≥ n^{-1/6}, output-optimal below n^{-1/2}.
+- [ ] Open sub-problem: fresh-position witness queries below the
+  L·√(visits) doubling balance → uniform Õ(n^1.5 + n·ε⁻²).

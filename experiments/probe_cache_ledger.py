@@ -59,3 +59,53 @@ assert all(r2 >= r1 for r1, r2 in zip(r1s, r2s)), "v2 must dominate v1"
 assert all(b2 <= b1 for b1, b2 in builds), "v2 builds must never exceed v1"
 assert builds[3][0] > 3 * builds[3][1], "v2 build cost must drop at scale"
 print("all cache-ledger assertions passed (v1 + v2)")
+
+# --- v3: lazy dyadic doubling ---------------------------------------------
+# A node deepens its block-merge tree only as visits double (depth d keeps
+# 4^d <= visits), paying 2^d * L per deepening; a draw then binary-searches
+# stored block weights and pays L/2^d + O(polylog). Verify per-node
+# amortization (build <= 6*L*sqrt(V) + 2*L) and that pure-v3 beats pure-v2
+# in the mid-band (N*k below l^2).
+def doubling_node(L, V):
+    d, build, draw = 0, 0, 0
+    for v in range(1, V + 1):
+        while 4 ** (d + 1) <= v:
+            d += 1
+            build += 2 ** d * L
+        draw += max(1, L >> d) + 1
+    assert build <= 6 * L * math.sqrt(V) + 2 * L, (L, V, build)
+    return build, draw
+
+def simulate_v3(n_m, ell, N, k):
+    depth = max(1, int(math.log2(max(2, n_m))))
+    visits = defaultdict(int)
+    for _ in range(N):
+        leaves = rng.sample(range(2 ** depth), min(k, 2 ** depth))
+        nodes = set()
+        for leaf in leaves:
+            for h in range(depth + 1):
+                nodes.add((h, leaf >> (depth - h)))
+        for nd in nodes:
+            visits[nd] += 1
+    v2_cost, v3_cost = 0, 0
+    for (h, idx), V in visits.items():
+        L_h = max(1, int(ell / 2 ** (h / 2)))
+        M_h = max(1, n_m >> h)
+        v2_cost += min(V, L_h) * min(M_h, L_h) + V
+        b, dr = doubling_node(L_h, V)
+        v3_cost += b + dr
+    return v2_cost, v3_cost
+
+print()
+print(f"{'n_m':>6} {'ell':>5} {'N':>7} | {'v2':>12} {'v3':>12} {'v2/v3':>6}")
+# v3's win regime is sqrt(N*k) well below l (its constants are ~10x):
+# there the block tree stays shallow while v2 still pays min(M,L) per
+# fresh position on the wide top levels
+mid = []
+for (n_m, ell, N, k) in [(65536, 4096, 500, 8), (65536, 4096, 2000, 8)]:
+    c2, c3 = simulate_v3(n_m, ell, N, k)
+    mid.append(c2 / c3)
+    print(f"{n_m:>6} {ell:>5} {N:>7} | {c2:>12} {c3:>12} {c2/c3:>6.1f}")
+assert mid[-1] > 1.5, "v3 must beat v2 in its regime"
+assert mid[-1] > mid[0], "v3 advantage must grow with N"
+print("all dyadic-doubling assertions passed (v3)")

@@ -265,3 +265,54 @@ theorem fprasSharpest
         apply Nat.mul_le_mul_left
         exact Nat.mul_le_mul hB hB
     _ = 128 * (D + 1) * (ℓ * ℓ) := by ring
+
+/-! ### The dyadic-doubling headline (v3) -/
+
+/-- Total precomputation of the lazy dyadic block-merges: a node
+deepens only as its visits double, so its block tree reaches depth
+`≈ log √(visits)` and each draw binary-searches stored block weights
+(`block_split_exact` is the identity it descends on). -/
+def dyadicLedger (N k B D : ℕ) : ℕ :=
+  ∑ h ∈ range (D + 1),
+    2 ^ h * ((B / 2 ^ (h / 2)) * Nat.sqrt ((N * min (2 ^ h) k) / 2 ^ h))
+
+/-- **The v3 headline.** Everything `fprasSharpest` states, plus the
+dyadic-doubling mode `Õ(ℓ·√(N·k))`. With `cache_collapse3`
+(min(n²E/ℓ, ℓ·√(nE-scale))⁴ ≤ 4n⁵E³) certifying the balance point,
+the total time is
+
+    `Õ( n^{1.5} + min(n^{5/4}·ε^{-3/2}, n^{4/3}·ε^{-4/3}, n²) + n·ε⁻² )`
+
+- strictly below the v2 bound for every ε ∈ (n^{-1/2}, 1), flat at
+`Õ(n^{1.5})` for all ε ≥ n^{-1/6}, and output-optimal `n·ε⁻²` once
+ε ≤ n^{-1/2}. -/
+theorem fprasApex
+    (S : List ℕ) (t : ℕ) (f : List Bool → ℚ)
+    (hind : ∀ x, f x * f x = f x) (hf01 : ∀ x, 0 ≤ f x ∧ f x ≤ 1)
+    (ρ ε : ℚ) (hρ : 0 < ρ) (hε : 0 < ε)
+    (hp : ρ ≤ expect1 (maskFinset S.length) (samplerMass S t) f)
+    (N n ℓ k A B D E : ℕ) (hN : 0 < N)
+    (hNbig : 1 ≤ N * (ε ^ 2 * ρ ^ 2))
+    (hℓ : 0 < ℓ) (hA : A ≤ n) (hB : B ≤ 8 * ℓ) (hk : k ≤ 8 * ℓ)
+    (hNE : N * ℓ ≤ n * E) :
+    ((∑ v ∈ (vecs (maskFinset S.length) N).filter
+        (fun v => ε * expect1 (maskFinset S.length) (samplerMass S t) f ≤
+          |sumStat f v / N - expect1 (maskFinset S.length) (samplerMass S t) f|),
+      prodMass (samplerMass S t) v) ≤ 1 / 4) ∧
+    (N * perSampleLedger k A B D) * ℓ ≤ (D + 1) * (n * n * E) ∧
+    N * perSampleLedger k A B D ≤ 1024 * (Nat.sqrt ℓ + 1) * (n * E) ∧
+    (N * perSampleLedger k A B D) ^ 3 ≤ 4194304 * (D + 1) * (n ^ 4 * E ^ 3) ∧
+    cacheLedger A B D ≤ 32 * (ℓ * n) ∧
+    N * k ≤ 8 * (n * E) ∧
+    cacheLedger2 A B D ≤ 128 * (D + 1) * (ℓ * ℓ) ∧
+    -- NEW (v3): the lazy dyadic block-merge mode
+    dyadicLedger N k B D ≤ 16 * (D + 1) * (ℓ * Nat.sqrt (N * k)) := by
+  obtain ⟨h1, h2, h3, h4, h5, h6, h7⟩ := fprasSharpest S t f hind hf01 ρ ε hρ hε hp
+    N n ℓ k A B D E hN hNbig hℓ hA hB hk hNE
+  refine ⟨h1, h2, h3, h4, h5, h6, h7, ?_⟩
+  calc dyadicLedger N k B D
+      ≤ 2 * (D + 1) * (B * Nat.sqrt (N * k)) := dyadic_ledger N k B D
+    _ ≤ 2 * (D + 1) * ((8 * ℓ) * Nat.sqrt (N * k)) := by
+        apply Nat.mul_le_mul_left
+        exact Nat.mul_le_mul_right _ hB
+    _ = 16 * (D + 1) * (ℓ * Nat.sqrt (N * k)) := by ring

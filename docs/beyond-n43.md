@@ -69,6 +69,31 @@ Strictly below n^{4/3}ε⁻² for EVERY ε < 1; flat Õ(n^1.5) for all
 Machine-checked: `cache_ledger2`, `cache_collapse2`, and the composed
 headline `fprasSharpest` (all standard axioms, build green).
 
+## The v3 mode: lazy dyadic block-merges
+
+Dead end 1 above (prefix-window queries have no small certificate)
+has a batch escape: precompute their Theorem 6.1 merge on dyadic
+sub-blocks of the left child. For block B, store C_B(s) and W_B(s); the
+exact identity (Lean: `block_split_exact`)
+
+    W(s) = [C_B1(s) = C(s)]*W_B1(s) + [C_B2(s) = C(s)]*W_B2(s)
+
+lets a draw binary-search down the block tree in polylog per level.
+A full block tree is unaffordable (2^d * L per depth - the wall again),
+but LAZY DOUBLING - deepen a node only as its visits double, keeping
+4^d <= visits - balances build against draw at L*sqrt(visits) per node.
+Tree total: mode D = O~(l*sqrt(N*k)) (Lean: `dyadic_ledger`). Collapse
+against the rebuild mode (Lean: `cache_collapse3`): balance at value
+n^{5/4} * eps^{-3/2}. Final total, taking the best mode per l:
+
+    O~( n^1.5 + min(n^{5/4} eps^{-3/2}, n^2) + n eps^-2 ).
+
+Strictly below v2 for every eps in (n^{-1/2}, 1); flat O~(n^1.5) for
+all eps >= n^{-1/6}; output-optimal n eps^-2 once eps <= n^{-1/2}.
+Probe: v3 constants are real (~10x per node) - its win regime needs
+sqrt(N*k) well under l, exactly as the ledger says; there it beats v2
+by a factor growing with N (4.2x measured).
+
 ## Honest limits
 
 1. At ε = Θ(1) the total still ties Feng-Jin at Õ(n^1.5) (construction
@@ -76,8 +101,9 @@ headline `fprasSharpest` (all standard axioms, build green).
    (near-linear FPRAS; the (max,+) frontier) - not claimed.
 2. Space rises to Õ(min(N·n, ℓ²)) words for the caches (n^{4/3}ε^{-4/3}
    at the worst-case ℓ) - a genuine trade-off.
-3. The residual ε-term min(n^{4/3}ε^{-4/3}, n²) sits at the B = C'
-   crossover; the next open sub-problem is builds in o(min(M,L)) per
-   position, or an ε-free mode below ℓ².
+3. The residual ε-term min(n^{5/4}ε^{-3/2}, n²) sits at the B = D
+   crossover; the next open sub-problem is answering a fresh position's
+   witness-structure query below the L·√(visits) doubling balance -
+   e.g. block-merges whose cost scales with the block, not the output.
 4. Cost unit unchanged: the witness-oracle machinery of Feng-Jin's
    Theorem 6.1, used as published.
