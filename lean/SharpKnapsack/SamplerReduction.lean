@@ -1007,3 +1007,53 @@ theorem exponent_gap (L g m₁ m₂ n : ℕ) (hn : n ≤ 2 ^ L)
         congr 1
         ring
     _ ≤ 2 ^ g := Nat.pow_le_pow_right (by norm_num) h
+
+/-- The parameter choice of Lemma 3.4: with `m₁ = ℓ/(100L²)`,
+`m₂ = ℓ/(20L²) + 1`, `g₀ = ℓ/(10L)`, the linear exponent inequality of
+`exponent_gap` holds whenever `ℓ ≥ 4000·L²`. -/
+theorem params_choice (ℓ L : ℕ) (hL : 2 ≤ L) (hℓ : 4000 * L ^ 2 ≤ ℓ) :
+    7 + (ℓ / (100 * L ^ 2) + 1) * (L + 1) +
+      ((ℓ / (20 * L ^ 2) + 1) + 1) * (L + 1) ≤ ℓ / (10 * L) := by
+  set a := ℓ / (100 * L ^ 2) with ha
+  set b := ℓ / (20 * L ^ 2) with hb
+  set g := ℓ / (10 * L) with hg
+  have hLpos : 0 < L := by omega
+  -- division facts, atom-aligned
+  have fa : 100 * (a * L ^ 2) ≤ ℓ := by
+    have h := Nat.div_mul_le_self ℓ (100 * L ^ 2)
+    rw [← ha] at h
+    have e : a * (100 * L ^ 2) = 100 * (a * L ^ 2) := by ring
+    omega
+  have fb : 20 * (b * L ^ 2) ≤ ℓ := by
+    have h := Nat.div_mul_le_self ℓ (20 * L ^ 2)
+    rw [← hb] at h
+    have e : b * (20 * L ^ 2) = 20 * (b * L ^ 2) := by ring
+    omega
+  have hdm := Nat.div_add_mod ℓ (10 * L)
+  have hmod : ℓ % (10 * L) < 10 * L := Nat.mod_lt ℓ (by positivity)
+  have fg : 10 * (g * L) + ℓ % (10 * L) = ℓ := by
+    rw [← hg] at hdm
+    have e : (10 * L) * g = 10 * (g * L) := by ring
+    omega
+  -- small-atom relations from L ≥ 2
+  have r3 : 2 * (a * L) ≤ a * L ^ 2 := by
+    have h := Nat.mul_le_mul_left (a * L) hL
+    have e : a * L * L = a * L ^ 2 := by ring
+    omega
+  have r4 : 2 * (b * L) ≤ b * L ^ 2 := by
+    have h := Nat.mul_le_mul_left (b * L) hL
+    have e : b * L * L = b * L ^ 2 := by ring
+    omega
+  have r5 : 2 * L ≤ L ^ 2 := by
+    have h := Nat.mul_le_mul_left L hL
+    have e : L * L = L ^ 2 := by ring
+    omega
+  -- reduce to the 200L-multiplied inequality and cancel
+  have hmain : (7 + (a + 1) * (L + 1) + (b + 1 + 1) * (L + 1)) * (200 * L) ≤
+      g * (200 * L) := by
+    have e1 : (7 + (a + 1) * (L + 1) + (b + 1 + 1) * (L + 1)) * (200 * L) =
+        200 * (a * L ^ 2) + 200 * (b * L ^ 2) + 200 * (a * L) + 200 * (b * L) +
+          600 * L ^ 2 + 2000 * L := by ring
+    have e2 : g * (200 * L) = 20 * (10 * (g * L)) := by ring
+    omega
+  exact Nat.le_of_mul_le_mul_right hmain (by positivity)
