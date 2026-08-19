@@ -19,7 +19,7 @@ With these, every mechanism this work introduces is machine-checked;
 reliance on the Feng-Jin paper is limited to their published pipeline
 structure and their Theorem 6.1 subroutine.
 -/
-import SharpKnapsack.SamplerMerge
+import SharpKnapsack.New.SamplerMerge
 
 open Finset
 

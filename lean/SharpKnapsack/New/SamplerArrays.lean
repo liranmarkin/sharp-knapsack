@@ -14,7 +14,7 @@ all but a `γ`-fraction of each diagonal (exactly what Stage 0's
 After this file, verifying the fast construction (Stage F.1) reduces to:
 produce arrays satisfying `ArraysOK` in `Õ(n^1.5)` time.
 -/
-import SharpKnapsack.SamplerInstance
+import SharpKnapsack.New.SamplerInstance
 
 open Finset
 

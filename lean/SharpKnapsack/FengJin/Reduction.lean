@@ -15,7 +15,7 @@ The FPRAS needs only `Õ(n/ℓ)·ε⁻²` samples because the boundary band
 The probabilistic-method existence of a good `H` (their `1 − o(1)`
 coverage) is Stage D.2 on the roadmap.
 -/
-import SharpKnapsack.SamplerExact
+import Mathlib
 
 open Finset
 

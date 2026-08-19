@@ -21,8 +21,8 @@ for the Lemma 3.3 sample budget (machine-checked as `lemma_33`). The one
 assumption living outside Lean is the witness-oracle speed (Feng-Jin's
 own Theorem 6.1 subroutine) realizing this unit.
 -/
-import SharpKnapsack.SamplerInstance
-import SharpKnapsack.SamplerLedger
+import SharpKnapsack.New.SamplerInstance
+import SharpKnapsack.New.SamplerLedger
 
 open Finset
 

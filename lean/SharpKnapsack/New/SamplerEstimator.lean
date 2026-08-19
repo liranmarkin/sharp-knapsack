@@ -16,7 +16,7 @@ finite sums. The deliverables:
   `P(|p̂ - p| ≥ a) ≤ 1/(4·N·a²)` for indicator statistics, the exact
   sample-complexity engine of the algorithm's `ε⁻²` term.
 -/
-import SharpKnapsack.SamplerApprox
+import SharpKnapsack.New.SamplerApprox
 
 open Finset
 

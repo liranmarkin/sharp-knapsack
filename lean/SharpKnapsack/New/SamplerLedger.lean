@@ -12,7 +12,7 @@ bounding modes used in the cost ledger of `docs/witness-sampler.md`:
 
 Everything is ℕ-arithmetic; the geometric tools are proven from scratch.
 -/
-import SharpKnapsack.SamplerExact
+import SharpKnapsack.New.SamplerExact
 
 open Finset
 

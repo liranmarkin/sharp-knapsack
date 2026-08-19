@@ -13,7 +13,7 @@ distribution over knapsack solutions (Stage A), where
 Stage D's bounds choose `N`, `a`, and the indicator so that `a + Δ` is an
 `ε`-fraction of the estimated ratio.
 -/
-import SharpKnapsack.SamplerEstimator
+import SharpKnapsack.New.SamplerEstimator
 
 open Finset
 

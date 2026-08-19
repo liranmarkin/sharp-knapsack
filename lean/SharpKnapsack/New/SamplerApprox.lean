@@ -14,7 +14,7 @@ representation (Stage 0).
 
 All statements are finite sums over ℚ; no measure theory.
 -/
-import SharpKnapsack.SamplerExact
+import SharpKnapsack.New.SamplerExact
 
 open Finset
 

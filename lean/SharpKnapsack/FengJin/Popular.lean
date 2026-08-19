@@ -7,7 +7,7 @@ contains at least ℓ/(8·⌈log₂ 4n⌉) items. This is the structural fact th
 fixes the popularity parameter ℓ of the whole algorithm; conditions are
 stated multiplicatively (`T < W j · ℓ`) to avoid ℕ-division issues.
 -/
-import SharpKnapsack.SamplerReduction
+import SharpKnapsack.FengJin.Reduction
 
 open Finset
 

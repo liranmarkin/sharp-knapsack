@@ -9,7 +9,7 @@ recursion tree - the `Õ(k)` visit count in the cost ledger of
 `ledger_collapse`, this machine-checks the structural (tree-shape) half of
 the sampling cost; the per-node array-work model is Stage E.2.
 -/
-import SharpKnapsack.SamplerExact
+import SharpKnapsack.New.SamplerExact
 
 open Finset
 

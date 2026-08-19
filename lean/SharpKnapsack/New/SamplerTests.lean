@@ -3,7 +3,7 @@ Build-time evaluation checks for the verified sampler: the mass functions
 are executable, and on a concrete instance they evaluate to exactly the
 proven uniform distribution. `lake build` fails if any of these break.
 -/
-import SharpKnapsack.SamplerArrays
+import SharpKnapsack.New.SamplerArrays
 
 -- instance S = [1, 2], capacity 2: solutions ∅, {1}, {2} → mass 1/3 each
 #guard samplerMass [1, 2] 2 [false, false] = 1 / 3

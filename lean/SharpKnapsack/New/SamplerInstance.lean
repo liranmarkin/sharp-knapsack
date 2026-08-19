@@ -16,7 +16,7 @@ What remains beyond this file is only performance: the fast construction
 (Feng-Jin Theorem 6.1) producing `(1±δ)`-witness arrays - consumed here
 through the Stage B hypotheses - in `Õ(n^1.5)` time.
 -/
-import SharpKnapsack.SamplerAssembly
+import SharpKnapsack.New.SamplerAssembly
 
 open Finset
 
