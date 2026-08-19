@@ -39,9 +39,13 @@ def simulate(n_m, ell, N, k):
     return enum_cost, cache_cost + draw_cost
 
 print(f"{'n_m':>6} {'ell':>5} {'N':>7} | {'enum':>12} {'cache+draw':>12} {'ratio':>6}")
+ratios = []
 for (n_m, ell, N, k) in [(4096, 256, 200, 64), (4096, 256, 2000, 64),
                          (4096, 256, 20000, 64), (16384, 1024, 40000, 128)]:
     e, c = simulate(n_m, ell, N, k)
+    ratios.append(e / c)
     print(f"{n_m:>6} {ell:>5} {N:>7} | {e:>12} {c:>12} {e/c:>6.1f}")
-    # the win must GROW with N (the small-eps regime)
-print("expected: ratio grows with N (cache amortizes; enumeration does not)")
+assert ratios[1] > 2 and ratios[2] > 2 * ratios[1], \
+    "amortization win must grow with N"
+assert ratios[3] > 10, "large-instance win must be an order of magnitude"
+print("all cache-ledger assertions passed")

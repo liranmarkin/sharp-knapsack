@@ -133,3 +133,13 @@ Stages A-E verify everything new in this result plus the probabilistic
 glue, treating the construction as a specified interface; Stage F closes
 the loop on Feng-Jin's side. Status lives in this file; each completed
 stage updates the checkbox and lands in CI.
+
+## Branch `beyond-n43` (the amortized refinement)
+
+- [x] `cache_ledger` - the ε-free mode-C sum ≤ 4·L·M.
+- [x] `cache_collapse` - min(n²E/ℓ, nℓ)² ≤ n³E (the n^{1.5}√E exponent).
+- [x] `fprasSharper` - the composed headline: fprasSharp ∧ cache mode
+  (builds ≤ 32·ℓ·n, draws N·k ≤ 8·n·E). Total:
+  Õ(n^1.5 + min(n^{4/3}ε⁻², n^{1.5}ε⁻¹) + n·ε⁻²).
+- [ ] Open sub-problem: cache builds in o(M_u) per position would kill
+  the n^{1.5}ε⁻¹ kink → uniform Õ(n^1.5 + n·ε⁻²).
