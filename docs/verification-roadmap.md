@@ -106,6 +106,13 @@ meaningful theorem; later stages depend only on earlier ones.
   FFT + random primes) meeting the per-call O(L·√M) unit - the last item
   of the entire campaign.
 
+- [x] **Headline** (`SamplerHeadline.lean`, done): **`fprasSharp`** - the
+  single composed theorem of the new result, mirroring `fptasSharp`:
+  correctness (relative-ε except probability ≤ 1/4) ∧ the cost ledger in
+  its min(n√ℓ, n²/ℓ)·ε⁻² form ∧ the cube-collapse
+  (N·perSample)³ ≤ 4194304·(D+1)·n⁴·E³ - the Õ(n^{4/3}·ε⁻²) sampling
+  bound. Ledger unit: one node-draw; the oracle speed realizing it is the
+  one outside-Lean assumption.
 - [x] **Assembly** (`SamplerAssembly.lean`, done): `fpras_assembly` -
   Stages A+B+C composed into the top-level guarantee: under the
   stored-kernel sampler's N-fold run, the empirical indicator mean is
