@@ -174,3 +174,21 @@ stage updates the checkbox and lands in CI.
   sub-problem closed.
 - [ ] Remaining: beating Õ(n^1.5) at ε = Θ(1) is their §1.3 open
   problem (the (max,+) frontier).
+
+## Branch `det-fptas` (campaign: beat GMW deterministically)
+
+- [x] Record re-confirmed: GMW O~(n^2.5 eps^-1.5) still SOTA (2026-08).
+- [x] GMW cost ledger: the entire n^2.5 is the naive s^2 sparse merge.
+- [x] B1 `ramp_minConv` + `ramp_monotone` - unbounded-monotone MinConv
+  is general-MinConv-hard (machine-checked; blocks the direct JPSX route).
+- [x] B2 (prose): window isolation bottoms out at #exact-Subset-Sum -
+  no FPTAS unless P=NP; cumulative-from-zero is forced.
+- [x] B3 (asserted probe): in-band crossings are Theta(s^2) worst-case;
+  witness = arithmetic positions x geometric values; wild families
+  near-linear.
+- [ ] Closed-form AP-block merge (geometric lattice sums, Euclid
+  recursion) - designable, Lean-able.
+- [ ] Deterministic AP-union cover detection (Freiman/BSG, CL15 as
+  reliance) - the hard core.
+- [ ] The interpolation theorem rho^2 + X_wild = O~(s^{2-c}) - the
+  record falls iff this lands.

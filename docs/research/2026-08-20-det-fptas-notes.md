@@ -135,3 +135,50 @@ X = Theta(s^2): this wall joins B1/B2 and the merge is tight for
 breakpoint representations. Budget arguments give s/delta^3 per output
 step but do not exclude adversarial concentration. EMPIRICAL PROBE
 FIRST, per methodology.
+
+## Probe results (B3 settled) and the program forward
+
+`experiments/probe_inband_crossings.py` (asserted, CI): the in-band
+crossing number X is Theta(s^2) in the worst case - witness family:
+ARITHMETIC positions with geometric values (x_k = c*k). There, the
+cumulative's log tracks the diagonal index so closely that every pair
+crosses in-band; growth factor exactly 4.00 under doubling s. Genuinely
+wild families (doubling positions, heavy-tail random gaps) show
+X ~ s*w - near-linear (growth 1.9-2.2). So the sweep alone cannot
+break the s^2 merge; the wall B3 joins B1/B2.
+
+### The dichotomy program (live, multi-week scale)
+
+The quadratic witnesses are all additively STRUCTURED (unions of few
+arithmetic progressions); the wild families have few in-band
+coincidences. Conjectured engine, in algorithmic form:
+
+  merge cost = O~( rho_F * rho_G + X_wild )   where rho = AP-cover
+  number of the breakpoint sequence, and X_wild = in-band crossings
+  outside AP-blocks.
+
+- AP-block pairs merge in closed form: the block contribution is a
+  geometric-weighted lattice-point sum under a line - computable in
+  polylog by Euclid/continued-fraction recursion (Barvinok-style).
+  This piece is concretely designable and Lean-able.
+- High X forces additive energy, and high energy forces small AP-cover
+  (Freiman / Balog-Szemeredi-Gowers). The needed statement is an
+  ALGORITHMIC, DETERMINISTIC version - the machinery of
+  Chan-Lewenstein (STOC'15 clustered 3SUM) is the closest published
+  toolkit; their decompositions would enter as a `<PriorAuthors>/`
+  reliance.
+- Crude greedy maximal-run covers are NOT enough (probed: alternating
+  gaps = union of 2 APs, but greedy sees s runs; interleaved AP-unions
+  likewise) - the cover detector must find AP-unions, which is where
+  the real difficulty lives.
+- If the interpolation theorem holds with cover-vs-energy trade
+  rho^2 + X = O~(s^{2-c}) for some c > 0, the GMW record falls to
+  O~(n^{2.5-c'} eps^{-1.5+c''}). No such bound is claimed today.
+
+### Honest status
+
+No new deterministic record is claimed. Landed: the barrier map
+(B1 ramp-hardness - machine-checked; B2 atom-isolation NP-hardness -
+prose reduction; B3 - asserted probe with witness family), and the
+dichotomy program with its first concrete sub-targets (closed-form
+AP-block merge; deterministic AP-union covers).
