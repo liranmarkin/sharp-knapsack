@@ -6,7 +6,7 @@
 \newtheorem{theorem}{Theorem}
 \setlength{\parskip}{3pt}
 
-\title{An Optimal-Shape FPRAS for \#Knapsack}
+\title{An $\OO(n^{1.5} + n\varepsilon^{-2})$ FPRAS for \#Knapsack}
 \author{Liran Markin}
 \date{August 2026}
 
@@ -15,162 +15,155 @@
 
 \begin{abstract}
 \noindent
-The fastest known approximation scheme for counting knapsack solutions
-is the $\OO(n^{1.5}\varepsilon^{-2})$ FPRAS of Feng and Jin (SODA
-2025). We show that one change -- refining their rounding grid by a
-factor of $n/\ell$, which their own sampler could not afford but a
-level-enumerating sampler gets for free -- drops the total running
+This memo is written to be read alongside Feng and Jin's
+$\OO(n^{1.5}\varepsilon^{-2})$ FPRAS for \#Knapsack~\cite{FJ25}; we
+use their notation and point into their sections throughout. The
+claim: one change to their pipeline -- refining the rounding grid by
+a factor $n/\ell$, which their sampler (Lemma~4.7) cannot afford but
+a level-enumerating sampler gets for free -- drops the total running
 time to
 \[
 \OO\!\left(n^{1.5} + n\,\varepsilon^{-2}\right),
 \]
-uniformly: the cost of building their data structure, plus the cost of
-merely writing down the $\varepsilon^{-2}$ samples any such estimator
-reads. Every $\varepsilon$-dependence beyond the sample size is
-gone.\footnote{A Lean~4 development accompanying this memo
+uniformly in $\varepsilon$ and in their popular-class parameter
+$\ell$. The $\varepsilon$-dependence then equals the number of
+samples the estimator draws, times the cost of writing one
+down.\footnote{A Lean~4 development accompanying this memo
 machine-checks the components introduced here, including the
-statistical heart (the overcount bound); see the repository.}
+overcount bound of Section~3; see the repository.}
 \end{abstract}
 
-\section{The problem and the result}
+\section{Their pipeline, and where its time goes}
 
-\#Knapsack asks: given item weights $W_1,\dots,W_n$ and a capacity
-$T$, how many of the $2^n$ subsets have total weight at most $T$? The
-problem is \#P-hard, so one settles for a randomized
-$(1\pm\varepsilon)$-approximation (an FPRAS). After two decades of
-progress (Dyer's $\OO(n^{2.5}\varepsilon^{-2})$~\cite{Dyer03} through
-several deterministic and randomized improvements), the record is the
-$\OO(n^{1.5}\varepsilon^{-2})$ algorithm of Feng and Jin~\cite{FJ25}.
-
-\begin{theorem}[candidate]
-\#Knapsack admits an FPRAS running in time
-$\OO(n^{1.5} + n\,\varepsilon^{-2})$.
-\end{theorem}
-
-Concretely, at $\varepsilon = 10^{-4}$ and $n = 10^{6}$: Feng--Jin
-spend $\sim 10^{17}$ operations; the algorithm here spends
-$\sim 10^{14}$ -- the full factor $\sqrt{n}\,$ separates them whenever
-$\varepsilon \le n^{-1/2}$. For $\varepsilon \ge n^{-1/4}$ the bound
-is flat at $\OO(n^{1.5})$, the construction cost alone. The shape is
-optimal for this framework: one cannot avoid building the structure,
-and any $(1\pm\varepsilon)$ ratio estimator reads
-$\Theta(\varepsilon^{-2})$ samples of $\Theta(n)$-ish description
-size.
-
-\section{Where their time goes}
-
-Feng--Jin approximate the count as $|\Omega'| \cdot p$, where
-$\Omega'$ is the solution set of a \emph{rounded} instance -- counted
-exactly by a merge tree of arrays -- and $p = |\Omega|/|\Omega'|$ is
-estimated by sampling from $\Omega'$ uniformly and checking true
-feasibility. Their time splits into
+Recall the structure of~\cite{FJ25}. The count is approximated as
+$|\Omega'|\cdot p$: here $\Omega'$ is the solution set of a rounded
+instance, counted exactly by their merge tree of count arrays
+(\S4--\S5), and $p = |\Omega|/|\Omega'|$ is estimated by drawing
+uniform samples from $\Omega'$ (\S5.3) and checking true
+feasibility. Their time is
 \[
-\underbrace{\OO(n^{1.5})}_{\text{build the tree}}
+\underbrace{\OO(n^{1.5})}_{\text{construction (Thm 4.2/6.1, L.5.9)}}
 \;+\;
-\underbrace{N \cdot \OO(\ell\sqrt{n})}_{\text{$N$ samples, each a tree
-query}},
+\underbrace{N \cdot \OO(\ell\sqrt{n})}_{\text{$N$ queries of
+Lemma 4.7}},
 \qquad
-N = \OO\!\left(\frac{n}{\ell\,\varepsilon^{2}}\right),
+N = \OO\!\left(\frac{n}{\ell\,\varepsilon^{2}}\right)
+\ \ \text{(from Lemma 3.3)},
 \]
-where $\ell \in [2, 8n]$ is the popular-class parameter of the
-instance. The two $\ell$'s cancel: $N$ times the query cost is
-$n^{1.5}\varepsilon^{-2}$ regardless of $\ell$.
+with $\ell \in [2, 8n]$ the popular-class parameter of Lemma~3.1.
+The two $\ell$'s cancel in the second term:
+$N \cdot \ell\sqrt{n} = n^{1.5}\varepsilon^{-2}$ for every $\ell$
+-- which is why the paper is free to choose $\ell$ for the benefit
+of the first term.
 
-Why is $N$ so large? Because their grid step is coupled to
-$T/\ell^{2}$, coarse enough that the rounded superset overshoots:
+The size of $N$ traces back to the grid. Their rounding is coarse
+enough that the rounded superset overshoots:
 $|\Omega'|/|\Omega| = \OO(n/\ell)$, so $p$ can be as small as
-$\ell/n$, and estimating a rare ratio to relative $\varepsilon$ costs
-$1/(p\varepsilon^{2})$ samples. The overshoot is pure rounding debt:
-every mask's weight is known only up to the accumulated rounding
-error, and masks inside that error band around $T$ are counted as
-solutions whether or not they are.
+$\ell/n$, and estimating a ratio that small to relative
+$\varepsilon$ costs $1/(p\varepsilon^{2})$ samples -- exactly their
+$N$. The overshoot is rounding debt: a mask's rounded weight is
+below its true weight by up to the accumulated rounding error, so
+masks whose true weight lands in that error band above $T$ are
+counted as solutions although they are not. Lemma~3.3 is precisely
+the statement that a band of width $T/\ell$ carries a
+polylogarithmic multiple of $|\Omega|$; their error is $n/\ell$
+bands wide, hence the $n/\ell$ overshoot.
 
 \section{The observation}
 
-Nothing in the \emph{correctness} of the pipeline forces the coarse
-grid. What forces it is their sampler: a query reads array segments,
-so its cost scales with array length, and refining the grid by $F$
-multiplies every length -- and the whole sampling phase -- by $F$.
-The coupling is an artifact of \emph{how they sample}.
+Nothing in the correctness of the pipeline forces the coarse grid.
+What forces it is the query of Lemma~4.7: it reads array segments,
+so its cost scales with array length, and refining the grid by a
+factor $F$ multiplies every array length -- and with it the whole
+sampling phase -- by $F$. The coupling between grid and $\ell$ is
+an artifact of \emph{how they sample}.
 
-In earlier work on this repository we replaced their query by a pruned
-witness-split sampler whose per-draw work enumerates the
-\emph{witness levels} present at a node -- a quantity bounded by the
-subtree's item count -- and never scans array positions. Its
-per-sample cost is $\OO(n)$ \emph{independent of the grid}. That
-frees the grid entirely:
+In earlier work on this repository we replaced the Lemma-4.7 query
+by a pruned witness-split sampler: it descends the merge tree
+splitting each position among the \emph{witness levels} of the two
+children (the levels of their floating-point representation, \S6),
+and its per-draw work enumerates levels -- a quantity bounded by the
+subtree's item count -- never array positions. Its per-sample cost
+is $\OO(n)$, independent of the grid. That frees the grid:
 
 \begin{quote}
-\emph{Make the grid fine enough that the rounded count is honest, and
-pay for it only in array length -- which the sampler never reads.}
+\emph{Make the grid fine enough that the rounded count is honest,
+and pay for it only in array length -- which the sampler never
+reads.}
 \end{quote}
 
-Refine the grid by $F = n/\ell$, so the total round-down error of any
-mask stays below one band width $T/\ell$. Two things happen at once:
+\section{What the finer grid buys}
+
+Refine every node's grid by $F = n/\ell$, so the total round-down
+error of any mask stays below a single band width $T/\ell$. Then:
+
 \begin{enumerate}
-\item Rounding down never loses a solution, so
-$\Omega \subseteq \Omega'$; and every over-counted mask has true
-weight within one band width above $T$. Feng--Jin's own band bound
-(their Lemma~3.3 -- a statement about \emph{true} weights, blind to
-any rounding) says that band carries only a polylogarithmic fraction
-of $|\Omega|$. Hence $p = 1/\mathrm{polylog}$ and
-$N = \OO(\varepsilon^{-2})$.
-\item Construction grows only linearly in $F$: a merge costs
-(length $\times$ $\sqrt{\text{levels}}$), and levels do not change.
-Summed over the tree the construction is $\OO(F\ell\sqrt{n})$, which
-at $F = n/\ell$ is $\OO(n^{1.5})$ -- the parameter $\ell$ cancels
-here too, now in our favor.
+\item \textbf{The overshoot collapses to polylog.} Rounding down
+never loses a solution, so $\Omega \subseteq \Omega'$; and every
+over-counted mask has true weight in $(T,\, T + T/\ell]$ -- one
+band. Lemma~3.3 bounds that band by a polylogarithmic multiple of
+$|\Omega|$, and it does so as a statement about \emph{true}
+weights: it is blind to the rounding and applies verbatim. Hence
+$p \ge 1/\mathrm{polylog}$ and $N = \OO(\varepsilon^{-2})$.
+\item \textbf{Construction grows only linearly in $F$.} A merge
+costs length${}\times\sqrt{\text{levels}}$ (Thm~6.1 is parametric
+in the array length; the level count is a property of the counts,
+not the grid). Summed over the class tree this is
+$\OO(F\ell\sqrt{n})$, which at $F = n/\ell$ is $\OO(n^{1.5})$ --
+the $\ell$ cancels here too, now in our favor.
 \end{enumerate}
 
 \section{The algorithm}
 
 \begin{enumerate}
-\item Run the Feng--Jin reduction and class decomposition unchanged,
-but set every node's grid step a factor $n/\ell$ finer than theirs.
-\item Build the merge tree with their witness-count subroutine
-(their Theorem~6.1, which is parametric in array length). Alongside
-each node, store static per-(level, residual-class) sorted position
-arrays with prefix counts.
+\item Run the reduction, class decomposition (Lemma~3.1), and
+two-phase structure (\S5.4) of~\cite{FJ25} unchanged, with every
+node's grid step a factor $n/\ell$ finer.
+\item Build the merge tree with their Theorem~6.1 subroutine at the
+finer grid. Alongside each node, store static per-(level,
+residual-class) sorted position arrays with prefix counts.
 \item Draw $N = \OO(\varepsilon^{-2})$ samples with the pruned
-witness-split sampler: descend the tree splitting each position among
-the witness levels of the two children; every mass and rank query is
-a prefix lookup.
-\item Check each sampled mask's true weight; output $|\Omega'|$ times
-the observed feasible fraction (median-amplified).
+witness-split sampler; every mass and rank query during a descent
+is a prefix lookup on the static arrays.
+\item Check each sampled mask's true weight; output $|\Omega'|$
+times the observed feasible fraction, median-amplified.
 \end{enumerate}
 
 \section{Why this is $n^{1.5} + n\varepsilon^{-2}$}
 
-Construction: per merge (length $\times \sqrt{\text{levels}}$) at
-boosted length $F\ell/2^{h/2}$ and $n_m/2^{h}$ levels sums, over
-depths and classes, to $F\ell\sqrt{n}\cdot\mathrm{polylog}
+Construction: length${}\times\sqrt{\text{levels}}$ per merge, at
+boosted length $F\ell/2^{h/2}$ and $n_m/2^{h}$ levels, sums over
+depths and classes to $F\ell\sqrt{n}\cdot\mathrm{polylog}
 = n^{1.5}\cdot\mathrm{polylog}$ at $F = n/\ell$. Sampling:
-$N = \OO(\varepsilon^{-2})$ samples at $\OO(n)$ each --- level
-enumeration, grid-independent --- is $\OO(n\varepsilon^{-2})$. There
-is no third term.
+$\OO(\varepsilon^{-2})$ samples at $\OO(n)$ each -- level
+enumeration, grid-independent -- is $\OO(n\varepsilon^{-2})$.
+There is no third term.
 
 \section{Discussion}
 
-\textbf{What is verified.} Beyond the sampler's exactness and cost
-ledgers, the statistical heart of this result is machine-checked: the
-sandwich $\Omega \subseteq \Omega' \subseteq \Omega \cup
-\mathrm{band}$ and the overcount bound
-$100\,|\Omega'| \le (101 + 200h)\,|\Omega|$, proved in Lean by
-composing with our formalization of Feng--Jin's Lemma~3.3.
+\textbf{What is verified.} The statistical heart is
+machine-checked in Lean: the sandwich
+$\Omega \subseteq \Omega' \subseteq \Omega \cup \mathrm{band}$ and
+the overcount bound $100\,|\Omega'| \le (101+200h)\,|\Omega|$,
+proved by composing with our formalization of their Lemma~3.3;
+likewise the sampler's exactness and the cost ledgers.
 
-\textbf{What is inherited.} Their Theorem~6.1 subroutine (used as
-published, at longer arrays -- its statement is parametric in
-length), the two-phase outer pipeline, and their Lemma~3.3's
+\textbf{What is inherited from~\cite{FJ25}.} Theorem~6.1 as
+published, applied at longer arrays (its statement is parametric in
+length); the two-phase pipeline of \S5.4; and Lemma~3.3's
 instance-side hypotheses, discharged by their own reduction.
 
-\textbf{What remains.} At $\varepsilon = \Theta(1)$ the bound is
-$\OO(n^{1.5})$, tying Feng--Jin: the construction itself. Improving
-it is the open problem they pose in \S1.3, tied to the
-bounded-monotone $(\max,+)$-convolution frontier -- and it is now the
-\emph{only} frontier: sampling, for every $\varepsilon$, is settled
-at the output-optimal $n\varepsilon^{-2}$. The price paid is space:
-the boosted arrays occupy $\OO(n^{1.5})$ words, the same order as
-their construction time but more than their unboosted arrays.
+\textbf{What remains.} We prove no lower bound, and claim no
+optimality. At $\varepsilon = \Theta(1)$ the bound is
+$\OO(n^{1.5})$, tying~\cite{FJ25}: the construction itself, whose
+improvement is the open problem they pose in \S1.3 (tied to the
+bounded-monotone $(\max,+)$-convolution frontier). That is now the
+only $\varepsilon$-regime where the time exceeds the sample size:
+for every $\varepsilon$, sampling costs
+$\OO(n\varepsilon^{-2})$ -- $\varepsilon^{-2}$ samples at the cost
+of writing one down. The price paid is space: the boosted arrays
+occupy $\OO(n^{1.5})$ words, the same order as their construction
+time but more than their unboosted arrays.
 
 \begin{thebibliography}{9}
 \bibitem{FJ25} W.~Feng, C.~Jin.
