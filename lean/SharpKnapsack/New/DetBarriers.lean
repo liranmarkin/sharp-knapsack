@@ -137,3 +137,135 @@ theorem dominantPairs_card_le (x y : ℕ → ℤ) (s : ℕ) :
         rw [mem_range]
         omega
     _ = 2 * s + 1 := Finset.card_range _
+
+/-! ### B4: the GMW merge is conditionally optimal
+
+Encode a (ramped, hence monotone - `ramp_monotone`) MinConv instance as
+two breakpoint frontiers with unit value-steps: frontier `F` has its
+`k`-th breakpoint at position `a k`, frontier `G` at `b l`. The merged
+frontier's value at any position `t` is the max index-sum reachable
+within position budget `t`; its inverse at index-sum `m` is exactly
+`minConvAt a b n m` (`frontier_readoff` below). So any algorithm that
+computes value-sparsified, position-exact merged frontiers - as every
+GMW merge does - solves MinConv via `ramp_minConv`, and by the MinConv
+hypothesis (and the Pareto-sum lower bound of Funke-Hespe-Sanders-
+Storandt-Truschel, ESA 2023) cannot run in `s^{2-c}` worst-case. -/
+
+/-- The merged frontier's value at position budget `t`: the largest
+index-sum whose min-plus value fits within `t` (0 if none). -/
+def frontierValue (a b : ℕ → ℤ) (n t : ℕ) : ℕ :=
+  ((range (2 * n + 1)).filter (fun m => n ≤ m ∧ minConvAt a b n m ≤ t)).sup id
+
+/-- **The read-off identity.** The merged frontier determines every
+MinConv value: `minConvAt a b n m ≤ t` iff the frontier value at `t`
+is at least `m` (on the monotone upper half, for nonneg inputs). Thus
+inverting the frontier recovers the full MinConv - the encoding core of
+the conditional-optimality barrier B4. -/
+theorem frontier_readoff (a b : ℕ → ℤ) (n m t : ℕ)
+    (hn : 1 ≤ n) (hm : n ≤ m) (hm2 : m ≤ 2 * n)
+    (hmono : ∀ m₁ m₂, n ≤ m₁ → m₁ ≤ m₂ → m₂ ≤ 2 * n →
+      minConvAt a b n m₁ ≤ minConvAt a b n m₂) :
+    minConvAt a b n m ≤ t ↔ m ≤ frontierValue a b n t := by
+  constructor
+  · intro h
+    apply Finset.le_sup (f := id)
+    rw [mem_filter, mem_range]
+    exact ⟨by omega, hm, h⟩
+  · intro h
+    by_cases hne : ((range (2 * n + 1)).filter
+        (fun m' => n ≤ m' ∧ minConvAt a b n m' ≤ t)).Nonempty
+    · obtain ⟨m', hm', hmax⟩ := Finset.exists_mem_eq_sup _ hne id
+      have hval : frontierValue a b n t = m' := hmax
+      rw [hval] at h
+      rw [mem_filter, mem_range] at hm'
+      calc minConvAt a b n m ≤ minConvAt a b n m' := by
+            rcases Nat.le_total m m' with hle | hge
+            · exact hmono m m' hm hle (by omega)
+            · have : m = m' := by omega
+              rw [this]
+        _ ≤ t := hm'.2.2
+    · exfalso
+      rw [Finset.not_nonempty_iff_eq_empty] at hne
+      rw [frontierValue, hne] at h
+      simp at h
+      omega
+
+/-- Min-plus convolution of a monotone second operand is monotone in
+the anti-diagonal index. -/
+theorem minConvAt_mono (a b : ℕ → ℤ) (n : ℕ)
+    (hb : ∀ i j, i ≤ j → b i ≤ b j) (m₁ m₂ : ℕ) (h : m₁ ≤ m₂) :
+    minConvAt a b n m₁ ≤ minConvAt a b n m₂ := by
+  apply Finset.le_inf'
+  intro k hk
+  calc minConvAt a b n m₁ ≤ a k + b (m₁ - k) := Finset.inf'_le _ hk
+    _ ≤ a k + b (m₂ - k) := by
+        have := hb (m₁ - k) (m₂ - k) (by omega)
+        omega
+
+/-- **B4, composed.** For ANY bounded integer sequences `a, b`, the
+ramped encodings are monotone, and the value-sparsified position-exact
+merged frontier of the encoded instances determines every MinConv
+value of the ORIGINAL instance:
+`minConvAt a b n m ≤ t − R·m  ↔  m ≤ frontierValue(ramped) t`.
+Hence any subquadratic worst-case algorithm for the GMW merge step
+would give subquadratic general MinConv - the merge is conditionally
+optimal under the MinConv hypothesis. -/
+theorem b4_merge_conditional_optimality
+    (a b : ℕ → ℤ) (B : ℤ) (n m : ℕ) (t : ℤ)
+    (hn : 1 ≤ n) (hm : n ≤ m) (hm2 : m ≤ 2 * n)
+    (hB' : ∀ k ≤ 2 * n, -B ≤ b k ∧ b k ≤ B) :
+    ∀ tn : ℕ, (t = (tn : ℤ)) →
+      (minConvAt a b n m + (2 * B) * m ≤ t ↔
+        m ≤ frontierValue (fun k => a k + (2 * B) * k)
+          (fun l => b l + (2 * B) * l) n tn) := by
+  intro tn ht
+  have hmono : ∀ m₁ m₂, n ≤ m₁ → m₁ ≤ m₂ → m₂ ≤ 2 * n →
+      minConvAt (fun k => a k + (2 * B) * k)
+        (fun l => b l + (2 * B) * l) n m₁ ≤
+      minConvAt (fun k => a k + (2 * B) * k)
+        (fun l => b l + (2 * B) * l) n m₂ := by
+    intro m₁ m₂ hm₁ h12 hm₂2
+    apply Finset.le_inf'
+    intro k hk
+    have hkn : k ≤ n := by
+      have := mem_range.mp hk
+      omega
+    calc minConvAt (fun k => a k + (2 * B) * k)
+          (fun l => b l + (2 * B) * l) n m₁
+        ≤ (a k + (2 * B) * k) + (b (m₁ - k) + (2 * B) * ((m₁ - k : ℕ) : ℤ)) :=
+          Finset.inf'_le _ hk
+      _ ≤ (a k + (2 * B) * k) + (b (m₂ - k) + (2 * B) * ((m₂ - k : ℕ) : ℤ)) := by
+          have hstep : ∀ j, j + 1 ≤ 2 * n →
+              b j + (2 * B) * j ≤ b (j + 1) + (2 * B) * (j + 1) := by
+            intro j hj
+            have := ramp_monotone b B (2 * B) (2 * n) hB' (le_refl _) j hj
+            exact this
+          have hmb : ∀ i j, i ≤ j → j ≤ 2 * n →
+              b i + (2 * B) * i ≤ b j + (2 * B) * j := by
+            intro i j hij hj2
+            induction j with
+            | zero =>
+                have : i = 0 := by omega
+                rw [this]
+            | succ jj ih =>
+                rcases Nat.lt_or_ge i (jj + 1) with hlt | hge
+                · have h1 := ih (by omega) (by omega)
+                  have h2 := hstep jj (by omega)
+                  have hc1 : ((jj : ℤ) + 1) = ((jj + 1 : ℕ) : ℤ) := by push_cast; ring
+                  calc b i + (2 * B) * i ≤ b jj + (2 * B) * jj := h1
+                    _ ≤ b (jj + 1) + (2 * B) * ((jj : ℤ) + 1) := h2
+                    _ = b (jj + 1) + (2 * B) * ((jj + 1 : ℕ) : ℤ) := by rw [hc1]
+                · have : i = jj + 1 := by omega
+                  rw [this]
+          have := hmb (m₁ - k) (m₂ - k) (by omega) (by omega)
+          omega
+  have hR := ramp_minConv a b (2 * B) n m hm
+  rw [ht]
+  constructor
+  · intro h
+    rw [← frontier_readoff _ _ n m tn hn hm hm2 hmono]
+    rw [hR]
+    exact h
+  · intro h
+    rw [← hR]
+    exact (frontier_readoff _ _ n m tn hn hm hm2 hmono).mpr h

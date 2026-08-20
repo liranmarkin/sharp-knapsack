@@ -186,9 +186,14 @@ stage updates the checkbox and lands in CI.
 - [x] B3 (asserted probe): in-band crossings are Theta(s^2) worst-case;
   witness = arithmetic positions x geometric values; wild families
   near-linear.
-- [ ] Closed-form AP-block merge (geometric lattice sums, Euclid
-  recursion) - designable, Lean-able.
-- [ ] Deterministic AP-union cover detection (Freiman/BSG, CL15 as
-  reliance) - the hard core.
-- [ ] The interpolation theorem rho^2 + X_wild = O~(s^{2-c}) - the
-  record falls iff this lands.
+- [x] `dominantPairs_card_le` - the Pareto bound: w=0 in-band pairs
+  are <= 2s+1 (the blow-up is the accuracy band alone).
+- [x] Curvature-dichotomy probes (fit/prune complementarity) -
+  asserted; adaptive merge subquadratic on all structured families.
+- [x] B4 `frontier_readoff` + `minConvAt_mono` +
+  `b4_merge_conditional_optimality` - the GMW merge task is
+  MinConv-hard; with Funke et al. (ESA'23) and the MinConv hypothesis,
+  the merge is CONDITIONALLY OPTIMAL. The record stands for a reason
+  that is now machine-checked.
+- [ ] (open, recognized-hard) refute the MinConv hypothesis, or invent
+  a non-merge deterministic framework evading B2/B4/Jin-Xu.

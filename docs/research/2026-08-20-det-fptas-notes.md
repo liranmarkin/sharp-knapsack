@@ -243,3 +243,39 @@ verified. Conclusion: the subquadratic win lives ONLY in the
 closed-form block-pair lattice sums (polylog per fitted-segment-pair,
 Euclid/continued-fraction recursion) - that engine is the program's
 next engineering milestone, not query tricks.
+
+## Night conclusion: B4 - the GMW merge is conditionally optimal (machine-checked)
+
+`b4_merge_conditional_optimality` (New/DetBarriers.lean, standard
+axioms): for ANY bounded integer sequences, the ramped encodings are
+monotone and the value-sparsified position-EXACT merged frontier of the
+encoded breakpoint lists determines every MinConv value of the original
+instance. Combined with the PUBLISHED lower bound of Funke-Hespe-
+Sanders-Storandt-Truschel (ESA 2023: exact Pareto sum has no O(n^{2-d})
+under the MinConv hypothesis, even for linear output), and our
+lit-survey (subagent report integrated below): the GMW merge step - as
+a computational task - cannot be done in s^{2-c} worst-case unless the
+MinConv hypothesis fails.
+
+Escape routes, each now mapped and closed or bounded:
+- position-approximate internal frontiers: B2 (atom isolation NP-hard);
+  FJ-class band arguments give only polylog-factor deterministic
+  approximations, not FPTAS;
+- additive structure of positions: Jin-Xu (STOC 2023) - 3SUM stays
+  hard on Sidon sets; input additive energy alone is not a lever;
+- the weak-approximation toolkit (JPSX 2026 deterministic n^{1.5+o(1)}
+  bounded-monotone MinConv; BC22; GKST SoCG'26 Pareto-sum equivalence):
+  lives in the both-coordinates-slack world; strong FPTAS forbids
+  capacity slack (B2).
+
+HONEST SCOPE: B4 is a hardness statement about the MERGE TASK, i.e.
+about every algorithm in the sum-approximation-merge framework (which
+includes all known deterministic FPTASes: GKMSVV, SVV, RT, Halman,
+GMW). It is NOT an unconditional lower bound for the PROBLEM: an
+algorithm outside this framework is constrained by B2/Jin-Xu but not
+excluded. Breaking the record now requires either refuting the MinConv
+hypothesis or inventing a non-merge framework - both recognized-hard.
+
+Constructive complement (the beyond-worst-case program): the curvature
+dichotomy adaptive merge (probes landed) - subquadratic empirically on
+every structured family; worst-case blocked by B4, as it must be.
