@@ -232,3 +232,14 @@ rho ~ s/K^{alpha}... measured rho*K ~ const (alpha-1.2 -> exponent 1).
 Candidate fix: exception-decomposition (arithmetic backbone + few
 large-jump insertions; jumps beyond B number s*B^{-alpha}) - the
 multi-resolution merge. Open within the program.
+
+### End-to-end prototype finding (probe_adaptive_gmw.py)
+
+Wired an adaptive merge into the repo's actual GMW implementation
+(python/sharp_knapsack.py). Query-based adaptation - binary-searching
+output crossings with per-entry threshold evaluation - costs 4.6x MORE
+than the naive pairwise merge (out * s * log > s^2). Mass conservation
+verified. Conclusion: the subquadratic win lives ONLY in the
+closed-form block-pair lattice sums (polylog per fitted-segment-pair,
+Euclid/continued-fraction recursion) - that engine is the program's
+next engineering milestone, not query tricks.
