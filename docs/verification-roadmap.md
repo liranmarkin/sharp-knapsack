@@ -195,5 +195,20 @@ stage updates the checkbox and lands in CI.
   MinConv-hard; with Funke et al. (ESA'23) and the MinConv hypothesis,
   the merge is CONDITIONALLY OPTIMAL. The record stands for a reason
   that is now machine-checked.
+- [x] FULL EXECUTABLE REDUCTION (New/DetReduction.lean, 20 theorems,
+  standard axioms): `encodeSF` + `queryLe_conv_encode` (the verified
+  executable conv's cumulative = pair-sum double sum) + the 2^{wM}
+  sandwich + `readoff_exact`/`readoff_sparsified` (block-log recovery
+  from the ACTUAL sparsify∘conv pipeline output) + padding
+  (`minConv_pad_le`/`minConv_pad_attained`: every diagonal is
+  upper-half after padding) + ℕ-ramp (`rampN_minConv`) + the composed
+  `det_reduction_complete`: for ANY bounded instance and any diagonal,
+  the executable merge output decides the genuine MinConv value. Zero
+  prose left in the reduction.
+- [x] B2 core `approx_decides_subset_sum` - any multiplicative
+  approximation of the exact-weight count decides Subset-Sum.
+- [x] B3 witness `witness_all_inband` - the arithmetic-geometric
+  family provably saturates the band (machine-checked side of the
+  probe).
 - [ ] (open, recognized-hard) refute the MinConv hypothesis, or invent
   a non-merge deterministic framework evading B2/B4/Jin-Xu.

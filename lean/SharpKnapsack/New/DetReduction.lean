@@ -377,3 +377,462 @@ theorem readoff_sparsified (a b : ℕ → ℕ) (n w t : ℕ)
     calc Nat.log 2 Q < w * M + w := hlog_hi
       _ = (M + 1) * w := by ring
   exact Nat.div_eq_of_lt_le h1 h2
+
+/-! ### Padding: every diagonal is an upper-half diagonal
+
+Prepending `n` huge (distinct) entries to both sequences places every
+original anti-diagonal `d ∈ [0, 2n]` at the padded upper-half diagonal
+`2n + d`. The ramp (`ramp_monotone`) then makes the padded sequences
+strictly increasing, so the sparsified read-off applies verbatim and
+the merge output determines the ENTIRE MinConv, not just its upper
+half. -/
+
+/-- Bottom-padding with `n` distinct huge entries. -/
+def padSeq (a : ℕ → ℕ) (n H : ℕ) : ℕ → ℕ :=
+  fun k => if k < n then H + k else a (k - n)
+
+/-- Every genuine pair of the original instance bounds the padded
+upper-half MinConv from above. -/
+theorem minConv_pad_le (a b : ℕ → ℕ) (n d H k : ℕ)
+    (hk : k ≤ d) (hkn : k ≤ n) (hdk : d - k ≤ n) :
+    minConvN (padSeq a n H) (padSeq b n H) (2 * n) (2 * n + d) ≤
+      a k + b (d - k) := by
+  have hmem : n + k ∈ range (2 * n + 1) := mem_range.mpr (by omega)
+  calc minConvN (padSeq a n H) (padSeq b n H) (2 * n) (2 * n + d)
+      ≤ padSeq a n H (n + k) + padSeq b n H (2 * n + d - (n + k)) :=
+        Finset.inf'_le _ hmem
+    _ = a k + b (d - k) := by
+        unfold padSeq
+        rw [if_neg (by omega), if_neg (by omega)]
+        congr 2
+        · omega
+        · omega
+
+/-- The padded upper-half MinConv is attained at a genuine pair,
+provided `H` dominates all genuine values. -/
+theorem minConv_pad_attained (a b : ℕ → ℕ) (n d H : ℕ) (hd : d ≤ 2 * n)
+    (hH : ∀ k l, k ≤ n → l ≤ n → a k + b l < H)
+    (hHb : ∀ l, n < l → H ≤ b l) :
+    ∃ k, k ≤ d ∧ k ≤ n ∧ d - k ≤ n ∧ d ≤ k + n ∧
+      minConvN (padSeq a n H) (padSeq b n H) (2 * n) (2 * n + d) =
+        a k + b (d - k) := by
+  obtain ⟨k', hk', hkeq⟩ := Finset.exists_mem_eq_inf'
+    (⟨0, mem_range.mpr (Nat.succ_pos (2 * n))⟩ :
+      ((range (2 * n + 1)).Nonempty))
+    (fun k => padSeq a n H k + padSeq b n H (2 * n + d - k))
+  have hk2n : k' ≤ 2 * n := by
+    have := mem_range.mp hk'
+    omega
+  -- a genuine witness exists, so the min is below H
+  have hgen : ∃ kg, kg ≤ d ∧ kg ≤ n ∧ d - kg ≤ n := by
+    rcases Nat.le_total d n with hdn | hnd
+    · exact ⟨d, le_refl d, hdn, by omega⟩
+    · exact ⟨n, hnd, le_refl n, by omega⟩
+  obtain ⟨kg, hkg1, hkg2, hkg3⟩ := hgen
+  have hlt : minConvN (padSeq a n H) (padSeq b n H) (2 * n) (2 * n + d) < H := by
+    calc minConvN (padSeq a n H) (padSeq b n H) (2 * n) (2 * n + d)
+        ≤ a kg + b (d - kg) := minConv_pad_le a b n d H kg hkg1 hkg2 hkg3
+      _ < H := hH kg (d - kg) hkg2 hkg3
+  -- the attaining split point cannot touch a pad entry
+  have hnotpad_a : ¬ k' < n := by
+    intro hcon
+    have hpad : H ≤ padSeq a n H k' := by
+      unfold padSeq
+      rw [if_pos hcon]
+      omega
+    have hsum : H ≤ padSeq a n H k' + padSeq b n H (2 * n + d - k') :=
+      le_trans hpad (Nat.le_add_right _ _)
+    rw [minConvN, hkeq] at hlt
+    exact absurd hlt (not_lt.mpr hsum)
+  have hnotpad_b : ¬ 2 * n + d - k' < n := by
+    intro hcon
+    have hpad : H ≤ padSeq b n H (2 * n + d - k') := by
+      unfold padSeq
+      rw [if_pos hcon]
+      omega
+    have hsum : H ≤ padSeq a n H k' + padSeq b n H (2 * n + d - k') :=
+      le_trans hpad (Nat.le_add_left _ _)
+    rw [minConvN, hkeq] at hlt
+    exact absurd hlt (not_lt.mpr hsum)
+  have hnotpad_c : ¬ 2 * n < 2 * n + d - k' := by
+    intro hcon
+    have hpad : H ≤ padSeq b n H (2 * n + d - k') := by
+      unfold padSeq
+      rw [if_neg (by omega)]
+      exact hHb _ (by omega)
+    have hsum : H ≤ padSeq a n H k' + padSeq b n H (2 * n + d - k') :=
+      le_trans hpad (Nat.le_add_left _ _)
+    rw [minConvN, hkeq] at hlt
+    exact absurd hlt (not_lt.mpr hsum)
+  refine ⟨k' - n, by omega, by omega, by omega, by omega, ?_⟩
+  rw [minConvN, hkeq]
+  show padSeq a n H k' + padSeq b n H (2 * n + d - k') = _
+  unfold padSeq
+  rw [if_neg (by omega), if_neg (by omega)]
+  congr 2 <;> omega
+
+/-! ### ℕ-side ramp and frontier bridge -/
+
+/-- ℕ-ramp. -/
+def rampN (a : ℕ → ℕ) (R : ℕ) : ℕ → ℕ := fun k => a k + R * k
+
+/-- The ℕ-ramp shifts every upper-half anti-diagonal uniformly. -/
+theorem rampN_minConv (a b : ℕ → ℕ) (R n m : ℕ) (hm : n ≤ m) :
+    minConvN (rampN a R) (rampN b R) n m = minConvN a b n m + R * m := by
+  have hne : (range (n + 1)).Nonempty := ⟨0, mem_range.mpr (Nat.succ_pos n)⟩
+  have h1 : minConvN (rampN a R) (rampN b R) n m =
+      (range (n + 1)).inf' hne (fun k => (a k + b (m - k)) + R * m) := by
+    show (range (n + 1)).inf' _ (fun k => rampN a R k + rampN b R (m - k)) = _
+    apply Finset.inf'_congr _ rfl
+    intro k hk
+    have hkn : k ≤ n := by
+      have := mem_range.mp hk
+      omega
+    unfold rampN
+    have hkm : k ≤ m := le_trans hkn hm
+    have : R * k + R * (m - k) = R * m := by
+      rw [← Nat.mul_add]
+      congr 1
+      omega
+    omega
+  rw [h1]
+  apply le_antisymm
+  · obtain ⟨k, hk, hkeq⟩ := Finset.exists_mem_eq_inf' hne
+      (fun k => a k + b (m - k))
+    have hmc : minConvN a b n m = a k + b (m - k) := hkeq
+    calc (range (n + 1)).inf' hne (fun k => (a k + b (m - k)) + R * m)
+        ≤ (a k + b (m - k)) + R * m := Finset.inf'_le _ hk
+      _ = minConvN a b n m + R * m := by rw [hmc]
+  · apply Finset.le_inf'
+    intro k hk
+    have h2 : minConvN a b n m ≤ a k + b (m - k) := Finset.inf'_le _ hk
+    omega
+
+/-- ℕ-frontier bridge: MinConv threshold membership reads off the
+frontier, given upper-half monotonicity. -/
+theorem frontierN_readoff (a b : ℕ → ℕ) (n m t : ℕ)
+    (hn : 1 ≤ n) (hm : n ≤ m) (hm2 : m ≤ 2 * n)
+    (hmono : ∀ m₁ m₂, n ≤ m₁ → m₁ ≤ m₂ → m₂ ≤ 2 * n →
+      minConvN a b n m₁ ≤ minConvN a b n m₂) :
+    minConvN a b n m ≤ t ↔ m ≤ frontierN a b n t := by
+  constructor
+  · intro h
+    apply Finset.le_sup (f := id)
+    rw [mem_filter, mem_range]
+    exact ⟨by omega, hm, h⟩
+  · intro h
+    by_cases hne : ((range (2 * n + 1)).filter
+        (fun m' => n ≤ m' ∧ minConvN a b n m' ≤ t)).Nonempty
+    · obtain ⟨m', hm', hmax⟩ := Finset.exists_mem_eq_sup _ hne id
+      have hval : frontierN a b n t = m' := hmax
+      rw [hval] at h
+      rw [mem_filter, mem_range] at hm'
+      calc minConvN a b n m ≤ minConvN a b n m' := by
+            rcases Nat.le_total m m' with hle | hge
+            · exact hmono m m' hm hle (by omega)
+            · have : m = m' := by omega
+              rw [this]
+        _ ≤ t := hm'.2.2
+    · exfalso
+      rw [Finset.not_nonempty_iff_eq_empty] at hne
+      rw [frontierN, hne] at h
+      simp at h
+      omega
+
+/-- Monotone second operand gives upper-half monotone MinConv (ℕ). -/
+theorem minConvN_mono (a b : ℕ → ℕ) (n : ℕ)
+    (hb : ∀ i j, i ≤ j → b i ≤ b j) (m₁ m₂ : ℕ) (h : m₁ ≤ m₂) :
+    minConvN a b n m₁ ≤ minConvN a b n m₂ := by
+  apply Finset.le_inf'
+  intro k hk
+  calc minConvN a b n m₁ ≤ a k + b (m₁ - k) := Finset.inf'_le _ hk
+    _ ≤ a k + b (m₂ - k) := by
+        have := hb (m₁ - k) (m₂ - k) (by omega)
+        omega
+
+/-! ### B2 core: a multiplicative approximation of the exact-weight
+count decides Subset-Sum -/
+
+/-- Number of subsets hitting weight `C` exactly. -/
+def exactWeightCount (n : ℕ) (W : ℕ → ℕ) (C : ℕ) : ℕ :=
+  ((Finset.range n).powerset.filter (fun X => ∑ i ∈ X, W i = C)).card
+
+/-- **B2 core.** ANY multiplicative approximation of the exact-weight
+count - however coarse - decides Subset-Sum. Hence no FPTAS (or any
+poly-factor approximation) exists for window-isolated counting unless
+P = NP; cumulative counting from zero is forced. -/
+theorem approx_decides_subset_sum (n : ℕ) (W : ℕ → ℕ) (C A K : ℕ)
+    (hlo : exactWeightCount n W C ≤ A)
+    (hhi : A ≤ K * exactWeightCount n W C) :
+    0 < A ↔ ∃ X ⊆ Finset.range n, ∑ i ∈ X, W i = C := by
+  constructor
+  · intro hA
+    have hpos : 0 < exactWeightCount n W C := by
+      by_contra h
+      have hz : exactWeightCount n W C = 0 := by omega
+      rw [hz, Nat.mul_zero] at hhi
+      omega
+    rw [exactWeightCount, Finset.card_pos] at hpos
+    obtain ⟨X, hX⟩ := hpos
+    rw [Finset.mem_filter, Finset.mem_powerset] at hX
+    exact ⟨X, hX.1, hX.2⟩
+  · rintro ⟨X, hX1, hX2⟩
+    have hpos : 0 < exactWeightCount n W C := by
+      rw [exactWeightCount, Finset.card_pos]
+      refine ⟨X, ?_⟩
+      rw [Finset.mem_filter, Finset.mem_powerset]
+      exact ⟨hX1, hX2⟩
+    omega
+
+/-! ### B3 witness: the arithmetic-geometric family saturates the band -/
+
+/-- **B3 witness, machine-checked.** For arithmetic positions with
+geometric masses, EVERY pair is in-band: the full pair-sum cumulative
+at any pair's position stays within `(n+1)² ≤ 2^w` of that pair's own
+diagonal mass. This is the family on which the in-band sweep provably
+degenerates to Θ(s²). -/
+theorem witness_all_inband (c n w : ℕ) (hc : 0 < c)
+    (hw : (n + 1) ^ 2 ≤ 2 ^ w) (j l : ℕ) (_hj : j ≤ n) (_hl : l ≤ n) :
+    (∑ k ∈ range (n + 1), ∑ m ∈ range (n + 1),
+      if c * k + c * m ≤ c * j + c * l then 2 ^ (k + m) else 0) ≤
+      2 ^ (j + l + w) := by
+  have hbound : ∀ k ∈ range (n + 1), ∀ m ∈ range (n + 1),
+      (if c * k + c * m ≤ c * j + c * l then 2 ^ (k + m) else 0) ≤
+        2 ^ (j + l) := by
+    intro k _ m _
+    by_cases h : c * k + c * m ≤ c * j + c * l
+    · rw [if_pos h]
+      apply Nat.pow_le_pow_right (by norm_num)
+      have h1 : c * (k + m) ≤ c * (j + l) := by
+        rw [Nat.mul_add, Nat.mul_add]
+        omega
+      exact Nat.le_of_mul_le_mul_left h1 hc
+    · rw [if_neg h]
+      exact Nat.zero_le _
+  calc (∑ k ∈ range (n + 1), ∑ m ∈ range (n + 1),
+      if c * k + c * m ≤ c * j + c * l then 2 ^ (k + m) else 0)
+      ≤ ∑ k ∈ range (n + 1), ∑ m ∈ range (n + 1), 2 ^ (j + l) := by
+        apply Finset.sum_le_sum
+        intro k hk
+        exact Finset.sum_le_sum (fun m hm => hbound k hk m hm)
+    _ = (n + 1) ^ 2 * 2 ^ (j + l) := by
+        rw [Finset.sum_const, Finset.card_range, smul_eq_mul,
+          Finset.sum_const, Finset.card_range, smul_eq_mul]
+        ring
+    _ ≤ 2 ^ w * 2 ^ (j + l) := Nat.mul_le_mul_right _ hw
+    _ = 2 ^ (j + l + w) := by
+        rw [← pow_add]
+        congr 1
+        ring
+
+/-! ### The composed reduction: one executable statement -/
+
+/-- Dominance height. -/
+def detH (B : ℕ) : ℕ := 2 * B + 1
+
+/-- Ramp slope: beats every possible drop of the padded sequence. -/
+def detR (B n : ℕ) : ℕ := detH B + n + 1
+
+/-- Domain extension: huge beyond `n` (so out-of-range splits never
+attain). -/
+def detExt (b : ℕ → ℕ) (n t : ℕ) : ℕ → ℕ :=
+  fun l => if l ≤ n then b l else t + 1
+
+/-- The fully processed first operand: pad, then ramp. -/
+def detA (a : ℕ → ℕ) (B n : ℕ) : ℕ → ℕ :=
+  rampN (padSeq a n (detH B)) (detR B n)
+
+/-- The fully processed second operand: extend, pad, then ramp. -/
+def detB (b : ℕ → ℕ) (B n t : ℕ) : ℕ → ℕ :=
+  rampN (padSeq (detExt b n t) n (detH B)) (detR B n)
+
+/-- **The composed reduction, fully executable.** For ANY sequences
+`a, b` bounded by `B` on `[0, n]` and any diagonal `d ≤ 2n`: the
+processed operands are strictly increasing (so their encodings are
+well-formed inputs to the verified pipeline), the processed upper-half
+MinConv at `2n + d` is exactly the genuine full-MinConv value at `d`
+plus the known ramp shift, and querying the executable
+`sparsify 1 ∘ conv` merge at `t` decides that value's position via
+block logarithms. Every step is machine-checked; no prose remains in
+the reduction. -/
+theorem det_reduction_complete
+    (a b : ℕ → ℕ) (n d B t w : ℕ)
+    (hn : 1 ≤ n) (hd : d ≤ 2 * n)
+    (hB : ∀ k, k ≤ n → a k ≤ B) (hB' : ∀ k, k ≤ n → b k ≤ B)
+    (ht : 2 * B + n ≤ t)
+    (hw : 2 * (2 * n + 1) ^ 2 < 2 ^ w)
+    (htlo : minConvN (detA a B n) (detB b B n t) (2 * n) (2 * n) ≤ t) :
+    -- (i) the processed MinConv value is the genuine one, attained:
+    (∃ k, k ≤ d ∧ k ≤ n ∧ d - k ≤ n ∧
+      minConvN (detA a B n) (detB b B n t) (2 * n) (2 * n + d) =
+        a k + b (d - k) + detR B n * (2 * n + d)) ∧
+    -- (ii) and minimal over all genuine pairs:
+    (∀ k, k ≤ d → k ≤ n → d - k ≤ n →
+      minConvN (detA a B n) (detB b B n t) (2 * n) (2 * n + d) ≤
+        a k + b (d - k) + detR B n * (2 * n + d)) ∧
+    -- (iii) the executable merge output decides it:
+    (minConvN (detA a B n) (detB b B n t) (2 * n) (2 * n + d) ≤ t ↔
+      2 * n + d ≤
+        Nat.log 2 (queryLe (sparsify 1
+          (conv (encodeSF (detA a B n) (2 * n) w)
+                (encodeSF (detB b B n t) (2 * n) w))) t) / w) := by
+  set H := detH B with hHdef
+  set R := detR B n with hRdef
+  have hHB : 2 * B < H := by
+    rw [hHdef]
+    unfold detH
+    omega
+  have hRbig : H + n < R := by
+    rw [hRdef]
+    unfold detR
+    omega
+  -- pad bounds: within [0, 2n] both padded sequences are ≤ H + n
+  have hpadA : ∀ k, k ≤ 2 * n → padSeq a n H k ≤ H + n := by
+    intro k hk
+    unfold padSeq
+    by_cases h : k < n
+    · rw [if_pos h]
+      omega
+    · rw [if_neg h]
+      have := hB (k - n) (by omega)
+      unfold detH at hHdef
+      omega
+  have hpadB : ∀ k, k ≤ 2 * n → padSeq (detExt b n t) n H k ≤ H + n := by
+    intro k hk
+    unfold padSeq
+    by_cases h : k < n
+    · rw [if_pos h]
+      omega
+    · rw [if_neg h]
+      unfold detExt
+      rw [if_pos (by omega)]
+      have := hB' (k - n) (by omega)
+      unfold detH at hHdef
+      omega
+  -- strict monotonicity of the processed operands on [0, 2n]
+  have hstepA : ∀ k, k + 1 ≤ 2 * n → detA a B n k < detA a B n (k + 1) := by
+    intro k hk
+    unfold detA rampN
+    rw [← hHdef, ← hRdef]
+    have h1 := hpadA k (by omega)
+    have h2 : R * k + R ≤ R * (k + 1) := by
+      rw [Nat.mul_add, Nat.mul_one]
+    omega
+  have hstepB : ∀ k, k + 1 ≤ 2 * n →
+      detB b B n t k < detB b B n t (k + 1) := by
+    intro k hk
+    unfold detB rampN
+    rw [← hHdef, ← hRdef]
+    have h1 := hpadB k (by omega)
+    have h2 : R * k + R ≤ R * (k + 1) := by
+      rw [Nat.mul_add, Nat.mul_one]
+    omega
+  have hincA : ∀ i j, i < j → j ≤ 2 * n → detA a B n i < detA a B n j := by
+    intro i j hij hj
+    induction j with
+    | zero => omega
+    | succ jj ih =>
+      rcases Nat.lt_or_ge i jj with hlt | hge
+      · exact lt_trans (ih hlt (by omega)) (hstepA jj hj)
+      · have : i = jj := by omega
+        rw [this]
+        exact hstepA jj hj
+  have hincB : ∀ i j, i < j → j ≤ 2 * n →
+      detB b B n t i < detB b B n t j := by
+    intro i j hij hj
+    induction j with
+    | zero => omega
+    | succ jj ih =>
+      rcases Nat.lt_or_ge i jj with hlt | hge
+      · exact lt_trans (ih hlt (by omega)) (hstepB jj hj)
+      · have : i = jj := by omega
+        rw [this]
+        exact hstepB jj hj
+  -- the second operand is huge beyond the instance
+  have hbig : ∀ l, 2 * n < l → t < detB b B n t l := by
+    intro l hl
+    unfold detB rampN padSeq
+    rw [← hHdef, ← hRdef, if_neg (by omega)]
+    unfold detExt
+    rw [if_neg (by omega)]
+    omega
+  -- global monotonicity of the second operand (for the frontier bridge)
+  have hmonoB : ∀ i j, i ≤ j → detB b B n t i ≤ detB b B n t j := by
+    intro i j hij
+    rcases Nat.eq_or_lt_of_le hij with heq | hlt
+    · rw [heq]
+    · rcases Nat.lt_or_ge (2 * n) j with hj2n | hj2n
+      · -- j beyond the instance: the huge form
+        have hjform : detB b B n t j = t + 1 + R * j := by
+          unfold detB rampN padSeq
+          rw [← hHdef, ← hRdef, if_neg (by omega)]
+          unfold detExt
+          rw [if_neg (by omega)]
+        rcases Nat.lt_or_ge (2 * n) i with hi2n | hi2n
+        · -- both beyond: compare huge forms
+          have hiform : detB b B n t i = t + 1 + R * i := by
+            unfold detB rampN padSeq
+            rw [← hHdef, ← hRdef, if_neg (by omega)]
+            unfold detExt
+            rw [if_neg (by omega)]
+          rw [hiform, hjform]
+          have h4 : R * i ≤ R * j := Nat.mul_le_mul_left _ hij
+          omega
+        · -- i inside, j beyond
+          calc detB b B n t i
+              ≤ H + n + R * (2 * n) := by
+                unfold detB rampN
+                rw [← hHdef, ← hRdef]
+                have := hpadB i hi2n
+                have h2 : R * i ≤ R * (2 * n) := Nat.mul_le_mul_left _ hi2n
+                omega
+            _ ≤ t + 1 + R * j := by
+                have h4 : R * (2 * n) ≤ R * j := Nat.mul_le_mul_left _ (by omega)
+                unfold detR at hRdef
+                unfold detH at hHdef
+                omega
+            _ = detB b B n t j := hjform.symm
+      · exact le_of_lt (hincB i j hlt hj2n)
+  -- (i) attainment via the pad lemma, transported through the ramp
+  have hH1 : ∀ k l, k ≤ n → l ≤ n → a k + detExt b n t l < H := by
+    intro k l hk hl
+    unfold detExt
+    rw [if_pos hl]
+    have := hB k hk
+    have := hB' l hl
+    omega
+  have hHb : ∀ l, n < l → H ≤ detExt b n t l := by
+    intro l hl
+    unfold detExt
+    rw [if_neg (by omega), hHdef]
+    unfold detH
+    omega
+  obtain ⟨k₀, hk₀d, hk₀n, hk₀dk, hk₀dn, hk₀eq⟩ :=
+    minConv_pad_attained a (detExt b n t) n d H hd hH1 hHb
+  have hramp := rampN_minConv (padSeq a n H) (padSeq (detExt b n t) n H)
+    R (2 * n) (2 * n + d) (by omega)
+  have hAB : minConvN (detA a B n) (detB b B n t) (2 * n) (2 * n + d) =
+      minConvN (padSeq a n H) (padSeq (detExt b n t) n H) (2 * n) (2 * n + d) +
+        R * (2 * n + d) := hramp
+  refine ⟨⟨k₀, hk₀d, hk₀n, hk₀dk, ?_⟩, ?_, ?_⟩
+  · rw [hAB, hk₀eq]
+    have : detExt b n t (d - k₀) = b (d - k₀) := by
+      unfold detExt
+      rw [if_pos hk₀dk]
+    rw [this]
+  · intro k hkd hkn hdkn
+    rw [hAB]
+    have h1 := minConv_pad_le a (detExt b n t) n d H k hkd hkn hdkn
+    have h2 : detExt b n t (d - k) = b (d - k) := by
+      unfold detExt
+      rw [if_pos hdkn]
+    rw [h2] at h1
+    omega
+  · -- (iii): sparsified read-off + frontier bridge
+    have hreadoff := readoff_sparsified (detA a B n) (detB b B n t)
+      (2 * n) w t hw hincA hincB htlo hbig
+    rw [hreadoff]
+    exact frontierN_readoff (detA a B n) (detB b B n t) (2 * n)
+      (2 * n + d) t (by omega) (by omega) (by omega)
+      (fun m₁ m₂ h1 h2 h3 =>
+        minConvN_mono (detA a B n) (detB b B n t) (2 * n) hmonoB m₁ m₂ h2)

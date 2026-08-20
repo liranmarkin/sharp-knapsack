@@ -279,3 +279,22 @@ hypothesis or inventing a non-merge framework - both recognized-hard.
 Constructive complement (the beyond-worst-case program): the curvature
 dichotomy adaptive merge (probes landed) - subquadratic empirically on
 every structured family; worst-case blocked by B4, as it must be.
+
+## Full-verification pass (night 3)
+
+Everything in the result is now Lean (New/DetReduction.lean; 20
+theorems total across DetBarriers + DetReduction, all standard axioms):
+the encoding of a MinConv instance as SparseFun lists; the identity
+that the repo's own executable verified conv has the pair-sum double
+sum as its cumulative; the 2^{wM} spread sandwich; exact and
+SPARSIFIED block-logarithm read-off (against the very sparsify/conv
+the verified fptas runs); bottom-padding placing every diagonal in the
+upper half (with a third exclusion case - beyond-domain splits - that
+the proof itself caught); the N-side ramp; and one composed statement
+det_reduction_complete gluing pad + ramp + read-off with all
+constructions explicit (detH/detR/detExt/detA/detB). B2's core
+(approx_decides_subset_sum) and B3's witness (witness_all_inband) are
+also machine-checked. Remaining non-Lean ingredients: exactly two
+citations used as published (Funke et al. ESA'23 lower bound; the
+MinConv hypothesis) plus Subset-Sum NP-hardness - all prior work,
+named per law 2.
