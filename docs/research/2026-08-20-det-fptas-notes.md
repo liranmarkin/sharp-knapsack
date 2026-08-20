@@ -182,3 +182,53 @@ No new deterministic record is claimed. Landed: the barrier map
 prose reduction; B3 - asserted probe with witness family), and the
 dichotomy program with its first concrete sub-targets (closed-form
 AP-block merge; deterministic AP-union covers).
+
+## Night session: the curvature dichotomy (the program's engine, sharpened)
+
+Probes landed tonight (`probe_pruned_merge.py`, `probe_fit_cover.py`,
+`probe_relaxed_fit.py`, all asserted):
+
+1. The multiplicative band-PRUNE (via deterministic (1+eta)-approx
+   MinConv: scale-round + per-level boolean FFT, O~(s/eta)) handles
+   CURVED families (doubling: X near-linear) and is defeated by
+   near-arithmetic noise (random-gaps: X = s^2).
+2. ORDER-EXACT piecewise-linear fits compress only structured families
+   (rho linear-in-s on all noisy/wild ones).
+3. RELAXED order-K fits (residual <= K*local-gap; each crossing rank
+   shifts <= K; value error (1+delta)^K absorbed by schedule at
+   poly(K) slowdown) crush diffusive noise: sorted sequences with
+   concentrated increments are near-arithmetic - uniform-random
+   positions fit with rho = 1 at K ~ sqrt(s); bounded noise likewise.
+   Heavy tails (pareto-alpha < 2) are marginal (rho*K ~ const).
+   Curvature (doubling) defeats fits at every K - and is prune-sparse.
+
+### The conjectured theorem (curvature dichotomy)
+
+Locally, at every scale: either second differences are LARGE relative
+to gap scale (high curvature => diagonal minima are sharp => few
+near-min band survivors => the prune is sparse there), or SMALL (=>
+locally near-affine => relaxed-fit block, closed-form lattice-sum
+merge). Both mechanisms are local; a scale-partition composes them.
+Conjecture: adaptive merge cost O~(s * poly(1/delta)) worst-case, via
+per-window min(fit, prune). Proof shape for the collision side:
+t near-min cells on a diagonal force x-increments to match reversed
+y-increments within window slack (matched gap-substrings); matches
+across shifted diagonals compose into approximate self-periodicity =
+fit structure. Elementary path - no BSG machinery required - but the
+slack bookkeeping across scales is a real paper's worth of work.
+
+If the dichotomy lemma lands, the GMW record falls to
+O~(n^{1.5} eps^{-1} polylog)-scale (rebalancing the D&C with
+near-linear merges; exact exponent TBD after the lemma's polylogs are
+known). Reduction statement: RECORD <= DICHOTOMY LEMMA; everything
+else (prune correctness via approx-MinConv-from-below, fit value-error
+accounting, Pareto w=0 bound, closed-form lattice sums) is either
+machine-checked already or mechanically formalizable.
+
+### Heavy-tail gap regime (the one marginal case)
+
+pareto-alpha, 1 < alpha < 2: fluctuation L^{1/alpha} vs K*gap:
+rho ~ s/K^{alpha}... measured rho*K ~ const (alpha-1.2 -> exponent 1).
+Candidate fix: exception-decomposition (arithmetic backbone + few
+large-jump insertions; jumps beyond B number s*B^{-alpha}) - the
+multi-resolution merge. Open within the program.
