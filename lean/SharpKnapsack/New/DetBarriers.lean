@@ -82,3 +82,58 @@ theorem ramp_monotone (a : ℕ → ℤ) (B R : ℤ) (n : ℕ)
     _ ≤ a (k + 1) + R + R * k := by omega
     _ = a (k + 1) + R * ((k : ℤ) + 1) := by ring
     _ = a (k + 1) + R * ((k + 1 : ℕ) : ℤ) := by rw [hcast]
+
+/-! ### The Pareto bound: exact-dominance crossings are linear
+
+A pair `(k, l)` is *dominant* if no pair with a strictly larger index
+sum has a position sum at most as small. Dominant pairs form a Pareto
+staircase in (position-sum, index-sum): on every index-sum diagonal,
+only a minimum-position cell can be dominant, so there are at most
+`2s+1` of them. This is the `w = 0` pole of the in-band crossing
+question: the s² blow-up of barrier B3 comes ENTIRELY from the
+accuracy band, not from the dominance structure itself. -/
+
+/-- Dominance: `p` is the lexicographic (position, index)-minimum on
+its own diagonal, and every strictly higher diagonal sits at a strictly
+larger position. These are exactly the `w = 0` in-band pairs. -/
+def dominantPairs (x y : ℕ → ℤ) (s : ℕ) : Finset (ℕ × ℕ) :=
+  ((range (s + 1)) ×ˢ (range (s + 1))).filter (fun p =>
+    ∀ q ∈ (range (s + 1)) ×ˢ (range (s + 1)),
+      (q.1 + q.2 = p.1 + p.2 →
+        (x p.1 + y p.2 < x q.1 + y q.2 ∨
+          (x p.1 + y p.2 = x q.1 + y q.2 ∧ p.1 ≤ q.1))) ∧
+      (p.1 + p.2 < q.1 + q.2 → x p.1 + y p.2 < x q.1 + y q.2))
+
+/-- **The Pareto bound.** At most one dominant pair per diagonal: the
+map `(k, l) ↦ k + l` is injective on `dominantPairs`, so their number
+is at most `2s + 1`. The s² blow-up of barrier B3 therefore comes
+entirely from the accuracy band, not from the dominance structure. -/
+theorem dominantPairs_card_le (x y : ℕ → ℤ) (s : ℕ) :
+    (dominantPairs x y s).card ≤ 2 * s + 1 := by
+  have hinj : ∀ p ∈ dominantPairs x y s, ∀ q ∈ dominantPairs x y s,
+      p.1 + p.2 = q.1 + q.2 → p = q := by
+    intro p hp q hq hsum
+    rw [dominantPairs, mem_filter] at hp hq
+    obtain ⟨hpmem, hpdom⟩ := hp
+    obtain ⟨hqmem, hqdom⟩ := hq
+    have h1 := (hpdom q hqmem).1 hsum.symm
+    have h2 := (hqdom p hpmem).1 hsum
+    have hfst : p.1 = q.1 := by
+      rcases h1 with h1a | ⟨h1e, h1i⟩ <;> rcases h2 with h2a | ⟨h2e, h2i⟩ <;> omega
+    have hsnd : p.2 = q.2 := by omega
+    exact Prod.ext hfst hsnd
+  calc (dominantPairs x y s).card
+      = ((dominantPairs x y s).image (fun p => p.1 + p.2)).card := by
+        rw [Finset.card_image_of_injOn]
+        intro p hp q hq
+        exact fun h => hinj p hp q hq h
+    _ ≤ (range (2 * s + 1)).card := by
+        apply Finset.card_le_card
+        intro d hd
+        obtain ⟨p, hp, hpd⟩ := Finset.mem_image.mp hd
+        rw [dominantPairs, mem_filter, Finset.mem_product] at hp
+        have h1 := mem_range.mp hp.1.1
+        have h2 := mem_range.mp hp.1.2
+        rw [mem_range]
+        omega
+    _ = 2 * s + 1 := Finset.card_range _
