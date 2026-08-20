@@ -17,3 +17,5 @@ import SharpKnapsack.New.SamplerMerge
 import SharpKnapsack.New.SamplerMechanisms
 import SharpKnapsack.New.SamplerHeadline
 import SharpKnapsack.New.SamplerResolution
+import SharpKnapsack.New.DetBarriers
+import SharpKnapsack.New.DetReduction

@@ -174,3 +174,41 @@ stage updates the checkbox and lands in CI.
   sub-problem closed.
 - [ ] Remaining: beating Õ(n^1.5) at ε = Θ(1) is their §1.3 open
   problem (the (max,+) frontier).
+
+## Branch `det-fptas` (campaign: beat GMW deterministically)
+
+- [x] Record re-confirmed: GMW O~(n^2.5 eps^-1.5) still SOTA (2026-08).
+- [x] GMW cost ledger: the entire n^2.5 is the naive s^2 sparse merge.
+- [x] B1 `ramp_minConv` + `ramp_monotone` - unbounded-monotone MinConv
+  is general-MinConv-hard (machine-checked; blocks the direct JPSX route).
+- [x] B2 (prose): window isolation bottoms out at #exact-Subset-Sum -
+  no FPTAS unless P=NP; cumulative-from-zero is forced.
+- [x] B3 (asserted probe): in-band crossings are Theta(s^2) worst-case;
+  witness = arithmetic positions x geometric values; wild families
+  near-linear.
+- [x] `dominantPairs_card_le` - the Pareto bound: w=0 in-band pairs
+  are <= 2s+1 (the blow-up is the accuracy band alone).
+- [x] Curvature-dichotomy probes (fit/prune complementarity) -
+  asserted; adaptive merge subquadratic on all structured families.
+- [x] B4 `frontier_readoff` + `minConvAt_mono` +
+  `b4_merge_conditional_optimality` - the GMW merge task is
+  MinConv-hard; with Funke et al. (ESA'23) and the MinConv hypothesis,
+  the merge is CONDITIONALLY OPTIMAL. The record stands for a reason
+  that is now machine-checked.
+- [x] FULL EXECUTABLE REDUCTION (New/DetReduction.lean, 20 theorems,
+  standard axioms): `encodeSF` + `queryLe_conv_encode` (the verified
+  executable conv's cumulative = pair-sum double sum) + the 2^{wM}
+  sandwich + `readoff_exact`/`readoff_sparsified` (block-log recovery
+  from the ACTUAL sparsify∘conv pipeline output) + padding
+  (`minConv_pad_le`/`minConv_pad_attained`: every diagonal is
+  upper-half after padding) + ℕ-ramp (`rampN_minConv`) + the composed
+  `det_reduction_complete`: for ANY bounded instance and any diagonal,
+  the executable merge output decides the genuine MinConv value. Zero
+  prose left in the reduction.
+- [x] B2 core `approx_decides_subset_sum` - any multiplicative
+  approximation of the exact-weight count decides Subset-Sum.
+- [x] B3 witness `witness_all_inband` - the arithmetic-geometric
+  family provably saturates the band (machine-checked side of the
+  probe).
+- [ ] (open, recognized-hard) refute the MinConv hypothesis, or invent
+  a non-merge deterministic framework evading B2/B4/Jin-Xu.

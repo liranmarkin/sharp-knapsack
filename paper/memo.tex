@@ -6,7 +6,7 @@
 \newtheorem{theorem}{Theorem}
 \setlength{\parskip}{3pt}
 
-\title{An $\OO(n^{1.5} + n\varepsilon^{-2})$ FPRAS for \#Knapsack}
+\title{Why the Deterministic \#Knapsack Record Stands}
 \author{Liran Markin}
 \date{August 2026}
 
@@ -15,164 +15,123 @@
 
 \begin{abstract}
 \noindent
-This memo is written to be read alongside Feng and Jin's
-$\OO(n^{1.5}\varepsilon^{-2})$ FPRAS for \#Knapsack~\cite{FJ25}; we
-use their notation and point into their sections throughout. The
-claim: one change to their pipeline -- refining the rounding grid by
-a factor $n/\ell$, which their sampler (Lemma~4.7) cannot afford but
-a level-enumerating sampler gets for free -- drops the total running
-time to
-\[
-\OO\!\left(n^{1.5} + n\,\varepsilon^{-2}\right),
-\]
-uniformly in $\varepsilon$ and in their popular-class parameter
-$\ell$. The $\varepsilon$-dependence then equals the number of
-samples the estimator draws, times the cost of writing one
-down.\footnote{A Lean~4 development accompanying this memo
-machine-checks the components introduced here, including the
-overcount bound of Section~3; see the repository.}
+The fastest deterministic FPTAS for \#Knapsack is the
+$\OO(n^{2.5}\varepsilon^{-1.5})$ algorithm of Gawrychowski--Markin--%
+Weimann~\cite{GMW18}, unimproved since 2018. This memo, written to be
+read alongside~\cite{GMW18}, explains why: the algorithm's single
+expensive primitive -- the pairwise merge of two sparsified
+sum-approximation lists -- is, as a computational task, equivalent in
+the worst case to general $(\min,+)$-convolution. Under the standard
+MinConv hardness hypothesis, the merge is optimal, and with it every
+FPTAS in the sum-approximation framework. The reduction's core is
+machine-checked in Lean. We state precisely what an improvement would
+now require, and what remains possible beyond the worst
+case.\footnote{The Lean development accompanying this memo verifies
+the reduction end to end - encoding, executable merge cumulative,
+sandwich, read-off, padding, and ramp, composed in one statement -
+against the same verified code that runs the FPTAS; see the
+repository.}
 \end{abstract}
 
-\section{Their pipeline, and where its time goes}
+\section{The question}
 
-Recall the structure of~\cite{FJ25}. The count is approximated as
-$|\Omega'|\cdot p$: here $\Omega'$ is the solution set of a rounded
-instance, counted exactly by their merge tree of count arrays
-(\S4--\S5), and $p = |\Omega|/|\Omega'|$ is estimated by drawing
-uniform samples from $\Omega'$ (\S5.3) and checking true
-feasibility. Their time is
-\[
-\underbrace{\OO(n^{1.5})}_{\text{construction (Thm 4.2/6.1, L.5.9)}}
-\;+\;
-\underbrace{N \cdot \OO(\ell\sqrt{n})}_{\text{$N$ queries of
-Lemma 4.7}},
-\qquad
-N = \OO\!\left(\frac{n}{\ell\,\varepsilon^{2}}\right)
-\ \ \text{(from Lemma 3.3)},
-\]
-with $\ell \in [2, 8n]$ the popular-class parameter of Lemma~3.1.
-The two $\ell$'s cancel in the second term:
-$N \cdot \ell\sqrt{n} = n^{1.5}\varepsilon^{-2}$ for every $\ell$
--- which is why the paper is free to choose $\ell$ for the benefit
-of the first term.
+\cite{GMW18} computes a $(1+\varepsilon)$-sum approximation of the
+knapsack counting function by divide and conquer: split the items,
+recurse, and merge the two children's sparsified lists by convolution
+(their Section~4). Every recursion level pays the same
+$\OO(n^{2.5}\varepsilon^{-1.5})$, and all of it is one primitive: a
+merge of two $s$-point lists costs $s^2$ pairwise products, almost all
+immediately discarded by re-sparsification. Any merge in $s^{2-c}$
+time would improve the record polynomially. Can the merge be faster?
 
-The size of $N$ traces back to the grid. Their rounding is coarse
-enough that the rounded superset overshoots:
-$|\Omega'|/|\Omega| = \OO(n/\ell)$, so $p$ can be as small as
-$\ell/n$, and estimating a ratio that small to relative
-$\varepsilon$ costs $1/(p\varepsilon^{2})$ samples -- exactly their
-$N$. The overshoot is rounding debt: a mask's rounded weight is
-below its true weight by up to the accumulated rounding error, so
-masks whose true weight lands in that error band above $T$ are
-counted as solutions although they are not. Lemma~3.3 is precisely
-the statement that a band of width $T/\ell$ carries a
-polylogarithmic multiple of $|\Omega|$; their error is $n/\ell$
-bands wide, hence the $n/\ell$ overshoot.
+\section{The answer}
 
-\section{The observation}
+\begin{theorem}[conditional optimality of the merge]
+Computing the value-sparsified, position-exact merged frontier of two
+$s$-point sum-approximation lists requires $s^{2-o(1)}$ time in the
+worst case, unless the MinConv hypothesis fails.
+\end{theorem}
 
-Nothing in the correctness of the pipeline forces the coarse grid.
-What forces it is the query of Lemma~4.7: it reads array segments,
-so its cost scales with array length, and refining the grid by a
-factor $F$ multiplies every array length -- and with it the whole
-sampling phase -- by $F$. The coupling between grid and $\ell$ is
-an artifact of \emph{how they sample}.
-
-In earlier work on this repository we replaced the Lemma-4.7 query
-by a pruned witness-split sampler: it descends the merge tree
-splitting each position among the \emph{witness levels} of the two
-children (the levels of their floating-point representation, \S6),
-and its per-draw work enumerates levels -- a quantity bounded by the
-subtree's item count -- never array positions. Its per-sample cost
-is $\OO(n)$, independent of the grid. That frees the grid:
-
-\begin{quote}
-\emph{Make the grid fine enough that the rounded count is honest,
-and pay for it only in array length -- which the sampler never
-reads.}
-\end{quote}
-
-\section{What the finer grid buys}
-
-Refine every node's grid by $F = n/\ell$, so the total round-down
-error of any mask stays below a single band width $T/\ell$. Then:
+Three ingredients, two of them published:
 
 \begin{enumerate}
-\item \textbf{The overshoot collapses to polylog.} Rounding down
-never loses a solution, so $\Omega \subseteq \Omega'$; and every
-over-counted mask has true weight in $(T,\, T + T/\ell]$ -- one
-band. Lemma~3.3 bounds that band by a polylogarithmic multiple of
-$|\Omega|$, and it does so as a statement about \emph{true}
-weights: it is blind to the rounding and applies verbatim. Hence
-$p \ge 1/\mathrm{polylog}$ and $N = \OO(\varepsilon^{-2})$.
-\item \textbf{Construction grows only linearly in $F$.} A merge
-costs length${}\times\sqrt{\text{levels}}$ (Thm~6.1 is parametric
-in the array length; the level count is a property of the counts,
-not the grid). Summed over the class tree this is
-$\OO(F\ell\sqrt{n})$, which at $F = n/\ell$ is $\OO(n^{1.5})$ --
-the $\ell$ cancels here too, now in our favor.
+\item \textbf{The ramp (machine-checked).} Adding $R\cdot k$ to any
+bounded integer sequence makes it monotone while shifting every
+anti-diagonal of its $(\min,+)$-convolution uniformly -- so monotone
+MinConv with unbounded values is exactly general MinConv. Sparsified
+breakpoint sequences are monotone with unbounded positions; their
+merge cannot lean on the fast bounded-monotone MinConv algorithms
+(most recently the deterministic $n^{1.5+o(1)}$ of
+Jin--Park--Saha--Xu~\cite{JPSX26}).
+\item \textbf{The read-off (machine-checked).} Encode a ramped MinConv
+instance as two breakpoint lists with unit value-steps: the merged
+frontier's inverse at index-sum $m$ \emph{is} the MinConv value at
+$m$. Value-only sparsification slack does not blur the read-off: the
+positions reported are exact. So a fast merge is a fast general
+MinConv.
+\item \textbf{The floor (published).} Exact Pareto sum -- the same
+task in different clothing -- has no $O(n^{2-\delta})$ algorithm under
+the MinConv hypothesis, even when the output has linear
+size~\cite{FHSST23}.
 \end{enumerate}
 
-\section{The algorithm}
+\section{Why the escape routes close}
 
-\begin{enumerate}
-\item Run the reduction, class decomposition (Lemma~3.1), and
-two-phase structure (\S5.4) of~\cite{FJ25} unchanged, with every
-node's grid step a factor $n/\ell$ finer.
-\item Build the merge tree with their Theorem~6.1 subroutine at the
-finer grid. Alongside each node, store static per-(level,
-residual-class) sorted position arrays with prefix counts.
-\item Draw $N = \OO(\varepsilon^{-2})$ samples with the pruned
-witness-split sampler; every mass and rank query during a descent
-is a prefix lookup on the static arrays.
-\item Check each sampled mask's true weight; output $|\Omega'|$
-times the observed feasible fraction, median-amplified.
-\end{enumerate}
+\textbf{Rounding positions instead.} Allowing capacity-side error
+breaks the merge barrier (that is the ``weak approximation'' world,
+where bounded-monotone MinConv applies and
+$\OO(n+\varepsilon^{-1.5})$-type bounds exist~\cite{BC22,JPSX26}).
+But an FPTAS for \#Knapsack is a \emph{strong} approximation: the
+capacity is exact. Any scheme that quantizes positions must, at the
+root, resolve the mass within a capacity window around $C$ -- and
+isolating that window is NP-hard (its innermost case is counting
+exact Subset-Sum solutions, whose nonzeroness is Subset-Sum itself).
+Cumulative counting from zero, with exact positions, is forced.
 
-\section{Why this is $n^{1.5} + n\varepsilon^{-2}$}
+\textbf{Exploiting additive structure of the input.} 3SUM remains
+hard on Sidon sets~\cite{JX23}: low additive energy of positions is
+not, by itself, an algorithmic lever. Structure helps only when it is
+promised (bounded range, monotone values) -- which the ramp shows the
+merge does not enjoy.
 
-Construction: length${}\times\sqrt{\text{levels}}$ per merge, at
-boosted length $F\ell/2^{h/2}$ and $n_m/2^{h}$ levels, sums over
-depths and classes to $F\ell\sqrt{n}\cdot\mathrm{polylog}
-= n^{1.5}\cdot\mathrm{polylog}$ at $F = n/\ell$. Sampling:
-$\OO(\varepsilon^{-2})$ samples at $\OO(n)$ each -- level
-enumeration, grid-independent -- is $\OO(n\varepsilon^{-2})$.
-There is no third term.
+\textbf{Scope, stated plainly.} The theorem is conditional (MinConv
+hypothesis) and framework-level: it binds every algorithm that
+computes sum-approximation merges -- which includes all known
+deterministic FPTASes for \#Knapsack (Gopalan et al.,
+\v{S}tefankovi\v{c} et al., Rizzi--Tomescu, Halman, and~\cite{GMW18})
+-- but it is not an unconditional lower bound for the problem. An
+improvement now requires either refuting the MinConv hypothesis or a
+deterministic framework that avoids position-exact merges entirely
+while surviving the window-isolation hardness. Both are
+recognized-hard open problems.
 
-\section{Discussion}
+\section{Beyond the worst case}
 
-\textbf{What is verified.} The statistical heart is
-machine-checked in Lean: the sandwich
-$\Omega \subseteq \Omega' \subseteq \Omega \cup \mathrm{band}$ and
-the overcount bound $100\,|\Omega'| \le (101+200h)\,|\Omega|$,
-proved by composing with our formalization of their Lemma~3.3;
-likewise the sampler's exactness and the cost ledgers.
-
-\textbf{What is inherited from~\cite{FJ25}.} Theorem~6.1 as
-published, applied at longer arrays (its statement is parametric in
-length); the two-phase pipeline of \S5.4; and Lemma~3.3's
-instance-side hypotheses, discharged by their own reduction.
-
-\textbf{What remains.} We prove no lower bound, and claim no
-optimality. At $\varepsilon = \Theta(1)$ the bound is
-$\OO(n^{1.5})$, tying~\cite{FJ25}: the construction itself, whose
-improvement is the open problem they pose in \S1.3 (tied to the
-bounded-monotone $(\max,+)$-convolution frontier). That is now the
-only $\varepsilon$-regime where the time exceeds the sample size:
-for every $\varepsilon$, sampling costs
-$\OO(n\varepsilon^{-2})$ -- $\varepsilon^{-2}$ samples at the cost
-of writing one down. The price paid is space: the boosted arrays
-occupy $\OO(n^{1.5})$ words, the same order as their construction
-time but more than their unboosted arrays.
+The obstruction is sharply localized: merges are expensive exactly on
+additively structured inputs. Empirically (asserted probes in the
+repository), a curvature dichotomy holds: windows of the breakpoint
+sequence are either near-affine -- compressible by relaxed
+piecewise-linear fits, mergeable in closed form -- or curved, in
+which case near-minimal ties on anti-diagonals are rare and a pruned
+sweep is cheap. An adaptive merge built on this dichotomy is
+subquadratic on every structured family we tested, and is blocked
+only on the MinConv-hard core, as Theorem~1 says it must be. Making
+this a beyond-worst-case theorem -- and porting the resolution-lever
+ideas from the randomized side where sampling is permitted -- is the
+live continuation.
 
 \begin{thebibliography}{9}
-\bibitem{FJ25} W.~Feng, C.~Jin.
-\emph{A Faster Algorithm for Counting Knapsack Solutions}.
-SODA 2025. arXiv:2410.22267.
-\bibitem{Dyer03} M.~Dyer.
-\emph{Approximate counting by dynamic programming}. STOC 2003.
 \bibitem{GMW18} P.~Gawrychowski, L.~Markin, O.~Weimann.
 \emph{A Faster FPTAS for \#Knapsack}. ICALP 2018.
+\bibitem{FHSST23} S.~Funke, D.~Hespe, P.~Sanders, S.~Storandt,
+C.~Truschel. \emph{Pareto Sums of Pareto Sets}. ESA 2023.
+\bibitem{JPSX26} C.~Jin, J.~Park, B.~Saha, Y.~Xu.
+\emph{Deterministic Monotone Min-Plus Product and Convolution}.
+ICALP 2026. arXiv:2605.07150.
+\bibitem{JX23} C.~Jin, Y.~Xu. \emph{Removing Additive Structure in
+3SUM-Based Reductions}. STOC 2023.
+\bibitem{BC22} K.~Bringmann, A.~Cassis. \emph{Faster Knapsack
+Algorithms via Bounded Monotone Min-Plus-Convolution}. ICALP 2022.
 \end{thebibliography}
 
 \end{document}

@@ -1,0 +1,1237 @@
+A Faster FPTAS for #Knapsack
+
+arXiv:1802.05791v1 [cs.DS] 15 Feb 2018
+
+Paweł Gawrychowski∗
+
+Liran Markin†
+
+Oren Weimann†
+
+Abstract
+Given a set W = {w1 , . . . , wn } of non-negative integer weights and an integer C, the #Knapsack problem asks to count the number of distinct subsets of W whose total weight is at most
+C. In the more general integer version of the problem, the subsets are multisets. That is, we
+are also given a set {u1 , . . . , un } and we are allowed to take up to ui items of weight wi .
+We
+present
+a
+deterministic
+FPTAS
+for
+#Knapsack
+running
+in
+O(n2.5 ε−1.5 log(nε−1 ) log(nε)) time. The previous best deterministic algorithm [FOCS 2011]
+runs in O(n3 ε−1 log(nε−1 )) time (see also [ESA 2014] for a logarithmicp
+factor improvement).
+The previous best randomized algorithm [STOC 2003] runs in O(n2.5 log(nε−1 ) + ε−2 n2 )
+time. Therefore, in the natural setting of constant ε, we close the gap between the Õ(n2.5 )
+randomized algorithm and the Õ(n3 ) deterministic algorithm.
+For the integer version with U = maxi {ui }, we present a deterministic FPTAS running
+in O(n2.5 ε−1.5 log(nε−1 log U ) log(nε) log2 U ) time. The previous best deterministic algorithm
+[APPROX 2016] runs in O(n3 ε−1 log(nε−1 log U ) log2 U ) time.
+
+1
+
+Introduction
+
+Given a set W = {w1 , . . . , wn } of non-negative integer weights and an integer C, the #Knapsack
+problem asks to count the number of distinct subsets of W whose total weight is at most C. This
+problem is the counting version of the well known Knapsack problem and is #P-hard. While there
+are many, celebrated, randomized polynomial-time algorithms for approximately counting #P-hard
+problems, the #Knapsack problem is one of the few examples where there is also a deterministic
+approximation algorithm (other notable examples are [1, 8, 14]).
+From a geometric view, the #Knapsack problem is equivalent to ﬁnding the number of vertices of the n-dimensional hypercube that lie on one side of a given n-dimensional hyperplane. The
+problem is also related to pseudorandom generators for halfspaces (see e.g. [2, 9, 11]) as these imply
+deterministic (though not polynomial-time) approximation schemes for #Knapsack by enumerating over all input seeds to the generator.
+Approximately counting knapsack solutions. The #Knapsack problem can be solved with
+the following simple recursion: S(i, j) = S(i − 1, j) + S(i − 1, j − wi ) where S(i, j) is the number
+of subsets of {w1 , ..., wi } whose weight sums to at most j. This recurrence immediately implies
+a pseudo-polynomial O(nC) time algorithm. More interestingly, this recurrence is the basis of all
+existing fully polynomial-time approximation schemes (FPTAS). That is, algorithms that for any
+ε > 0 estimate the number of solutions to within relative error (1 ± ε) in time polynomial in n and
+in 1/ε.
+∗
+†
+
+University of Wrocław, Poland.
+University of Haifa, Israel. Partially supported by Israel Science Foundation grant 592/17.
+
+1
+
+Dyer et al. [4] were the ﬁrst to show how to
+approximate this recurrence with random sampling.
+√
+n
+log2.5 n)) ǫ−2 time algorithm. Using a more compliO(
+They gave a randomized sub-exponential 2
+cated random sampling (with a rapidly mixing Markov chain), Morris and Sinclair [10] obtained
+the ﬁrst FPRAS (fully-polynomial randomized approximation
+scheme) running in O(n4.5+ǫ + ǫ−2 n2 )
+p
+2.5
+−1
+time. Dyer [3] further improved this to O(n
+log(nε ) + ǫ−2 n2 ) by using a surprisingly simple sampling procedure (combined with randomized rounding). This to date is the fastest known
+randomized solution. As for deterministic solutions, the fastest solution to date is by Rizzi and
+Tomescu [12] and runs in O(n3 ǫ−1 log ǫ−1 / log n) time. It is a logarithmic factor improvement (obtained by discretizing the recursion S(i, j) with ﬂoating-point arithmetics) over the previous fastest
+O(n3 ǫ−1 log(nε−1 )) time solutions of Gopalan et al. [6] (who used read-once branching programs inspired by related work on pseudorandom generators for halfspaces [9]) and of Štefankovič et al. [13]
+(who approximated a “dual” recursion S ∗ (i, j) deﬁned as the smallest capacity c such that there
+exist at least j subsets of {w1 , . . . , wi } with weight c).
+Approximately counting integer knapsack solutions. In the more general integer version
+of #Knapsack, the subsets are multisets. That is, in addition to W = {w1 , . . . , wn } we are also
+given a set {u1 , . . . , un } and we are allowed to take up to ui items of weight wi .
+The ﬁrst (randomized) FPRAS for counting integer knapsack solution was given by Dyer [3]
+who presented a strongly polynomial O(n5 + n4 ε−2 ) time algorithm. A (deterministic) FPTAS for
+this problem was then given by GopalanP
+et al. [6] with a running time of O(n5 ε−2 log2 U log w) (see
+also [5]) where U = maxi {ui } and w = i wi ui + C. The fastest solution to date is by Halman [7]
+with a running time of O(n3 ε−1 log(nε−1 log U ) log2 U ).
+Our results. In this paper we present improved algorithms for both #Knapsack and its integer
+version. Our algorithms improve the previous best algorithms by polynomial factors. For constant
+ε, we close the gap between the Õ(n2.5 ) randomized and the Õ(n3 ) deterministic running times.
+More formally, with the standard assumption of constant time arithmetics on the input numbers,
+we prove the following two theorems:
+Theorem 1. There is a FPTAS running in O(n2.5 ε−1.5 log(nε−1 ) log(nε)) time and O(n1.5 ε−1.5 )
+space for counting knapsack solutions.
+Theorem 2. There is a FPTAS running in O(n2.5 ε−1.5 log(nε−1 log U ) log(nε) log2 U ) time and
+O(n1.5 ε−1.5 log U ) space for counting integer knapsack solutions.
+Our algorithm is the ﬁrst algorithm to deviate from the standard recursion. In particular, on
+large enough sets, instead of recursing on all but the last item, we recurse in the middle and
+use convolution to merge the two sub-solutions. This requires extending the recent technique of Kapproximation sets and functions used by Halman [7] and introduced in [8]. Our extended technique
+(which we call sum approximations) is simple to state and leads to a surprisingly simple solution
+to #Knapsack with an improved running time. In a nutshell, for any function f : Z+ → Z+
+(think of P
+f (x) = the number of subsets with total weight exactly x) let f ≤ denote the function
+≤
+f (x) = y≤x f (y) (hence f ≤ (x) = the number of subsets with total weight at most x). Then, in
+order to approximate the function f ≤ it is enough to ﬁnd any function F such that F ≤ approximates
+f ≤.
+We examine the properties of such sum approximations F in Section 2, and introduce a number
+of useful computational primitives on sum approximations. With these primitives in hand, we give a
+simpliﬁed version of Halman’s algorithm for #Knapsack in Section 3. Then, in Section 4 we present
+2
+
+an improved divide and conquer algorithm based on convolutions of sum approximations. Finally,
+in Section 5 we adapt our algorithm to the integer version, where every item has a corresponding
+multiplicity. Instead of the binding constraints approach used by Halman [7], we show that it is
+enough to perform a single scan of a sum approximation using nothing more than a standard binary
+search tree.
+
+2
+
+Approximation of a Function
+
+Consider the following two functions: f (x) = the number of subsets with total weight exactly x,
+and f ≤ (x) = the number of subsets with total weight at most x. More generally:
+Definition 1. Given a function f : Z+ → Z+ we define the function f ≤ (x) as
+X
+f ≤ (x) =
+f (y).
+y≤x
+
+Our goal is to approximate f ≤ (C) but we will actually approximate the entire function f ≤ (x)
+for all x. We now describe what it means to approximate a function and present some properties
+of such approximations.
+Definition 2 ((1+ε)-approximation of a function). Given a function f : Z+ → Z+ and a parameter
+ε > 0, a function F : Z+ → Z+ is a (1 + ε)-approximation of f if for every x,
+f (x) ≤ F (x) ≤ (1 + ε)f (x).
+Definition 3 ((1 + ε)-sum approximation of a function). Given a function f : Z+ → Z+ and
+a parameter ε > 0, a function F : Z+ → Z+ is a (1 + ε)-sum approximation of f if F ≤ is a
+(1 + ε)-approximation of f ≤ .
+We next examine some useful properties of sum approximations. For a function f : Z+ → Z+ deﬁne
+its shift by w as follows:
+(
+f (x − w), x ≥ w,
+f |w (x) =
+0
+x < w,
+and for two functions f, g : Z+ → Z+ we deﬁne their convolution to be:
+X
+(f ∗ g)(w) =
+f (x)g(y).
+x+y=w
+
+Lemma 1 (operations on sum approximations). Let F be a (1 + ε)-sum approximation of f and G
+be a (1 + ε)-sum approximation of g, then the following properties hold:
+Approximation: A (1 + δ)-sum approximation of F is a (1 + δ)(1 + ε)-sum approximation of f .
+Summation:
+
+(F + G) is a (1 + ε)-sum approximation of (f + g).
+
+Shifting:
+
+F |w is a (1 + ε)-sum approximation of f |w for any w > 0.
+
+Convolution: (F ∗ G) is a (1 + ε)2 -sum approximation of (f ∗ g).
+Proof.
+
+3
+
+Approximation: Let F ′ be a (1 + δ)-approximation of F . For every x, f ≤ (x) ≤ F ≤ (x) ≤ (1 +
+ε)f ≤ (x) and F ≤ (x) ≤ F ′≤ (x) ≤ (1 + δ)F ≤ (x). We therefore have that f ≤ (x) ≤ F ′≤ (x) ≤
+(1 + δ)(1 + ε)f ≤ (x).
+Summation: For every x we have that f ≤ (x) ≤ F ≤ (x) ≤ (1 + ε)f ≤ (x) and g≤ (x) ≤ G≤ (x) ≤
+(1+ε)g ≤ (x), adding these two equations we get (f +g)≤ (x) ≤ (F +G)≤ (x) ≤ (1+ε)(f +g)≤ (x).
+Shifting: For x < w, f |w (x) = 0 = F |w (x). For x ≥ w let y = x − w. Since y ≥ 0 we have that
+≤
+≤
+f ≤ (y) ≤ F ≤ (y) ≤ (1 + ε)f ≤ (y) and therefore f |≤
+w (x) ≤ F |w (x) ≤ (1 + ε)f |w (x).
+Convolution: We ﬁrst prove that (F ∗ G)≤ (w) ≥ (f ∗ g)≤ (w):
+(F ∗ G)≤ (w) =
+=
+
+X
+
+F (x)G(y) =
+
+F (x)G(y) =
+
+x+y≤w
+
+x≤w y≤w−x
+
+X
+
+X
+
+F (x)G≤ (w − x) ≥
+
+x≤w
+
+X
+
+=
+=
+
+X X
+
+F (x)g(y) =
+
+x≤w
+
+x+y≤w
+
+y≤w x≤w−y
+
+X
+
+X
+
+y≤w
+
+=
+
+X
+
+x+y≤w
+
+y≤w
+
+x≤w
+
+F (x)g ≤ (w − x) =
+
+X X
+
+g(y)F ≤ (w − y) ≥
+
+X
+
+F (x)g(y) =
+
+X
+
+y≤w
+
+g(y)f ≤ (w − y) =
+
+f (x)g(y) = (f ∗ g)≤ (w).
+
+
+
+F (x)
+
+X
+
+y≤w−x
+
+X
+
+F (x)
+
+x≤w
+
+
+
+G(y)
+g(y)
+
+y≤w−x
+
+
+
+g(y)
+
+X
+
+X
+
+X
+
+x≤w−y
+
+g(y)
+
+y≤w
+
+X
+
+
+
+F (x)
+f (x)
+
+x≤w−y
+
+Next we prove that (F ∗ G)≤ (w) ≤ (1 + ε)2 (f ∗ g)≤ (w):
+(F ∗ G)≤ (w) =
+=
+
+X
+
+F (x)G(y) =
+
+X X
+
+x+y≤w
+
+x≤w y≤w−x
+
+X
+
+X
+
+x≤w
+
+F (x)G≤ (w − x) ≤
+
+= (1 + ε)
+
+X
+
+F (x)
+
+x≤w
+
+= (1 + ε)
+
+X
+
+X X
+
+x≤w
+
+F (x)G(y) =
+
+= (1 + ε)
+
+y≤w
+2
+
+g(y) = (1 + ε)
+
+= (1 + ε)
+
+g(y)
+
+y≤w
+2
+
+x+y≤w
+
+F (x)g(y) = (1 + ε)
+
+X
+
+y≤w
+≤
+
+X
+
+X
+
+y≤w
+
+f (x) = (1 + ε)2
+
+F (x)
+
+X
+
+y≤w−x
+
+
+
+G(y)
+
+F (x)g(y)
+
+
+
+g(y)
+
+X
+
+x≤w−y
+
+
+
+F (x)
+
+g(y)(1 + ε)f ≤ (w − y) =
+X
+
+f (x)g(y)
+
+x+y≤w
+
+x≤w−y
+≤
+
+X
+
+y≤w−x
+
+g(y)F (w − y) ≤ (1 + ε)
+
+X
+
+x≤w
+
+
+
+F (x)(1 + ε)g ≤ (w − x) =
+
+≤w x≤w−y
+
+X
+
+X
+
+= (1 + ε) (f ∗ g) (w).
+
+We next describe the way that we represent functions.
+Definition 4 (a function representation). Given a function f : Z+ → Z+ , the representation of f
+is defined to be a list of all the pairs (x, f (x)) where f (x) > 0. The list is kept sorted by the x value.
+4
+
+f ≤ (x)
+
+f ≤ (x)
+r6
+
+r5
+r4
+r3
+r2
+r1
+
+x
+
+x1
+
+x2
+x3
+
+x4
+
+x5
+
+x6
+
+x
+
+Figure 1: On the left, f ≤ (x) compared to f (x). The red point at position x is wider as f (x) is
+larger. On the right, the blue points are the ﬁrst entries that have value of at least ri
+The size of f (denoted by |f |) is the number of pairs in the representation of f . To simplify our
+presentation, we allow the representation to include multiple pairs with the same value of x. This
+can be easily fixed with a single scan over the representation.
+In the following paragraphs we show how to eﬃciently implement the following operations on
+functions: sparsification, summation, shifting, convolution, and query. The output of each operation
+is a sum approximation.
+Sparsification. Sparsiﬁcation is the operation of constructing a (1 + δ)-sum approximation of f
+(see Deﬁnition 3). The input is a function f : Z+ → Z+ and a sparsiﬁcation parameter δ > 0, the
+output is a function F : Z+ → Z+ that is a (1 + δ)-sum approximation of f . The goal is to construct
+a function F that has a compact representation (i.e. a small number of points with non-zero values).
+To this end, we partition the values of f ≤ into segments with elements belonging to [ri , ri+1 ) (see
+Figure 1), where:
+r0 = 0,
+ri+1 = max{ri + 1, ⌊(1 + δ)ri ⌋}.
+
+We call xi = minx f ≤ (x) ≥ ri the i-th breakpoint. For any x, let succ(x) be the strict successor
+of x among {xi }, i.e. succ(x) = mini {xi > x}. We deﬁne the function f˜≤ (see Figure 2) as:
+f˜≤ (x) = f ≤ (succ(x) − 1),
+where f˜≤ (x) = limx→inf f ≤ (x) if succ(x) = ∞.
+Lemma 2. f˜≤ is a (1 + δ)-approximation of f ≤ .
+Proof. First observe that f ≤ (x) ≤ f˜≤ (x) (since succ(x) > x and f ≤ is monotone). Consider any
+x and let i be the unique index such that ri ≤ f ≤ (x) < ri+1 . If succ(x) = ∞ then f˜≤ (x) =
+limx→inf f ≤ (x) < ri+1 . Otherwise, xi+1 > x and f˜≤ (x) = f ≤ (xi+1 − 1) < ri+1 . We need to consider
+two cases: If ri+1 ≤ (1 + δ)ri , then f˜≤ (x) < ri+1 ≤ (1 + δ)f ≤ (x). If ri+1 = ri + 1 and because the
+values of f˜≤ (x) are integer, f˜≤ (x) ≤ ri+1 − 1 = ri . So in both cases f˜≤ (x) ≤ (1 + δ)f ≤ (x).
+5
+
+f˜≤ (x)
+
+x1
+
+f˜≤ (x)
+
+x2
+x3
+
+x4
+
+x5
+
+x6
+
+x
+
+x1
+
+x2
+x3
+
+x4
+
+x5
+
+x6
+
+x
+
+Figure 2: On the left, f˜≤ (in blue) is deﬁned from f ≤ and has the same value in any segment
+[xi , xi+1 ). On the right, the construction of F (x). The blue points are only at positions xi and are
+wider as F (xi ) is larger.
+We can now deﬁne the function F (the (1 + δ)-sum approximation of f ). Observe that by
+Lemma 2, every F such that F ≤ = f˜≤ is a (1 + δ)-sum approximation. We deﬁne F as the discrete
+derivative of f˜≤ . That is,
+(
+f˜≤ (x) − f˜≤ (x − 1) x > 0,
+F (x) = ˜
+f ≤ (x)
+x = 0.
+It is easy to see that F ≤ = f˜≤ . It is also easy to construct the representation of F in linear time
+with a single scan over the representation of f (see Algorithm 1). Let M be the maximum value of
+f ≤ . Notice that f˜≤ can have at most |{xi }| = |{ri }| = log1+δ M diﬀerent values. This means that
+|F | is at most log1+δ M . The total running time is therefore O(|f | + log1+δ M ).
+Algorithm 1 Sparsify(f, δ)
+Input: a function f represented by a sorted list of all pairs (x, f (x)) where f (x) > 0 and a sparsiﬁcation parameter δ > 0.
+Output: a function F that is a (1 + δ)-sum approximation of f and is represented by a sorted list
+of at most log1+δ M pairs (where M is the maximum value of f ≤ ).
+1: initialize r = accum = prevaccum = prevx = 0
+2: for every pair (x, f (x)) in sorted order do
+3:
+r ← max{r + 1, ⌊(1 + δ)r⌋}
+4:
+while accum < r do
+5:
+accum ← accum + f (x)
+6:
+get the next pair (x, f (x)) in the list
+7:
+add the pair (prevx, accum − f (x) − prevaccum) to F
+8:
+prevaccum ← accum − f (x)
+9:
+prevx ← x
+Summation. Given two (1 + ε)-sum approximations F and G of functions f and g respectively,
+we wish to construct the function F + G (that is a (1 + ε)-sum approximation of f + g by Lemma 1).
+We construct F + G naively by setting (F + G)(x) = F (x) + G(x). The sorted list of F + G can be
+6
+
+obtained in linear time given two sorted lists of F and of G. The total space and time is therefore
+O(|F | + |G|).
+Shifting. Given a (1+ε)-sum approximation F of f , the function shifted by w, F |w is a (1+ε)-sum
+approximation of f |w by Lemma 1. In order to create F |w , we take every pair in the representation
+of F , namely (x, y = F (x)) and change it to (x + w, y). F |w (x) will be the sum of all the pairs
+where the ﬁrst coordinate is x. The total space and time is O(|F |).
+Convolution. The convolution F ∗ G contains all the combinations of taking some x value from
+F and some y value from G. For every pair x, y such that F (x) 6= 0 and G(x) 6= 0 we add the value
+F (x)G(y) to the value of F ∗ G at point x + y.
+We sort these pairs in order to get the representation of F ∗ G. For a certain y we have all
+the points (x + y, F (x)) sorted already, those are |G| sorted sequences that we have to merge. The
+total space of the output F ∗ G is at most the number of such pairs x, y, that is |F | · |G|. But it
+is possible to obtain a stream of the sorted pairs with their value using less space, by using a heap
+to merge the lists. Assuming without loss of generality that |G| ≤ |F |, each list is a value y and a
+pointer to a point in F , and the heap extracts the minimum value of the sum of y and the value
+in the pointer. The total time to create F ∗ G is therefore O(|F | · |G| · log(min{|F |, |G|})) and the
+space O(|F | + |G|).
+Query. Given a (1 + ε)-sum approximation F of f and a point x, we can query the value F ≤ (x)
+≤
+≤
+that satisﬁes f ≤ (x)
+P ≤ F (x) ≤ (1 + ε)f (x) in time O(|F |). This is because computing the
+≤
+function F (x) = y≤x F (y) takes O(|F |) time by considering every y. Moreover, if we store the
+representation of F in a balanced binary search tree T then a query can be done in O(log |F |) time
+with a preﬁx sum query on T .
+
+3
+
+The Algorithm of Halman [7] (Simplified)
+
+In this section we present a simpliﬁed version of the algorithm of Halman [7] for #Knapsack using
+sum approximations. The running time of this simple deterministic algorithm is O(n3 ε−1 ) and the
+space is O(n2 ε−1 ).
+For a set of weights S, let kS (x) denote the number of subsets of S with total weight exactly x.
+The output of the algorithm is the function KW that is a (1 + ε)-sum approximation of kW . The
+≤
+(C), can then be easily obtained using the query operation.
+desired answer, KW
+Recall that kS |w (x) = kS (x − w) if x ≥ w and 0 otherwise. The algorithm is based on the
+following observation:
+Lemma 3. Let S be a set of integer weights and w be an additional integer weight, then:
+kS∪{w} = kS + kS |w
+Proof. Any subset of S ∪ {w} with weight x either includes w (the number of such solutions is
+kS (x − w)) or does not include w (the number of such solutions is kS (x)). Since these options are
+disjoint, we have that kS∪{w} (x) = kS (x) + kS |w (x).
+
+7
+
+The algorithm. The algorithm uses the above lemma to construct the set S by inserting one
+element at a time (until S = W ), keeping KS updated. The algorithm starts by setting K∅ (0) =
+1 and K∅ (x) = 0 for any x 6= 0. In the i-th step, we compute the function K{w1 ,...,wi } from
+K{w1 ,...,wi−1 } . Computing K{w1 ,...,wi } can be done with one shifting and one summation operation:
+K{w1 ,...,wi } = K{w1 ,...,wi−1 } + K{w1 ,...,wi−1 } |wi . Notice that the size |K{w1 ,...,wi } | = 2|K{w1 ,...,wi−1 } |
+doubles from the summation operation. To overcome this blowup, at the end of each step of the
+1
+algorithm, we sparsify with parameter δ = (1 + ε) n − 1.
+Correctness. From Lemmas 1 and 3, it follows that if KS is a (1 + α)-sum approximation of
+kS , then KS + KS |w is a (1 + α)-sum approximation of kS∪{w} . Furthermore, the approximation
+factor of K{w1 ,...,wi } after the sparsiﬁcation is the approximation factor of K{w1 ,...,wi−1 } multiplied
+1
+
+by (1 + δ). We get that KW is a ((1 + ε) n )n -sum approximation of kW , as required.
+
+Time complexity. The size of K{w1 ,...,wi } after the sparsiﬁcation is bounded by log1+δ 2i . The
+time complexity is therefore:
+!
+!
+n
+n
+n
+X
+X
+X
+
+
+i
+1
+i
+O log1+δ 2 = O
+=O 1
+i = O n3 ε−1 .
+log(1 + δ)
+n log(1 + ε) i=1
+i=1
+i=1
+Space complexity.
+
+The space is O(|KW |) = O(log1+δ 2n ) = O
+
+O(n2 ε−1 ), where we have used that ln(1 + ε) ≥ ε/2 for ε ∈ (0, 1).
+
+4
+
+
+
+n
+log(1+δ)
+
+
+
+= O
+
+
+
+n2
+log(1+ε)
+
+
+
+=
+
+The Algorithm for Counting Knapsack Solutions
+
+In this section we present a deterministic O(n2.5 ε−1.5 log(nε−1 ) log(nε)) time O(n1.5 ε−1.5 ) space
+algorithm for counting knapsack solutions. The algorithm is based upon a similar observation to
+the one in Lemma 3:
+Lemma 4. Let S and T be two sets of integer weights, then:
+kS∪T = kS ∗ kT
+Proof. A subset of S ∪ T of weight w must be obtained by taking a subset of weight wS from S
+and a subset of weight wT from T where wS + wT = w. Thus, kS (wS ) subsets of S of weight wS
+and kT (wT ) subsets of T weight wTPgenerate kS (wS )kT (wT ) subsets of S ∪ T of weight wS + wT .
+kS (wS )kT (wT ) = (kS ∗ kT )(w).
+Overall, we get that kS∪T (w) =
+wS +wT =w
+
+The algorithm. As in Section 3, our algorithm computes a (1 + ε)-sum approximation KW of kW
+recursively. This time however, we do two things diﬀerently: (1) The value of the approximation
+factor is diﬀerent for each recursion depth. In a recursive call of depth i, we are given a set S and
+we compute a (1 + εi )-sum approximation KS of kS for some εi to be chosen later. (2) Given a set
+S we recurse diﬀerently depending on the size of S:
+p
+1. If |S| > n/ε, then we partition the set S into two sets A and B each of size |S|/2 = n/2i
+and make two recursive calls: One computes a (1 + εi+1 )-sum approximation KA of kA and
+
+8
+
+the other computes a (1+ εi+1 )-sum approximation KB of kB . We then ﬁnd KS by computing
+the convolution KA ∗ KB and sparsifying with parameter
+δi =
+
+ε3/4
+,
+2c · 2i/2 · n1/4
+
+√
+
+2
+.
+where ε is the original approximation parameter and c = √2−1
+
+p
+2. If |S| ≤ n/ε,
+p then we apply the algorithm from Section 3 on the set S with parameter
+√
+δlog(√nε) = Ω( ε/n). Observe that in such a case the recursion depth is at least log( nε).
+
+Correctness. From Lemmas 1 and 4, it follows that if KA is a (1+εi+1 )-sum approximation of kA
+and KB is a (1+ εi+1 )-sum approximation of kB , then KS is a (1+ εi+1 )2 (1+ δi )-sum approximation
+of kS . This means that εi satisﬁes the following relation:
+(1 + εi ) = (1 + εi+1 )2 (1 + δi )
+
+From the above equation and since on the bottom of the recursion with δi = δlog(√nε) , the ﬁnal
+approximation factor of KW is:
+√
+log( nε)−1
+
+√
+
+(1 + ε0 ) = (1 + δlog(√nε) ) nε
+
+√
+log( nε)
+2i
+
+Y
+
+(1 + δi )
+
+Y
+
+=
+
+i=0
+
+i
+
+(1 + δi )2
+
+i=0
+
+We need to prove that the above product is not larger than (1 + ε). Since
+
+x
+P
+
+i=0
+3/4
+
+ε
+−1/4 2i/2
+i
+i
+i
+c · 2x/2 and (1 + δi )2 = (1 + δi )1/δi ·2 δi ≤ e2 δi = e 2c n
+we obtain:
+
+√
+log( nε)
+
+Y
+i=0
+
+i
+
+ε3/4
+
+(1 + δi )2 ≤ e 2c n
+
+−1/2
+
+Plog(√nε)
+i=0
+
+2i/2
+
+ε3/4
+
+<e 2 n
+
+−1/4 2log(
+
+√
+
+nε)/2
+
+√
+
+2
+· 2x/2 =
+2i/2 < √2−1
+
+ε
+
+= e 2 ≤ (1 + ε),
+
+where the last inequality follows from ln(1 + ε) ≥ ε/2 for ε ∈ (0, 1). Moreover, since the recursion
+√
+changes at depth log( nε) we further need to assume that ε ≥ 1/n. These assumptions are without
+loss of generality since for ε > 1 we could simply use ε = 1 and for ε < 1/n the previous algorithms
+are faster.
+Time complexity. We analyze the time complexity of every recursion depth i. Forpdepth i =
+√
+√
+the simple algorithm from Section 3 ⌊ nε⌋ times on sets of size Θ( n/ε) with
+log( nε), we apply
+p
+δlog(√nε) = Ω( ε/n), the running time is therefore O(n2.5 ε−1.5 ).
+√
+For depth i < log( nε), we apply 2i convolutions and sparsiﬁcations. The time of the convolutions is dominant. The total running time is therefore:
+(log
+
+√
+
+nε)−1
+X
+i=0
+
+2i
+
+
+
+n
+i+1
+2
+· δi+1
+
+2
+
+log
+
+
+
+n
+i+1
+2
+· δi+1
+
+
+
+√
+
+
+2
+log nε
+n
+1 X i
+2
+log(nε−1 )
+≤
+2
+2i · δi
+i=1
+ √
+
+log nε 2.5
+X n
+= O
+log(nε−1 )
+ε1.5
+i=1
+
+= O(n
+
+9
+
+2.5 −1.5
+
+ε
+
+log(nε−1 ) log(nε)).
+
+Space complexity. Since each recursive call makes at most two recursive calls, we do not need
+to keep more than two representation of sum approximations on every level of the recursion. We
+have seen in Section 2 that it is possible to construct sparsiﬁcation of convolution in linear space.
+√
+The space complexity of all recursive calls of depth i < log( nε) is therefore:
+
+ √
+√
+
+log( nε) 
+log( nε)
+1.25
+X
+X
+
+n
+n
+ = O n1.25 ε−0.75
+2· i
+= O
+2 · δi
+2i/2 · ε0.75
+i=0
+i=0
+One call to the algorithm from Section 3 uses O
+
+√
+
+n/ε
+
+2 !
+
+δlog(√nε)
+
+and therefore the total space complexity is O(n1.5 ε−1.5 ) .
+
+5
+
+=O
+
+√
+
+2 !
+n/ε
+
+√
+
+ε/n
+
+= O(n1.5 ε−1.5 ) space,
+
+The Algorithm for Counting Integer Knapsack Solutions
+
+In this section we show how to generalize the algorithms of Sections 3 and 4 to the integer version
+of counting knapsack solutions.
+
+5.1
+
+Generalizing the algorithm of Section 3
+
+In Section 3 we showed how to insert into a set S a single item with weight w. We now need to show
+how to insert a single item with weight w and multiplicity u. The proof of the following lemma is
+similar to that of Lemma 3.
+Lemma 5. Let S be a set of integer pairs representing weights and multiplicity of items, and let
+(w, u) be the weight and multiplicity of an additional item, then:
+kS∪{(w,u)} = kS + kS |w + kS |2w + . . . + kS |u·w
+We will describe a new operation on sum approximations that creates the sparsiﬁcation of
+G = (KS + KS |w + KS |2w + . . . + KS |u·w ) without actually computing G, i.e. without actually
+computing all the points with non-zero value.
+Events. Observe that a point (x, y) with non-zero value y = KS (x) implies u + 1 points in the
+above sum: (x, y), (x + w, y), (x + 2w, y), . . . , (x + u · w, y). We call the ﬁrst point (x, y) a start
+event (with position x and value y) and the last point (x + u · w, y) an end event (with position
+x + u · w and value y). Overall, for every x with non-zero value y = KS (x) there are two events, a
+total of 2|KS | events. It is possible to sort in linear time the sequence of events by their positions
+{x}i ∪ {x + u · w}i because KS is given sorted. We call the sorted list of events the event list.
+Similarly to Algorithm 1, we could construct the sparsiﬁcation of G = (KS + KS |w + KS |2w +
+. . . + KS |u·w ) by scanning all points in G. This however would be too costly. Instead, we next
+present a new operation that constructs the sparsiﬁcation of G while only scanning the O(|KS |)
+events in the event list.
+InsertAndSparsify. While scanning the event list, when we see a start event (x, y) then we say
+that this event is an active event and that all the points (x, y), (x+ w, y), (x+ 2w, y), . . . , (x+ u·w, y)
+are active points. These points will become inactive when we will see the end event (x+u·w, y). As in
+Algorithm 1, we would like to accumulate the values of all points seen so far. When the accumulator
+10
+
+is larger than r, we introduce a new breakpoint (i.e., output a new point to the sparsiﬁcation of G)
+and set the new r to be max{r + 1, ⌊(1 + δ)r⌋}. During the scan, apart from the accumulator, we
+also maintain a value Y = the sum of values of all currently active events.
+When we scan a start event (x, y), we add the value y to both the accumulator and to Y . This
+is not enough. We also need to add to the accumulator the values of all active points whose position
+is x. These are precisely the points whose start events were at positions x − w, x − 2w, . . . , x − u · w.
+Notice that all these points have the same start position modulo w. For this reason, we maintain
+a balanced binary search tree T that stores all active events keyed by their start position modulo
+w. Each node v in T with key r ∈ {0, . . . , w − 1} stores a ﬁeld Yv = the sum of values of all active
+points whose start position is x such that x = r (mod w). When we see a start event (x, y), we
+search in T for the node v with key x mod w (or create one if no such node exists), we increase the
+node’s Yv ﬁeld by y, and increase the accumulator by y. If (x, y) is an end event we subtract y from
+Yv and from Y .
+After processing event (x, y) as explained above, we want to process the next event (x′ , y ′ ) in
+the event list. Before doing so, we need to: (1) increase the accumulator by the total value of all
+points in the segment [x, x′ ), and (2) if the updated accumulator is larger than r, ﬁnd and output
+the (possibly many) new breakpoints whose positions are between x and x′ .
+(1) We partition the segment [x, x′ ) into three segments: [x, k1 w), [k1 w, k2 w), [k2 w, x′ ) such
+that the lengths of the ﬁrst and last segments are smaller than w, and the length of the middle
+segment is a multiple of w. Notice that every segment of length w contains an active point from
+every active event exactly once. Therefore, to obtain the total value of points in the segment [x, x′ )
+we query T for the total value in segment [x, k1 w) (with a suffix sum query on the Yv values) and
+in segment [k2 w, x′ ) (with a prefix sum query on the Yv values), and add to it Y · (k2 − k1 ) (the
+total value in segment [k1 w, k2 w)).
+(2) After increasing the accumulator by the above total value, if the accumulator becomes
+larger than r, then we will ﬁnd all the new breakpoints in [x, x′ ) in O(log |KS |) time per breakpoint.
+Suppose the accumulated value at x was prevaccum. To ﬁnd the ﬁrst breakpoint in the segment
+[x, k1 w) we query T for the the ﬁrst node after x mod w such that the sum of Yv values between
+x mod w and that node is at least r − prevaccum (we call this a succeeding sum query on T , and
+we symmetrically deﬁne a preceding sum query in which we seek the ﬁrst node before x mod w
+rather than after). We then output this breakpoint, set prevaccum to be the accumulated value
+in this breakpoint, set r = max{r + 1, ⌊(1 + δ)r⌋}, and continue in the same way to ﬁnd the next
+breakpoint in the segment [x, k1 w). Next, we ﬁnd the breakpoints in the segment [k1 w, k2 w). Since
+this segment is composed of (k2 − k1 ) subsegments of length w, and since each of these subsegments
+contributes exactly Y to the accumulator, it is easy (in O(1) time) to ﬁnd which subsegment
+contains the next breakpoint. On this subsegment we proceed similarly as on [x, k1 w). Finally, we
+need to ﬁnd the breakpoints in segment [k2 w, x′ ), again similarly as in [x, k1 w). See Algorithm 2.
+Time and space complexity. Each operation on the binary search tree T takes O(log
+|KS |)
+
+time thus the total time for InsertAndSparsify is O (|KS∪{(w,u)}
+ | + |KS |) · log |KS | . If S =
+{w1 , . . . , wi } then |KS | = log1+δ U i and |KS∪{(w,u)} | = O log1+δ U i . The total time complexity of
+the algorithm is therefore:
+
+11
+
+n
+X
+i=1
+
+n
+X
+
+O log1+δ U i · log(log1+δ U i ) = O
+i=1
+
+i log U
+· log
+log(1 + δ)
+
+
+
+i log U
+log(1 + δ)
+
+!
+
+n log U
+=O
+1
+n log(1 + ε)
+
+= O n3 ε−1 log U log nε−1 log U .
+log U
+· log
+1
+n log(1 + ε)
+
+! n !
+X
+i
+i=1
+
+
+
+
+n log U
+= O(n2 ε−1 log U ).
+The space complexity is O(|KW |) = O log1+δ U n = O log(1+δ)
+
+Algorithm 2 InsertAndSparsify(KS , w, u, δ)
+Input: a sum approximation KS of kS , a new item with weight of w and multiplicity u, and a
+sparsiﬁcation parameter δ.
+Output: a function G that is a (1 + δ)-sum approximation of kS∪(w,u) .
+1: initialize T as an empty binary search tree of pairs (x, y) indexed by (x mod w)
+2: initialize Y = x = accum = prevaccum = 0, and r = 1
+3: for every event (x′ , y ′ ) in sorted order do
+′
+4:
+k1 ← ⌈ wx ⌉, k2 ← ⌊ xw ⌋
+5:
+while accum + T.suffixSum(x) + Y · (k2 − k1 ) + T.prefixSum(x′ − 1) ≥ r do
+6:
+if accum + T.suffixSum(x) ≥ r then
+7:
+bp ← T.succeedingSum(x, r − accum)
+8:
+accum ← accum + T.suffixSum(x) − T.suffixSum(bp)
+9:
+else
+10:
+k3 ← k1 + ⌊(r − accum − T.suffixSum(x))/Y ⌋
+11:
+bp ← T.precedingSum(x′ , r − (accum + T.suffixSum(x) + Y · (k3 − k1 )))
+12:
+accum ← accum + T.suffixSum(x) + Y · (k3 − k1 ) + T.prefixSum(bp − 1)
+13:
+add the pair (x′ , accum − prevaccum − T [bp mod w]) to G
+14:
+prevaccum ← accum, x ← bp, k1 ← ⌈ wx ⌉, r ← max{r + 1, ⌊(1 + δ)r⌋}
+15:
+if (x′ , y ′ ) is a start event then
+16:
+Y ← Y + y′
+17:
+T [x′ mod w] ← T [x′ mod w] + y ′
+18:
+else
+19:
+Y ← Y − y′
+20:
+T [x′ mod w] ← T [x′ mod w] − y ′
+21:
+accum ← accum + T.suffixSum(x) + Y · (k2 − k1 ) + T.prefixSum(x′ − 1)
+22:
+x ← x′
+
+5.2
+
+Generalizing the algorithm of Section 4
+
+The only change to the algorithm of Section 4 is that when the set size is small (i.e. when we call
+the algorithm of Section 3) we use InsertAndSparsify as in the previous subsection.
+Time and space complexity. We observe that the size of the representation of a (1 + ε)-sum
+U
+approximation has been changed to |KS | = log1+δ U |S| = |S| log
+. As in Section 4, we calculate the
+δ
+
+12
+
+√
+total time complexity for depth log( nε):
+
+
+
+
+3 p
+−1
+−1
+p
+√
+√ p
+nε ·
+n/ε
+ε/n
+nε
+ε/n
+O
+log U log
+log U
+
+
+√
+which is O n2.5 ε−1.5 log U log(nε−1 log U ) . The total time for depths i < log( nε) is:
+(log
+
+√
+
+nε)−1
+X
+
+2i
+
+i=0
+
+
+
+n log U
+i+1
+2
+· δi+1
+
+2
+
+log
+
+
+
+n log U
+i+1
+2
+· δi+1
+
+
+
+√
+
+
+
+log nε
+1 X i n log U 2
+log(nε−1 log U )
+≤
+2
+2
+2i · δi
+i=1
+ √
+
+log nε 2.5
+X n log2 U
+= O
+log(nε−1 log U )
+ε1.5
+i=1
+
+= O(n
+
+2.5 −1.5
+
+ε
+
+log(nε−1 log U ) log(nε) log2 U ).
+
+is dominated by the space used for InsertAndSparsify on a set of size
+p
+p The space complexity
+n/ε and δ = ε/n, that is O(n1.5 ε−1.5 log U ).
+
+References
+[1] Mohsen Bayati, David Gamarnik, Dimitriy Katz, Chandra Nair, and Prasad Tetali. Simple
+deterministic approximation algorithms for counting matchings. In STOC, pages 122–127, 2007.
+[2] Ilias Diakonikolas, Parikshit Gopalan, Ragesh Jaiswal, Rocco A. Servedio, and Emanuele Viola.
+Bounded independence fools halfspaces. In FOCS, pages 171–180, 2009.
+[3] Martin Dyer. Approximate counting by dynamic programming. In STOC, pages 693–699, 2003.
+[4] Martin Dyer, Alan Frieze, Ravi Kannan, Ajai Kapoor, Ljubomir Perkovic, and Umesh Vazirani. A mildly exponential time algorithm for approximating the number of solutions to a
+multidimensional knapsack problem. Combinatorics, Probability and Computing, 2:271–284,
+1993.
+[5] Parikshit Gopalan, Adam Klivans, and Raghu Meka. Polynomial-time approximation schemes
+for knapsack and related counting problems using branching programs. arXiv 1008.3187, 2010.
+[6] Parikshit Gopalan, Adam Klivans, Raghu Meka, Daniel Štefankovic, Santosh Vempala, and
+Eric Vigoda. An FPTAS for #Knapsack and related counting problems. In FOCS, pages
+817–826, 2011.
+[7] Nir Halman. A deterministic fully polynomial time approximation scheme for counting integer
+knapsack solutions made easy. Theoretical Computer Science, 645:41–47, 2016.
+[8] Nir Halman, Diego Klabjan, Mohamed Mostagir, Jim Orlin, and David Simchi-Levi. A fully
+polynomial-time approximation scheme for single-item stochastic inventory control with discrete demand. Mathematics of Operations Research, 34(3):674–685, 2009.
+[9] Raghu Meka and David Zuckerman. Pseudorandom generators for polynomial threshold functions. In STOC, pages 427–436, 2010.
+[10] Ben Morris and Alistair Sinclair. Random walks on truncated cubes and sampling 0-1 knapsack
+solutions. SIAM journal on computing, 34(1):195–226, 2004. Preliminary version in FOCS 1999.
+13
+
+[11] Yuval Rabani and Amir Shpilka. Explicit construction of a small epsilon-net for linear threshold
+functions. In STOC, pages 649–658, 2009.
+[12] Romeo Rizzi and Alexandru I. Tomescu. Faster FPTASes for counting and random generation
+of knapsack solutions. In ESA, pages 762–773, 2014.
+[13] Daniel Štefankovič, Santosh Vempala, and Eric Vigoda. A deterministic polynomial-time approximation scheme for counting knapsack solutions. SIAM Journal on Computing, 41(2):356–
+366, 2012.
+[14] Dror Weitz. Counting independent sets up to the tree threshold. In STOC, pages 140–149,
+2006.
+
+14
+
+
