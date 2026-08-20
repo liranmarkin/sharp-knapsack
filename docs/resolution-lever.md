@@ -38,8 +38,11 @@ length. That decouples the grid from sampling entirely:
    independent of l   [`boost_construction_ledger`].
 4. Sampling: N x per-sample = O~(eps^-2 * n)   [`scan_ledger`].
 
-No caches, no alias tables, no dyadic doubling: at eps^-2 samples the
-plain scan is affordable.
+No caches, no alias tables, no dyadic doubling, and no lazy
+rank-selection either: static per-(level, residual-class) prefix
+arrays, built at construction (O~(sum L_u polylog) = O~(n^1.5)
+boosted), answer every piece-mass and rank query in polylog. At
+eps^-2 samples the plain scan is affordable end-to-end.
 
 ## Machine-checked (standard axioms, build green)
 

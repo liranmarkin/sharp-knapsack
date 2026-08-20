@@ -58,3 +58,19 @@ n^{-1/6}) (up to n^{1/8} at ε = n^{-1/4}); closes the open sub-problem
 5. E_max accounting: error accumulates per merge on each item's path;
    ≤ depth·δ per partial sum, ≤ n·depth·δ per mask - the probe
    validates the constant.
+
+## Addendum: the rank-selection subtlety (caught in self-review)
+
+PR #1's lazy dyadic rank-selection amortizes at Õ(L·√N) per node -
+LENGTH-dependent, which at boost would re-introduce an n^{1.5}·ε⁻¹
+term (Cauchy-Schwarz over visited nodes: F·ℓ·√(N·k) = n^{1.5}/ε).
+Resolution: at N = Õ(ε⁻²) the lazy structures are unnecessary. Build
+STATIC per-(level, residual-class) sorted position arrays with prefix
+counts at construction time: cost Õ(Σ_u L_u·polylog) = Õ(F·ℓ·√n) =
+Õ(n^{1.5}) at full crank - the same order as the arrays themselves.
+They support both piece-mass queries (prefix lookups on the 9-piece
+rectangle decomposition) and within-level rank selection (binary
+search) in polylog per query. Every draw is then polylog end-to-end
+except the level enumeration Õ(M_u), which `scan_ledger` covers. The
+lever result therefore DROPS `lazy_amortization` from the load-bearing
+set - one more simplification.
