@@ -91,3 +91,47 @@ U5. Integer version (Theorem 2 of GMW) - port after the 0/1 case lands.
   (`fptas`, SparseFun namespace) - sum-approximation primitives may be
   reusable directly for the New/ folder.
 - lemma_33 etc. (FengJin/) if class windows re-enter via U2.
+
+## Design-phase findings (day 1)
+
+### Barrier theorems (new, ours)
+
+B1. RAMP HARDNESS. The breakpoint-merge-as-MinConv reduction requires
+monotone MinConv with UNBOUNDED values (positions up to C), and adding
+a linear ramp k*R makes any MinConv instance monotone - so
+unbounded-monotone MinConv is general-MinConv-hard. JPSX n^{1.5+o(1)}
+(bounded [n]-range) cannot apply as-is. The U2 wall is fundamental,
+not technical.
+
+B2. ATOM ISOLATION IS NP-HARD. Any scheme that isolates a narrow
+capacity window around C (peeling annuli, quantized positions +
+boundary recursion) bottoms out at approximating #{x : w*x = C'} -
+and even DECIDING nonzero is Subset-Sum, so no FPTAS exists unless
+P=NP. Sum approximations survive only because breakpoints count
+cumulatively from zero; position-space is rigid at atoms in
+principle, not just in technique. (Also checked: two-sided sum
+approximations DO compose, and position-UP-rounding costs only one
+(1+delta) value factor - but dense position-cells reduce back to the
+same wall, consistent with B2.)
+
+Also checked and closed: bounded-weight regimes are vacuous (exact DP
+is polynomial there); halfspace-PRG enumeration gives only additive
+error (useless for relative counting, known since GKM11).
+
+### The live question: in-band crossing complexity
+
+In the merge sweep, pair (k,l) with position-sum T = x_F(k)+x_G(l)
+contributes meaningfully only if the cumulative at T is at most
+r_{k+l+w} (w = O~(1/delta) accuracy band) - "crosses in-band". Pairs
+crossing out-of-band are ignorable forever (proved: a pair always
+crosses at cumulative >= delta*r_{k+l}, i.e. within w' BELOW its
+diagonal; if by then the max has raced PAST k+l+w, the pair's mass is
+band-negligible at all later times).
+
+Define X(F, G, delta) = #in-band crossings. If worst-case
+X = O~(s poly(1/delta)): the merge is subquadratic (aggregate
+maintenance + pruned enumeration) and the GMW record falls. If
+X = Theta(s^2): this wall joins B1/B2 and the merge is tight for
+breakpoint representations. Budget arguments give s/delta^3 per output
+step but do not exclude adversarial concentration. EMPIRICAL PROBE
+FIRST, per methodology.

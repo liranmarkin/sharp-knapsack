@@ -1,0 +1,3279 @@
+Deterministic Monotone Min-Plus Product and Convolution
+Ce Jin*
+
+Jaewoo Park†
+
+Barna Saha‡
+
+Yinzhan Xu§
+
+arXiv:2605.07150v2 [cs.DS] 29 May 2026
+
+Abstract
+The Monotone Min-Plus Product problem is a useful primitive that has seen many algorithmic applications over the past decade. It also generalizes various other structured Min-Plus products studied
+in the literature, such as Bounded Difference Min-Plus Product and Bounded Integer Min-Plus Product.
+In this problem, we are given two n × n integer matrices A and B, where each row of B is a monotone non-decreasing sequence of integers from {1, . . . , n}, and the goal is to compute their Min-Plus
+product, defined as the n × n matrix C with Ci,j = mink {Ai,k + Bk,j }. The fastest known algorithm
+for this task [Chi, Duan, Xie, and Zhang, STOC’22] runs in n(ω+3)/2+o(1) = O(n2.686 ) time, significantly improving over the brute-force cubic algorithm. However, its main disadvantage is that it requires
+randomization, which is then inherited by all downstream applications.
+Our main result is a deterministic algorithm for Monotone Min-Plus product with the same time
+complexity n(ω+3)/2+o(1) = O(n2.686 ) as its randomized counterpart, improving upon the previous
+deterministic bound O(n2.875 ) [Gu, Polak, Vassilevska Williams, and Xu, ICALP’21]. Our derandomization also applies to previously studied extensions and variants (e.g., [Dürr, IPL’23]), including rectangular matrices, bounded range [nµ ], and column-monotone matrices. As an immediate consequence,
+we derandomize state-of-the-art algorithms for multiple problems, including Language Edit Distance,
+RNA Folding, Optimum Stack Generation, unweighted Tree Edit Distance, Batched Range Mode, and
+Approximate All-Pairs Shortest Paths.
+Our techniques also yield a deterministic algorithm for the Monotone Min-Plus Convolution problem
+that runs in n1.5+o(1) time, nearly matching the best-known randomized time complexity e
+O(n1.5 ) [Chi,
+Duan, Xie, and Zhang, STOC’22]. This algorithm can be used to derandomize state-of-the-art algorithms
+for Jumbled Indexing for binary strings and several variants of Knapsack.
+
+* University of California Berkeley. cejin@berkeley.edu. Supported by the Miller Research Fellowship at the Miller
+Institute for Basic Research in Science, UC Berkeley.
+†
+University of California San Diego. pjaewoo@ucsd.edu. Supported by NSF HDR TRIPODS Phase II grant 2217058
+(EnCORE Institute).
+‡
+University of California San Diego. bsaha@ucsd.edu. Supported by NSF HDR TRIPODS Phase II grant 2217058 (EnCORE Institute).
+§
+University of California San Diego. xyzhan@ucsd.edu. Supported by NSF HDR TRIPODS Phase II grant 2217058
+(EnCORE Institute).
+
+i
+
+1
+
+Introduction
+
+One of the most fundamental problems in algorithm design is the All-Pairs Shortest Paths problem (APSP),
+which asks us to compute pairwise distances in an n-node weighted graph. APSP is known to be asymptotically equivalent to Min-Plus product [VW18], where we are given two n × n matrices A and B and need
+to compute an n × n matrix A ⋆ B such that
+(A ⋆ B)i,j := min {Ai,k + Bk,j }.
+1≤k≤n
+
+√
+
+The fastest known algorithm for these problems runs in n3 /2Ω( log n) time, due to Williams [Wil18], and further improving this running time remains a major open problem. In fact, a popular hypothesis in fine-grained
+complexity is that APSP, or equivalently Min-Plus product, does not admit an O(n3−ε )-time algorithm for
+any ε > 0; see [Vas18] for a survey on fine-grained complexity.
+Despite the difficulty of designing faster algorithms for Min-Plus product, researchers have identified
+several structured cases where it admits truly subcubic-time algorithms. For instance, bounded integer Minb nω )
+Plus product, where both matrices have entries from [M ]1 for some integer M , can be computed in O(M
+time [AGM97].23 A generalization of bounded integer Min-Plus product is bounded difference Min-Plus
+product, where adjacent entries in the input matrices differ by at most M . Bringmann, Grandoni, Saha, and
+Vassilevska Williams [BGSV19] first studied this setting and gave an O(n2.825 )-time randomized algorithm
+and an O(n2.861 )-time deterministic algorithm for the case M = O(1). They used bounded difference
+Min-Plus product as a tool to obtain the first subcubic-time algorithms for Language Edit Distance, RNA
+Folding, and Optimum Stack Generation.
+An important setting that further generalizes bounded difference Min-Plus product, and is the focus of
+this paper, is monotone Min-Plus product; see [GPVX21] for a discussion of this generalization. An n × n
+matrix B is called row-monotone if
+• for every 1 ≤ i, j ≤ n, we have Bi,j ∈ [n];
+• for every 1 ≤ i ≤ n and 1 ≤ j < n, we have Bi,j ≤ Bi,j+1 .
+Column-monotone matrices are defined analogously. The task of computing the Min-Plus product between
+an arbitrary integer matrix A and a row-monotone matrix B is called the monotone Min-Plus product problem. The importance of monotone Min-Plus product is reflected in its wide range of applications, including Language Edit Distance [BGSV19], RNA Folding [BGSV19], Optimum Stack Generation [BGSV19],
+Batched Range Mode [VX20, GPVX21, Dür23], unweighted Tree Edit Distance [Mao21, Dür23, NPS+ 25],
+Single-Source Replacement Paths [GPVX21, Dür23], approximate APSP [DKR+ 22, Dür23, SY24], and
+k-Dyck Edit Distance [FGK+ 24, Dür23].
+The fastest algorithm for monotone Min-Plus product is due to Chi, Duan, Xie, and Zhang [CDXZ22]
+b (3+ω)/2 ) = O(n2.686 ). Unfortunately, this running time is achieved by a randomand runs in time O(n
+ized algorithm, making the fastest algorithms for applications of monotone Min-Plus product randomized
+as well. More frustratingly, for many of these algorithms, the only source of randomness is the black-box
+call to monotone Min-Plus product; see Table 1 and Table 2 for examples. Thus, prior to our work, obtaining deterministic algorithms for these applications required replacing the randomized monotone Min-Plus
+product algorithm with a slower deterministic one, such as the O(n2.875 )-time algorithm of [GPVX21], or
+the O(n2.861 )-time bounded difference Min-Plus product algorithm of [BGSV19].
+1
+
+For a positive integer m, [m] denotes {1, 2, . . . , m}.
+b to hide no(1) factors and O
+e to hide poly log n factors.
+In this paper, we use O
+3
++
+ω ≤ 2.372 [ADV 25] denotes the square matrix multiplication exponent; that is, ω is the smallest constant such that the
+2
+
+1
+
+Problem
+Language Edit Distance
+RNA Folding
+Optimum Stack Generation
+Batched Range Mode
+Unweighted Tree Edit Distance
+k-Dyck Edit Distance
+
+Randomized Runtime
+
+Deterministic Runtime
+
+n(3+ω)/2 ≤ n2.686 [BGSV19, CDXZ22]
+
+n2.861 [BGSV19]
+n2.861 [BGSV19]
+n2.861 [BGSV19]
+n(18+2ω)/(13+ω) ≤ n1.480 [GH22]
+n2.964 [Mao21]
+n + k 4.854 [FGK+ 24]
+
+n(3+ω)/2 ≤ n2.686 [BGSV19, CDXZ22]
+n(3+ω)/2 ≤ n2.686 [BGSV19, CDXZ22]
+n(3+2ω)/(3+ω) ≤ n1.458 [Dür23]4
+n(3+ω)/2 ≤ n2.686 [NPS+ 25]
+n + k 4.545 [FGK+ 24, Dür23]
+
+Table 1: Applications where the monotone Min-Plus product oracle is the only source of randomization in
+the fastest known randomized algorithms. Previous best deterministic running times are also listed. The
+b
+O-notation
+is omitted.
+Additive error +2k
++2
++4
++6
++8
++10
+···
+
+Runtime for +2k-approximate APSP
+n2.22548 (randomized) [JKSW26]
+n2.14613 (deterministic) [JKSW26]
+n2.10260 (deterministic) [JKSW26]
+n2.07727 (randomized) [SY24]
+n2.06194 (randomized) [SY24]
+· · · (randomized) [SY24]
+
+Table 2: Fastest known algorithms for +2k-approximate APSP on unweighted undirected graphs. The
+algorithms of [SY24] use the monotone Min-Plus product oracle as their only randomized component. The
+b
+O-notation
+is omitted.
+Remark. We briefly explain how some of the randomized running times in Table 1 and Table 2 are obtained.
+The randomized running times for Language Edit Distance, RNA Folding, and Optimum Stack Generation
+in Table 1 are obtained by replacing the bounded difference Min-Plus product algorithm of [BGSV19]
+with the monotone Min-Plus product algorithm of [CDXZ22]. For every positive integer k, the algorithm
+of [SY24] for +2k-approximate APSP in Table 2 runs in b
+O(n2+x/(k+1) ) time, where x is the solution to
+k−1
+1+2x = ω(1− k+1
+x, 1−x, 1− k−2
+k+1 x), and uses the monotone Min-Plus product oracle as its only source of
+randomness. For 2k ≥ 8, this is the fastest known algorithm. The work of [JKSW26] improves the running
+times of the +4- and +6-approximation algorithms of [SY24] using deterministic algorithms, and further
+improves the running time for +2-approximation using a randomized algorithm whose randomness comes
+from a source other than the monotone Min-Plus product oracle.
+A problem closely related to Min-Plus product is Min-Plus convolution. In the Min-Plus convolution
+problem, the input consists of two length-n arrays A = (A1 , A2 , . . . , An ) and B = (B1 , B2 , . . . , Bn ), and
+the output is an array A ⋄ B indexed by k = 2, . . . , 2n, where
+(A ⋄ B)k =
+
+min {Ai + Bk−i },
+
+1≤i≤k−1
+
+√
+
+with out-of-bounds entries set to ∞. The fastest algorithm for this problem runs in n2 /2Θ( log n) time,
+which can be obtained by combining Williams’ APSP algorithm [Wil18] with the reduction in [BCD+ 14].
+b ω ) arithmetic operations. More generally, we use ω(a, b, c) to denote the
+product of two n × n matrices can be computed in O(n
+a
+b ω(a,b,c) ) arithmetic
+smallest constant such that the product of an n × nb matrix and an nb × nc matrix can be computed in O(n
+operations.
+4
+The running time for Batched Range Mode reported in the first version of this paper has been corrected. The exponent originally
+reported also appeared in [Dür23] and was later revised in the full arXiv version.
+
+2
+
+Problem
+Randomized Runtime
+Deterministic Runtime
+1.5
+Jumbled Indexing for Binary Strings
+n [CL15, CDXZ22]
+n1.864 [CL15]
+√
+Unbounded Knapsack
+n + wmax
+wmax )1.864 [BC22]
+√ pmax [BDP24] n + (pmax + 0.937
+0-1 Knapsack
+n + W OP T [BDP24] n + W · OP T
+[BC22, Cha26]
+Weakly-Approximate Unbounded Knapsack
+n + 1/ε1.5 [BC22]
+n + 1/ε1.864 [BC22]
+Table 3: Applications of monotone Min-Plus convolution for which, after applying known derandomizations
+where needed, the only remaining source of randomization is the monotone Min-Plus convolution oracle.
+The table also lists the previously best-known deterministic running times. For Knapsack problems, wmax
+and pmax bound item weights and profits, respectively; W is the capacity and OP T is the optimal profit.
+e
+The O-notation
+is omitted.
+A popular hypothesis in fine-grained complexity is the Min-Plus convolution hypothesis, which postulates
+that Min-Plus convolution cannot be solved in O(n2−ε ) time for any ε > 0; see [CMWW17, KPS17]. It is
+known that the Min-Plus convolution hypothesis implies the Min-Plus product hypothesis [BCD+ 14].
+Similar to Min-Plus product, Min-Plus convolution admits significantly faster algorithms when the input
+is structured. A length-n array A is called monotone if
+• for every 1 ≤ i ≤ n, we have Ai ∈ [n];
+• for every 1 ≤ i < n, we have Ai ≤ Ai+1 .
+When both input arrays are monotone, Chan and Lewenstein [CL15] gave an O(n1.859 )-time randomized
+algorithm and an O(n1.864 )-time deterministic algorithm. Chi, Duan, Xie, and Zhang [CDXZ22] improved
+e 1.5 ). Bringmann, Dürr, and Polak [BDP24] generalized this result to a
+the randomized running time to O(n
+1+µ/2
+randomized e
+O(n
+)-time algorithm for arrays with entries in [nµ ] and with only one of the input arrays
+being monotone.
+Monotone Min-Plus convolution also has a wide range of applications. Examples include Jumbled
+Indexing [CL15], Knapsack problems with bounded weights and profits [BC22, BDP24], and weak approximation schemes for Knapsack problems [BC22, CLMZ25].5 Due to the gap between the best-known randomized and deterministic algorithms for monotone Min-Plus convolution, the best-known running times
+for all these applications are achieved by randomized algorithms. For some applications, the monotone
+Min-Plus convolution subroutine is the only remaining source of randomness; see Table 3.
+Remark. We explain how some of the running times in Table 3 are obtained. The randomized running
+time for Jumbled Indexing for Binary Strings follows by replacing the monotone Min-Plus convolution
+algorithm in [CL15] with the faster randomized algorithm of [CDXZ22]. For Unbounded Knapsack, the
+randomized e
+O(n + (wmax + pmax )1.5 )-time algorithm of Bringmann and Cassis [BC22], combined with the
+e + wmax √pmax )
+rectangular and [nµ ]-bounded generalization of [BDP24], yields the refined bounds O(n
+e + pmax √wmax ).
+and O(n
+√
+For 0-1 Knapsack, the randomized e
+O(n + W OP T ) bound follows from [BDP24, Theorem 12]. We
+e + W √pmax ) bound, because it is the one to which our deranstate this bound, rather than their stronger O(n
+domization applies. The deterministic 0-1 Knapsack bound shown in the table is not explicitly stated in the
+literature. The 0-1 Knapsack algorithm of [BC22] has another source of randomness, namely the random
+partitioning technique originating from [Bri17, CMWW17]. This additional source of randomness was recently derandomized by [Cha26]; see [Cha26, Appendix A] for a deterministic reduction from 0-1 Knapsack
+to Min-Plus convolution in [CMWW17]. The same derandomization also applies to the random partitioning
+5
+
+These Knapsack results use Max-Plus convolution instead of Min-Plus convolution, but the two are equivalent up to a sign
+change.
+
+3
+
+step used in [BC22]. More specifically, if monotone Min-Plus convolution with [nµ ]-bounded inputs can
+e 1+αµ ) time, then the results of [Cha26, BC22] imply a deterministic 0-1
+be solved deterministically in O(n
+e + W · OP T α ) time. The previously known deterministic algorithm
+Knapsack algorithm running in O(n
+µ
+for [n ]-bounded monotone Min-Plus convolution can be obtained using the deterministic O(n1.864 )-time
+algorithm for the [n]-bounded case [CL15] as a black box, together with blocking and balancing (details
+e 1+2µ/(4−1.864) ) = O(n
+e 1+0.937µ )-time algorithm for [nµ ]-bounded
+omitted). This yields a deterministic O(n
+e + W · OP T 0.937 ) bound shown
+monotone Min-Plus convolution, and therefore yields the deterministic O(n
+in the table.
+
+1.1
+
+Our Results
+
+We close the gap between the deterministic and randomized running times for monotone Min-Plus product
+and monotone Min-Plus convolution. Our work is inspired by the randomized algorithm of Chi, Duan, Xie,
+and Zhang [CDXZ22]. However, our presentation is more streamlined due to several reductions. Moreover,
+our algorithm for monotone Min-Plus product applies to rectangular matrices and to the case where the
+entries of B lie in an arbitrary range [nµ ], rather than only in [n]. This matches the extensions studied in the
+randomized setting by [Dür23, FGK+ 24, SY24], which generalized the framework of [CDXZ22].
+Theorem 1.1. There is a deterministic algorithm that, given an na × nb integer matrix A and an nb × nc
+row-monotone matrix B with entries in [nµ ], computes their Min-Plus product in time
+b a+c + nb+c + n(a+b+µ+ω(a,b,c))/2 ).
+O(n
+Note that the terms na+c and nb+c in the running time above are necessary for reading the input and
+writing the output. As in [CDXZ22], our algorithm also extends to the case where B is column-monotone.
+Owing to our more streamlined algorithm, this extension is more modular than in prior approaches. The
+running time differs from the row-monotone case, consistent with the literature [Dür23].
+Theorem 1.2. There is a deterministic algorithm that, given an na × nb integer matrix A and an nb × nc
+column-monotone matrix B with entries in [nµ ], computes their Min-Plus product in time
+
+
+b na+b + nb+c + n(a+c+µ+ω(a,b,c))/2 .
+O
+Very recently, it was shown in [Fis26] that, unless the APSP hypothesis fails, there is no O(n2.5−ε )-time
+algorithm for column-monotone Min-Plus product for any ε > 0 when a = b = c = µ = 1. Thus, if ω = 2,
+our algorithm is near-optimal in this case under the APSP hypothesis.
+As in [CDXZ22], our techniques also extend to monotone Min-Plus convolution. Our algorithm for
+monotone Min-Plus convolution applies when the array entries lie in [nµ ]. Its running time essentially
+matches the best-known randomized running time [CDXZ22, BDP24].
+Theorem 1.3. There is a deterministic algorithm that, given two length-n monotone arrays A and B, both
+with entries in [nµ ], computes their Min-Plus convolution in time
+
+
+b n1+µ/2 .
+O
+Using the reduction of [BDP24, Theorem 8] from the case where both arrays are monotone to the case
+where only one array is monotone, our algorithm also applies when only one of the two arrays is monotone.
+Our algorithms can be directly applied to many problems, derandomizing the best randomized algorithms.
+
+4
+
+Corollary 1.4. All problems in Tables 1 and 3, as well as +2k-approximate APSP for 2k ≥ 8 in Table 2,
+can be solved by deterministic algorithms with the listed randomized running times, up to an no(1) factor.
+In fact, we can also derandomize the +2-approximate APSP algorithm of [JKSW26] shown in Table 2.
+This algorithm does not use monotone Min-Plus product, so its derandomization is not an immediate consequence of our algorithms; nevertheless, it can be derandomized using standard techniques. The proof can
+be found in Section A.
+
+2
+
+Technical Overview
+
+In this technical overview, we focus on row-monotone Min-Plus product in the parameter regime originally
+considered by [CDXZ22], where both input matrices have dimension n × n and entries from [n]. The
+extensions to rectangular matrices, larger entry ranges, column-monotone matrices, and monotone Min-Plus
+convolution are handled in the main body.
+Our algorithm is a derandomization of the algorithm of [CDXZ22]. The only source of randomization
+in their algorithm is to pick a random prime Q from some appropriate range. Hence, it may appear straightforward to derandomize their algorithm because there is now a standard recipe to derandomize the choice
+of a prime (see, e.g., [CL15, FKP24]): Instead of choosing a prime from a relatively large range, one takes
+Q to be the product of several smaller primes from a smaller range, which are found one by one. For each
+such prime, one can afford to deterministically enumerate all primes in the smaller range and choose one
+that works. However, this approach faces several difficulties when applied to the algorithm of [CDXZ22].
+A The intuition for why [CDXZ22] needs a random prime Q is the following. There is an implicit set S
+of roughly n3 nonzero integers, and we want only a small number of integers in S to be divisible by
+Q; call this quantity fQ . When Q is a random prime from [M ], the expected value of fQ can be upper
+bounded by roughly n3 /M . If we aim to use the standard approach to derandomize
+the choice of Q,
+Q
+we would keep finding primes pi from a smaller range [R], and maintain Q = ti=1 pi , where t is the
+current number of primes we have determined. For each additional prime, we expect fQ to drop by a
+factor of roughly R. In theory, one can show that such a prime exists, and even a random prime likely
+works. However, in order for a deterministic algorithm to pick pt , it would naively need to compute
+the value of fQ for each choice of pt . Unfortunately, there does not seem to be an efficient algorithm
+for this task, which marks the first difficulty in applying this derandomization approach.
+B In addition to the previous role, the prime Q in [CDXZ22] also serves another role: it is used to
+separate an integer x into a high-order part (⌊x/Q⌋) and a low-order part (x mod Q). If we use the
+standard approach to derandomize the choice of Q by multiplying small primes one by one, the highorder parts and low-order parts of the integers keep changing, making it difficult to derandomize the
+algorithm.
+Standard Reductions. To address Difficulty B, we separate the two roles played by Q. As it turns out, it
+suffices to pick an arbitrary integer from an appropriate range to separate the integers into high-order parts
+and low-order parts. Let M be such an integer with value Θ(n(3−ω)/2 ). By standard reductions, it suffices
+to solve the following problem.
+Problem 1. Let A, B, C be n × n integer matrices with nonnegative entries bounded by O(n), where both
+B and C are row-monotone. In addition, all entries x of the matrices satisfy x mod M ≤ M/10. For every
+i, j ∈ [n], determine whether there exists k ∈ [n] such that Ai,k + Bk,j = Ci,j .
+
+5
+
+At a high level, the reduction has two steps. First, by recursively halving the entries of A and B, the
+product of the halved instance gives an approximation to each entry of A ⋆ B: if C ′ is the product of the
+′ , 2C ′ + 1, or 2C ′ + 2. Thus, a verifier
+halved instance, then each true value (A ⋆ B)i,j must be one of 2Ci,j
+i,j
+i,j
+for candidate values can recover the full product by testing these three candidates. Second, using a standard
+residue-shifting reduction similar to [CDXZ22], we transform the verification instance into constantly many
+promised instances in which the relevant residues of A, B, and C lie in a small interval modulo M .
+These standard reductions were also present in the algorithm of [CDXZ22], appearing as a recursive step.
+By explicitly applying the standard reductions first, we move the recursive step out of the main algorithm,
+making the algorithm more streamlined. In addition, this helps unify the algorithms for the row-monotone
+and column-monotone cases. As it turns out, the column-monotone case can also be reduced to a version of
+Problem 1, where for every i, k, we need to determine the existence of such a j; see Section 5 for details.
+high and C high analogously. The algorithm first
+Main algorithm. Define Ahigh
+i,k = ⌊Ai,k /M ⌋, and define B
+finds a modulus Q satisfying M ≤ Q ≤ M no(1) ; we defer the additional properties required of Q, as well
+as the description of how to find it, to later in the overview. Then the algorithm computes the following
+quantities:
+
+• si,j , the number of k ∈ [n] such that Ai,k + Bk,j ≡ Ci,j (mod Q);
+high
+high
+• s′i,j , the number of k ∈ [n] such that Ai,k + Bk,j ≡ Ci,j (mod Q) and Ahigh
+i,k + Bk,j ̸= Ci,j .
+high
+It is not difficult to see that Ai,k +Bk,j = Ci,j if and only if Ai,k +Bk,j ≡ Ci,j (mod Q) and Ahigh
+i,k +Bk,j =
+high
+Ci,j
+. Hence, for each pair (i, j), there exists a witness k if and only if si,j > s′i,j . Therefore, it suffices to
+compute si,j and s′i,j for every pair (i, j).
+ω ) = O(n
+b
+b (3+ω)/2 )
+Using an approach similar to [AGM97], one can compute all values si,j in O(Qn
+′
+time. To discuss how to compute si,j , we define segments, similarly to [CDXZ22], and a special type of
+segment called active segments. Let ℓmax := ⌈log(M/20)⌉.
+
+Definition 2.1. For 0 ≤ ℓ ≤ ℓmax , a level-ℓ segment is a tuple (i, k, [j0 , j1 ]) such that, for every j0 ≤ j ≤ j1 ,
+we have ⌊Bk,j0 /2ℓ ⌋ = ⌊Bk,j /2ℓ ⌋ and ⌊Ci,j0 /2ℓ ⌋ = ⌊Ci,j /2ℓ ⌋, and [j0 , j1 ] cannot be further extended.
+Definition 2.2. For 0 ≤ ℓ ≤ ℓmax , a level-ℓ segment (i, k, [j0 , j1 ]) is called active with respect to Q if
+high
+high
+ℓ
+ℓ
+Ahigh
+i,k + Bk,j0 − Ci,j0 ̸= 0 and Ai,k + Bk,j0 − Ci,j0 mod Q ∈ [−4 · 2 , 4 · 2 ]. Let Sℓ (Q) be the set of
+active level-ℓ segments.
+Since B and C are row-monotone, the number of level-ℓ segments is O(n3 /2ℓ ).
+b 3 /Q). For now, assume that
+We will find a modulus Q so that, for every 0 ≤ ℓ ≤ ℓmax , |Sℓ (Q)| ≤ O(n
+′
+we have such a modulus Q. We show how to compute si,j under this assumption.
+To see why active segments help compute s′i,j , consider a triple (i, j, k) such that Ai,k + Bk,j ≡ Ci,j
+high
+high
+′
+(mod Q) and Ahigh
+i,k + Bk,j ̸= Ci,j ; that is, k contributes one to si,j . Let (i, k, [j0 , j1 ]) be the unique
+level-0 segment where j ∈ [j0 , j1 ]. It is not difficult to see that this segment is active. Hence, we proceed by
+computing S0 (Q):
+
+• First, we find Sℓmax (Q) by enumerating all level-ℓmax segments and checking whether each segment
+is active. The number of level-ℓmax segments is O(n3 /2ℓmax ) = O(n(3+ω)/2 ). Hence, this part takes
+e (3+ω)/2 ) time.
+O(n
+• Suppose we have computed the set Sℓ+1 (Q) of active level-(ℓ + 1) segments. For every segment
+L ∈ Sℓ+1 (Q), we enumerate all level-ℓ segments contained in L and check whether they are active.
+6
+
+Here, a segment (i, k, [j0 , j1 ]) is contained in another segment (i′ , k ′ , [j0′ , j1′ ]) if i = i′ , k = k ′ , and
+[j0 , j1 ] ⊆ [j0′ , j1′ ]. It can be shown that every segment in Sℓ (Q) is contained in some segment in
+Sℓ+1 (Q), so this procedure correctly computes Sℓ (Q). Moreover, each level-(ℓ + 1) segment contains
+only a constant number of level-ℓ segments. By the assumption |Sℓ (Q)| ≤ b
+O(n3 /Q) for every ℓ, this
+b 3 /Q) = O(n
+b (3+ω)/2 ) time.
+step takes O(n
+Recall that the segments in S0 (Q) contain all triples (i, j, k) that can contribute to s′i,j . For every level-0
+segment (i, k, [j0 , j1 ]) ∈ S0 (Q), the values Bk,j are the same for all j ∈ [j0 , j1 ], and the values Ci,j are
+also the same for all j ∈ [j0 , j1 ]. Hence, either all triples (i, k, j) with j ∈ [j0 , j1 ] contribute to s′i,j , or
+none of them do. We can therefore use a simple data structure to compute all values s′i,j from S0 (Q) in
+e
+O(|S0 (Q)|) = b
+O(n(3+ω)/2 ) time.
+b 3 /Q)
+Finding a Good Modulus. It remains to find a modulus Q ∈ [M, M no(1) ] such that |Sℓ (Q)| ≤ O(n
+for every 0 ≤ ℓ ≤ ℓmax . To do so, consider the following multiset of numbers for every level ℓ:
+Xℓ := {Ai,k + Bk,j0 − Ci,j0 − s : (i, k, [j0 , j1 ]) is a level-ℓ segment, s ∈ [−4 · 2ℓ , 4 · 2ℓ ]} ∩ (Z \ {0}),
+and let Xℓ,Q denote the number of elements in Xℓ that are divisible by Q. Clearly, |Xℓ | ≤ O(n3 /2ℓ )·O(2ℓ ) =
+O(n3 ). When Q ≥ M (and hence Q > 4 · 2ℓ ), Xℓ,Q is exactly the number of level-ℓ segments (i, k, [j0 , j1 ])
+such that Ai,k + Bk,j0 − Ci,j0 mod Q ∈ [−4 · 2ℓ , 4 · 2ℓ ] and Ai,k + Bk,j0 − Ci,j0 ∈
+/ [−4 · 2ℓ , 4 · 2ℓ ]. Using the
+assumptions in Problem 1, it is not difficult to show that one can equivalently replace the second condition
+high
+high
+with Ahigh
+i,k + Bk,j0 ̸= Ci,j0 . Hence, Xℓ,Q is exactly |Sℓ (Q)|.
+To summarize, we have several multisets Xℓ , each containing O(n3 ) nonzero integers, and we need to
+find a modulus Q such that, for every ℓ, the number of elements of Xℓ divisible by Q is at most b
+O(n3 /Q).
+This is exactly the setting where the standard recipe of constructing Q as a product of smaller primes applies.
+More precisely, we construct Q as the product of primes p1 , p2 , . . . , pt from [R/2, R], for some relatively
+small R = no(1) . Let P be the set of primes in [R/2, R]. At each step, we find an additional prime
+pi ∈ P by enumerating all primes in P and choosing a suitable one. We stop once the product of the
+chosen primesQexceeds M . By a standard probability analysis, there exist primes p1 , p2 , . . . , pt ∈ P such
+that if Qt = ti=1 pi , then Xℓ,Qt is bounded by roughly n3 /Rt for every ℓ. Since Rt ≈ Qt , this gives
+Xℓ,Qt ≲ n3 /Qt for every ℓ, as desired. Hence, it remains to find these suitable primes deterministically.
+In this overview, we illustrate our approach by showing how to find the first prime p ∈ P such that
+e 3 /R) for every ℓ. The same idea extends easily to finding the remaining primes. Since R =
+Xℓ,p = O(n
+o(1)
+n , we can afford to enumerate all primes in P and choose one that works. However, even when p is
+fixed, it is unclear how to compute Xℓ,p efficiently: the straightforward approach requires enumerating all
+level-ℓ segments, which takes O(n3 /2ℓ ) time. When ℓ is small, this bound can be as high as O(n3 ). This
+reflects the first difficulty mentioned in Difficulty A, although the setting here is already somewhat different.
+Instead of computing Xℓ,p , we take a more indirect approach. Let
+Yℓ := {Ai,k + Bk,j0 − Ci,j0 − s : (i, k, [j0 , j1 ]) is a level-ℓ segment, s ∈ [−4 · 2ℓ , 4 · 2ℓ ]}.
+This multiset has the same definition as Xℓ , except that we do not remove the zero elements. Let Yℓ,p denote
+the number of elements in Yℓ that are divisible by p. As it turns out, one can compute Yℓ,p efficiently in
+b ℓ nω ) = O(M
+b nω ) time, following the high-level idea of [AGM97]. Next, observe that Yℓ,p − Xℓ,p is
+O(2
+exactly the number of pairs ((i, k, [j0 , j1 ]), s) such that Ai,k + Bk,j0 − Ci,j0 − s = 0, where (i, k, [j0 , j1 ])
+is a level-ℓ segment and s ∈ [−4 · 2ℓ , 4 · 2ℓ ]. In particular, Yℓ,p − Xℓ,p does not depend on p; denote this
+quantity by Zℓ .
+In our algorithm, we compute Yℓ∗ := minp∈P Yℓ,p for every ℓ, and then choose a prime p0 ∈ P minimizing maxℓ {Yℓ,p0 − Yℓ∗ }. This prime p0 can be found deterministically in M nω+o(1) time, since this
+7
+
+procedure only uses the computable values Yℓ,p , rather than the values Xℓ,p . Note that Yℓ∗ − Zℓ is exactly
+Xℓ∗ := minp∈P Xℓ,p . Hence, p0 minimizes
+max {Yℓ,p − Yℓ∗ } =
+
+0≤ℓ≤ℓmax
+
+max {Xℓ,p − Xℓ∗ }.
+
+0≤ℓ≤ℓmax
+
+e 3 /R) for every ℓ. Thus, p0 minimizes max0≤ℓ≤ℓ {Xℓ,p }
+By a standard probabilistic argument, Xℓ∗ ≤ O(n
+max
+e 3 /R) additive error. Again by a standard probabilistic argument,
+up to a O(n
+e 3 /R).
+min max {Xℓ,p } ≤ O(n
+p∈P 0≤ℓ≤ℓmax
+
+e 3 /R) for every ℓ, as desired.
+Therefore, Xℓ,p0 ≤ O(n
+
+3
+
+Preliminaries
+
+Notations. For integers a and M ≥ 1, we write a mod M for the unique integer b ∈ {0, 1, . . . , M − 1}
+such that a ≡ b (mod M ). For a positive integer x, we write [x] := {1, 2, . . . , x}. For integers x ≤ y, we
+write [x, y] := {x, x + 1, . . . , y}.
+Min-Plus Product. Let A be an na × nb integer matrix and let B be an nb × nc integer matrix. The
+Min-Plus product of A and B is the na × nc matrix A ⋆ B defined by
+(A ⋆ B)i,j := min {Ai,k + Bk,j }
+1≤k≤nb
+
+for (i, j) ∈ [na ] × [nc ].
+
+Min-Plus Convolution. Let A and B be arrays of length n indexed from 1. The Min-Plus convolution of
+A and B is an array A ⋄ B of length 2n − 1, indexed from 2 to 2n, defined by
+(A ⋄ B)k :=
+
+min
+
+{Ai + Bk−i },
+
+1≤i≤k−1
+1≤i,k−i≤n
+
+for k ∈ [2, 2n].
+
+Monotonicity. An n × m matrix A is row-monotone if for every i ∈ [n] and j ∈ [m − 1], Ai,j ≤ Ai,j+1 .6
+It is column-monotone if for every i ∈ [n − 1] and j ∈ [m], Ai,j ≤ Ai+1,j . An array A of length n is
+monotone if for every i ∈ [n − 1], Ai ≤ Ai+1 .
+Rectangular Matrix Multiplication. For a, b, c ≥ 0, let ω(a, b, c) denote an exponent such that the product of an na × nb matrix and an nb × nc matrix can be computed in b
+O(nω(a,b,c) ) arithmetic operations. The
+best known upper bound is ω(1, 1, 1) < 2.372 [ADV+ 25]. It is known that ω(a, b, c) = ω(a, c, b) [HP98].
+Polynomial Multiplication. Let P, Q ∈ Z[x, y] be bivariate polynomials whose degree in x is at most dx
+and whose degree in y is at most dy . We can compute P +Q and P −Q in O(dx dy ) time, and compute P ·Q in
+a
+b
+b
+c
+e
+O(dx dy ) time using FFT. Let P (x) ∈ (Z[x])n ×n and Q(x) ∈ (Z[x])n ×n be polynomial matrices whose
+b nω(a,b,c) )
+entries have degree at most D. Then the matrix product P (x) · Q(x) can be computed in O(D
+time.
+6
+
+Unlike in the introduction, where boundedness is included for readability, monotonicity here only refers to the ordering condition; boundedness is stated separately.
+
+8
+
+Prime Number Theorem. Let π(x) denote the number of primes at most x. The prime number theorem
+states that π(x) = x/ log x ± o(x/ log x). As a corollary, for any sufficiently large integer R, the number of
+primes in the interval [R/2, R] is π(R) − π(R/2 − 1) = Θ (R/ log R).
+
+4
+
+Deterministic Monotone Min-Plus Product
+
+In this section, we present a deterministic algorithm for row-monotone Min-Plus product, whose definition
+we recall below.
+Problem 2. Let A be an na × nb integer matrix. Let B be an nb × nc row-monotone integer matrix with
+entries in [nµ ]. Given (A, B) as input, compute A ⋆ B.
+
+4.1
+
+Reduction to a Verification Problem
+
+We start with a standard reduction that transforms the problem into a simpler form. Consider the following
+verification problem.
+Problem 3. Let A be an na × nb integer matrix with nonnegative entries bounded by O(nµ ). Let B be an
+nb × nc row-monotone integer matrix with nonnegative entries bounded by O(nµ ). Let C be an na × nc
+row-monotone integer matrix with nonnegative entries bounded by O(nµ ). Given (A, B, C) as input, for
+every (i, j) ∈ [na ] × [nc ], decide whether there exists k ∈ [nb ] such that Ai,k + Bk,j = Ci,j .
+The reduction uses the following simple fact.
+Fact 4.1 ([CDXZ22]). If the rows of B are monotone, then the rows of A ⋆ B are monotone.
+Proof. For any (i, j) ∈ [na ] × [nc − 1], we have
+(A ⋆ B)i,j = min{Ai,k + Bk,j } ≤ min{Ai,k + Bk,j+1 } = (A ⋆ B)i,j+1 .
+k
+
+k
+
+Lemma 4.2. If there is a deterministic algorithm for Problem 3 that runs in T (na , nb , nc ; nµ ) time, then
+there is a deterministic algorithm for Problem 2 that runs in e
+O(T (na , nb , nc ; nµ )) time.
+Proof. First, by a simple observation of [CDXZ22], we may assume that all entries of A are nonnegative
+integers bounded by O(nµ ): for each i, subtract δi from every entry in the i-th row of A, where δi is the
+minimum value in that row. Then any entry of A greater than 2nµ can be set to 2nµ + 1, since it can never
+participate in an optimal solution. After computing the Min-Plus product of this modified matrix A and B,
+we simply add δi back to the i-th row of the result.
+′ := ⌊B /2⌋. Flooring preserves row-monotonicity, so the rows of B ′ are
+Let A′i,j := ⌊Ai,j /2⌋ and Bi,j
+i,j
+also row-monotone. We compute C ′ := A′ ⋆ B ′ recursively. The base case occurs when A and B are zero
+matrices, so we can compute A ⋆ B trivially. Now define three na × nc candidate matrices C (0) , C (1) , C (2)
+by
+(s)
+′
+Ci,j := 2Ci,j
++s
+for s ∈ {0, 1, 2}.
+Since the rows of B ′ are monotone, the rows of C ′ are also monotone by Theorem 4.1. Therefore, the rows
+of each C (s) are monotone as well, and we can run the algorithm for Problem 3 on the instance (A, B, C (s) )
+for each s ∈ {0, 1, 2}.
+
+9
+
+Since (x − 1)/2 ≤ ⌊x/2⌋ ≤ x/2 and C ′ = A′ ⋆ B ′ , we have
+
+
+ 
+
+
+Ai,k
+Ai,k + Bk,j
+Bk,j
+(A ⋆ B)i,j
+′
+Ci,j = min
++
+≤ min
+=
+,
+k
+k
+2
+2
+2
+2
+and
+′
+Ci,j
+= min
+k
+
+
+
+
+ 
+
+
+Ai,k + Bk,j − 2
+Bk,j
+Ai,k
+(A ⋆ B)i,j − 2
++
+≥ min
+=
+.
+k
+2
+2
+2
+2
+
+′ ∈ {0, 1, 2}. Thus, for each fixed pair (i, j), there
+Together, these inequalities imply (A ⋆ B)i,j − 2Ci,j
+(s)
+
+exists at least one s ∈ {0, 1, 2} such that Ci,j = (A ⋆ B)i,j , and we can recover (A ⋆ B)i,j by taking the
+(s)
+
+minimum value among Ci,j for which the verifier accepts (i, j) on (A, B, C (s) ). Moreover, if the verifier
+(s)
+
+accepts (i, j) on (A, B, C (s) ) with witness k, then Ci,j = Ai,k + Bk,j ≥ (A ⋆ B)i,j . Therefore, taking the
+(s)
+
+minimum accepted value among the Ci,j returns exactly (A ⋆ B)i,j .
+For the running time, we make O(1) calls to the T (na , nb , nc ; nµ )-time verifier per recursion level. The
+recursion depth is O(log(nµ )) = O(log n). The additional costs of forming A′ , B ′ , and the matrices C (s)
+e (na , nb , nc ; nµ )).
+are dominated by T (na , nb , nc ; nµ ). Hence, the total running time is O(T
+Using an approach similar to that of [CDXZ22, Lemma 3.5], we further reduce Problem 3 to the following problem and focus on solving it efficiently.
+Problem 4. Let (A, B, C) be an instance of Problem 3, and let M be a positive integer that is a multiple of
+100 and satisfies M = O(nµ ). Additionally, assume that for every i ∈ [na ], k ∈ [nb ], and j ∈ [nc ], we have
+Ai,k mod M, Bk,j mod M, Ci,j mod M ≤
+
+M
+.
+10
+
+Given (A, B, C) as input, for every (i, j) ∈ [na ] × [nc ], decide whether there exists k ∈ [nb ] such that
+Ai,k + Bk,j = Ci,j .
+Lemma 4.3. If there is a T (na , nb , nc ; nµ , M )-time algorithm for Problem 4 for any such M , then there is
+an e
+O(T (na , nb , nc ; nµ , M ))-time algorithm for Problem 3.
+Proof. Let W := M/100, which is an integer since M is a multiple of 100. Without loss of generality, we
+may assume that all entries of A, B, and C are at least M by adding M to all entries of A and B and adding
+2M to all entries of C; this preserves witnesses. Note that 2M = O(nµ ), so the entries remain bounded by
+O(nµ ).
+We partition {0, 1, . . . , M − 1} into intervals Is defined by
+for s ∈ {0, 1, . . . , 99}.
+
+Is := [sW, (s + 1)W )
+
+Then, for each s ∈ {0, 1, . . . , 99}, construct an na × nb matrix A(s) and an nb × nc matrix B (s) by
+
+Ai,k − sW,
+if Ai,k mod M ∈ Is ,
+(s)
+Ai,k := j Ai,k − sW k
+
+· M + 3W, otherwise,
+M
+and
+
+
+Bk,j − sW,
+if Bk,j mod M ∈ Is ,
+(s)
+Bk,j := j Bk,j − sW k
+
+· M + 3W, otherwise.
+M
+10
+
+Additionally, for all s, t ∈ {0, 1, . . . , 99}, let
+
+Js,t := (s + t)W mod M, ((s + t)W + 1) mod M, . . . , ((s + t)W + (2W − 1)) mod M ,
+and construct na × nc matrix C (s,t) by
+
+Ci,j − (s + t)W,
+(s,t)
+Ci,j := j Ci,j − (s + t)W k
+
+· M + 7W,
+M
+
+if Ci,j mod M ∈ Js,t ,
+otherwise.
+
+Now, for all s, t ∈ {0, 1, . . . , 99}, we run the algorithm for Problem 4 on the 1002 = O(1) instances
+(A(s) , B (t) , C (s,t) ) and return Y ES for (i, j) if any instance returns Y ES for (i, j).
+We first justify that our instances satisfy the promise of Problem 4. Fix s, t ∈ {0, 1, . . . , 99}. It is clear
+that all entries of A(s) , B (t) , and C (s,t) are nonnegative, since sW and tW are at most 99M/100 < M
+and all entries of A, B, and C are at least M . For the small-residue requirement modulo M , note that if
+Ai,k mod M ∈ Is , then
+(s)
+0 ≤ Ai,k mod M < W < M/10,
+and if Ai,k mod M ∈
+/ Is , then
+(s)
+
+0 ≤ Ai,k mod M = 3W < M/10.
+Similarly, the same residue bounds modulo M hold for B (t) . For the residue bound for C (s,t) , note that if
+Ci,j mod M ∈ Js,t , then
+(s,t)
+0 ≤ Ci,j mod M < 2W < M/10,
+and otherwise
+
+(s,t)
+
+Ci,j
+
+mod M = 7W < M/10.
+
+Hence, all three matrices have residues modulo M bounded above by M/10. For the monotonicity constraint, we prove only the row-monotonicity of B (t) ; the row-monotonicity of C (s,t) follows analogously.
+Fix k ∈ [nb ] and j ∈ [nc − 1] and write
+Bk,j − tW = qj M + rj ,
+
+Bk,j+1 − tW = qj+1 M + rj+1 ,
+
+Then we can rewrite the entries of B (t) as
+(
+qj M + rj ,
+if rj ∈ [0, W ),
+(t)
+Bk,j =
+qj M + 3W, if rj ∈
+/ [0, W ),
+
+(t)
+Bk,j+1 =
+
+where rj , rj+1 ∈ {0, 1, . . . , M − 1}.
+
+(
+qj+1 M + rj+1 ,
+qj+1 M + 3W,
+
+if rj+1 ∈ [0, W ),
+if rj+1 ∈
+/ [0, W ).
+
+By the monotonicity of B, we have two cases:
+1. If qj < qj+1 , using the fact that 3W < M , we have
+(t)
+
+(t)
+
+Bk,j ≤ qj M + 3W < (qj + 1)M ≤ qj+1 M ≤ Bk,j+1 .
+2. Otherwise, we have qj = qj+1 and rj ≤ rj+1 . If both rj , rj+1 ∈ [0, W ) or both rj , rj+1 ∈
+/ [0, W ),
+(t)
+(t)
+then Bk,j ≤ Bk,j+1 is immediate. If rj ∈ [0, W ) but rj+1 ∈
+/ [0, W ), then
+(t)
+
+(t)
+
+Bk,j = qj M + rj < qj M + 3W = qj+1 M + 3W = Bk,j+1 .
+Therefore, each row of B (t) is row-monotone, as desired.
+11
+
+Claim 4.4 (Correctness of the reduction). Fix (i, j) ∈ [na ]×[nc ]. We have that there exists k ∈ [nb ] such that
+(s)
+(t)
+(s,t)
+Ai,k +Bk,j = Ci,j if and only if there exist s, t ∈ {0, 1, . . . , 99} and k ∈ [nb ] such that Ai,k +Bk,j = Ci,j .
+Proof. Fix (i, j) ∈ [na ] × [nc ]. Suppose there exists k ∈ [nb ] such that Ai,k + Bk,j = Ci,j . Let s, t ∈
+{0, 1, . . . , 99} be such that Ai,k mod M ∈ Is and Bk,j mod M ∈ It . Then
+(s)
+
+(t)
+
+Ai,k + Bk,j = Ai,k + Bk,j − (s + t)W = Ci,j − (s + t)W.
+Moreover,
+
+(s)
+
+(1)
+
+(t)
+
+0 ≤ Ai,k mod M < W,
+
+0 ≤ Bk,j mod M < W,
+
+so the sum does not wrap around modulo M , which implies
+
+
+(s)
+(t)
+0 ≤ Ai,k + Bk,j mod M < 2W.
+Then the equality Eq. (1) gives
+0 ≤ (Ci,j − (s + t)W ) mod M < 2W,
+(s,t)
+
+(s)
+
+(t)
+
+(s,t)
+
+which implies Ci,j mod M ∈ Js,t ; thus Ci,j = Ci,j − (s + t)W . Hence, we have Ai,k + Bk,j = Ci,j by
+Eq. (1), and the instance corresponding to (s, t) verifies the triangle with witness k.
+Conversely, suppose that for some s, t ∈ {0, 1, . . . , 99}, the instance has a witness k ∈ [nb ] such that
+(s)
+
+(t)
+
+(s,t)
+
+Ai,k + Bk,j = Ci,j .
+
+(2)
+
+We claim that Ai,k mod M ∈ Is and Bk,j mod M ∈ It . If Ai,k mod M ∈
+/ Is or Bk,j mod M ∈
+/ It , then
+(s)
+(t) 
+Ai,k + Bk,j mod M ∈ [3W, 6W ],
+
+since at least one summand has residue 3W and the other has residue in [0, W ) ∪ {3W }, and there is no
+wraparound modulo M . On the other hand, we have
+(s,t)
+
+Ci,j
+
+mod M ∈ [0, 2W ) ∪ {7W },
+
+contradicting Eq. (2). Hence, Ai,k mod M ∈ Is and Bk,j mod M ∈ It . Moreover, under this condition,
+(s,t)
+the left-hand side residue in Eq. (2) lies in [0, 2W ), so Eq. (2) forces Ci,j mod M ∈ [0, 2W ). Then,
+(s,t)
+
+Ci,j mod M ∈ Js,t , and we have Ci,j
+
+= Ci,j − (s + t)W . Therefore,
+(s)
+
+(t)
+
+(s,t)
+
+Ai,k + Bk,j − (s + t)W = Ai,k + Bk,j = Ci,j
+and the correctness follows.
+
+12
+
+= Ci,j − (s + t)W,
+
+4.2
+
+Algorithm for Problem 4
+
+Suppose we are given an instance (A, B, C) of Problem 4 with M = Θ(nd ) for some constant 0 ≤ d ≤ µ.
+Define
+
+
+
+
+
+
+Bk,j
+Ai,k
+Ci,j
+high
+high
+high
+,
+Bk,j =
+,
+Ci,j =
+.
+Ai,k =
+M
+M
+M
+We also define
+Alow
+i,k = Ai,k mod M,
+
+low
+Bk,j
+= Bk,j mod M,
+
+low
+Ci,j
+= Ci,j mod M.
+
+The high-level outline of our algorithm is as follows:
+1. Find a “good” modulus Q with M ≤ Q ≤ M no(1) . The definition of “good” is deferred to Theorem 4.12.
+2. For every (i, j) ∈ [na ] × [nc ], compute si,j , the number of k ∈ [nb ] such that Ai,k + Bk,j ≡ Ci,j
+(mod Q).
+3. For every (i, j) ∈ [na ] × [nc ], compute s′i,j , the number of k ∈ [nb ] such that Ai,k + Bk,j ≡ Ci,j
+high
+high
+(mod Q) and Ahigh
+i,k + Bk,j ̸= Ci,j .
+
+4. For each (i, j) ∈ [na ] × [nc ], output Y ES if and only if si,j > s′i,j .
+high
+high
+We will prove that Ai,k +Bk,j = Ci,j if and only if Ai,k +Bk,j ≡ Ci,j (mod Q) and Ahigh
+i,k +Bk,j = Ci,j .
+Hence, there exists a witness k if and only if si,j > s′i,j . We first prove two simple facts that bound
+high
+high
+|Ai,k + Bk,j − Ci,j |, depending on whether Ahigh
+i,k + Bk,j = Ci,j , and then prove the correctness of the
+algorithm assuming that our subroutines are correct.
+high
+high
+Fact 4.5. For every (i, k, j) ∈ [na ]×[nb ]×[nc ], if Ahigh
+i,k +Bk,j ̸= Ci,j , then |Ai,k +Bk,j −Ci,j | ≥ 7M/10.
+
+
+high 
+high
+low
+low
++ Alow
+Proof. We decompose Ai,k + Bk,j − Ci,j = M · Ahigh
+i,k + Bk,j − Ci,j . If
+i,k + Bk,j − Ci,j
+high
+high
+high
+high
+low
+Ahigh
+̸= 0, then |Ahigh
+i,k + Bk,j − Ci,j
+i,k + Bk,j − Ci,j | ≥ 1. By the promise of Problem 4, |Ai,k +
+low − C low | ≤ |Alow | + |B low | + |C low | ≤ 3M/10. Therefore, using |a + b| ≥ |a| − |b|, we have
+Bk,j
+i,j
+i,j
+k,j
+i,k
+high
+high
+low
+low
+− Alow
+Ai,k + Bk,j − Ci,j ≥ M · Ahigh
+i,k + Bk,j − Ci,j ≥ M − 3M/10 = 7M/10.
+i,k + Bk,j − Ci,j
+
+high
+high
+Fact 4.6. For every (i, k, j) ∈ [na ]×[nb ]×[nc ], if Ahigh
+i,k +Bk,j = Ci,j , then |Ai,k +Bk,j −Ci,j | ≤ 3M/10.
+high
+high
+low
+low
+low
+Proof. Since Ahigh
+i,k + Bk,j − Ci,j = 0, we have |Ai,k + Bk,j − Ci,j | = |Ai,k + Bk,j − Ci,j | ≤ 3M/10
+by the same argument as in Theorem 4.5.
+
+Recall that si,j is the number of k ∈ [nb ] such that Ai,k + Bk,j ≡ Ci,j (mod Q), and s′i,j is the number
+high
+high
+of k ∈ [nb ] such that Ai,k + Bk,j ≡ Ci,j (mod Q) and Ahigh
+̸= Ci,j
+. We now prove the
+i,k + Bk,j
+correctness of our algorithm.
+
+Lemma 4.7 (Correctness). For every (i, j) ∈ [na ] × [nc ], there exists k ∈ [nb ] such that Ai,k + Bk,j = Ci,j
+if and only if si,j > s′i,j .
+
+13
+
+Proof. Fix (i, j) and suppose there exists k ∈ [nb ] such that Ai,k + Bk,j = Ci,j . Then Ai,k + Bk,j ≡
+Ci,j (mod Q), so this k contributes one to si,j . Moreover, under the promise of Problem 4, we have
+high
+low
+Alow
+=
+i,k + Bk,j ≤ 2M/10, so adding the low parts creates no carry across a multiple of M . Hence, Ci,j
+high
+′
+⌊Ci,j /M ⌋ = ⌊(Ai,k + Bk,j )/M ⌋ = Ahigh
+i,k + Bk,j . Therefore, this k does not contribute to si,j , and so
+′
+si,j > si,j .
+Conversely, suppose si,j > s′i,j . Then there exists k ∈ [nb ] such that Ai,k + Bk,j ≡ Ci,j (mod Q)
+high
+high
+and Ahigh
+= Ci,j
+. By Theorem 4.6, we have |Ai,k + Bk,j − Ci,j | ≤ 3M/10 < Q. Since
+i,k + Bk,j
+Ai,k + Bk,j − Ci,j is a multiple of Q and has magnitude strictly less than Q, it must be zero. Therefore,
+Ai,k + Bk,j = Ci,j .
+
+In the following sections, we describe how to compute si,j and s′i,j efficiently, and how to choose and
+find a modulus Q. To this end, we introduce several objects used by the subroutines and their analysis.
+We first provide some intuition. As in [CDXZ22], we view each pair of row-monotone rows Bk,∗ and Ci,∗
+through a level-ℓ “coarse lens,” by rounding entries down to multiples of 2ℓ . This partitions the column
+indices into contiguous blocks on which both rounded rows are constant; these blocks are called level-ℓ
+segments. Within a segment, the values Bk,j and Ci,j vary by at most 2ℓ , so checking a modular relation
+at the segment start (namely, Ai,k + Bk,j0 ≡ Ci,j0 (mod Q), where j0 is the segment start) represents the
+entire segment up to an additive slack of ±4 · 2ℓ . We call a segment active (with respect to a modulus Q) if
+the corresponding modular relation can hold for some shift in [−4·2ℓ , 4·2ℓ ] while the high parts indicate that
+equality does not hold. Thus, active segments capture the remaining “spurious” modular matches. Finally,
+a modulus Q is good if, for every level ℓ, it leaves only a few active segments so that we can afford to
+enumerate and eliminate all spurious matches.
+More formally, let ℓmax be such that M/20 ≤ 2ℓmax < M/10.
+Definition 4.8 (Segments). For 0 ≤ ℓ ≤ ℓmax , a level-ℓ segment is a triple (i, k, [j0 , j1 ]) such that for every
+j ∈ [j0 , j1 ], ⌊Bk,j0 /2ℓ ⌋ = ⌊Bk,j /2ℓ ⌋ and ⌊Ci,j0 /2ℓ ⌋ = ⌊Ci,j /2ℓ ⌋, and [j0 , j1 ] cannot be extended further.
+Fact 4.9. For 0 ≤ ℓ ≤ ℓmax , the total number of level-ℓ segments is O(na+b+µ /2ℓ ).
+Proof. Fix (i, k) ∈ [na ] × [nb ]. For each j ∈ [nc ], define bj := ⌊Bk,j /2ℓ ⌋ and cj := ⌊Ci,j /2ℓ ⌋. Both
+sequences (bj )j and (cj )j are monotone. Since all entries of B and C are bounded by O(nµ ), each of (bj )j
+and (cj )j is bounded by O(nµ /2ℓ ), and therefore each has at most O(nµ /2ℓ ) constant blocks. A level-ℓ
+segment is a maximal interval on which both sequences are constant; thus the number of level-ℓ segments is
+O(nµ /2ℓ ). Summing over all na nb choices of (i, k) gives O(na+b+µ /2ℓ ) segments in total.
+Definition 4.10 (Active segment). For 0 ≤ ℓ ≤ ℓmax , a level-ℓ segment (i, k, [j0 , j1 ]) is called active with
+high
+high
+ℓ
+ℓ
+respect to Q if Ahigh
+i,k + Bk,j0 ̸= Ci,j0 and there exists s ∈ [−4 · 2 , 4 · 2 ] such that Ai,k + Bk,j0 − Ci,j0 ≡ s
+(mod Q).
+Definition 4.11 (Set of active segments). For 0 ≤ ℓ ≤ ℓmax , let Sℓ (Q) be the set of all level-ℓ segments that
+are active with respect to Q.
+Definition 4.12 (Good modulus). We say that an integer Q is a good modulus if M ≤ Q ≤ M no(1) and
+b a+b+µ /Q) for all 0 ≤ ℓ ≤ ℓmax .
+|Sℓ (Q)| ≤ O(n
+
+4.3
+
+Computing si,j and s′i,j
+
+Recall that si,j is the number of indices k ∈ [nb ] such that Ai,k + Bk,j ≡ Ci,j (mod Q). We compute
+si,j for all (i, j) ∈ [na ] × [nc ] using polynomial matrix multiplication, which reduces modular counting to
+ordinary rectangular matrix multiplication.
+14
+
+Lemma 4.13 (Computing si,j ). We can compute si,j for every (i, j) ∈ [na ] × [nc ] in b
+O(Qnω(a,b,c) ) time.
+Proof. Work over the ring R := F[x]/(xQ − 1), where F has characteristic larger than nb . Define an na × nb
+matrix A′ and an nb × nc matrix B ′ over R by
+A′i,k (x) := xAi,k mod Q ,
+
+′
+Bk,j
+(x) := xBk,j mod Q .
+
+Compute the matrix product P (x) := A′ (x) · B ′ (x) over R using fast rectangular matrix multiplication. For
+each residue r ∈ {0, 1, . . . , Q − 1}, the coefficient of xr in Pi,j (x) is the number of indices k ∈ [nb ] such
+that Ai,k + Bk,j ≡ r (mod Q). Hence, we set si,j to be the coefficient of xCi,j mod Q in Pi,j (x). Since
+b
+multiplication in R reduces exponents modulo Q, multiplying two entries costs O(Q)
+field operations, and
+ω(a,b,c)
+the overall matrix multiplication takes b
+O(Qn
+) time.
+high
+Recall that s′i,j is the number of indices k such that Ai,k + Bk,j ≡ Ci,j (mod Q) and Ahigh
+i,k + Bk,j ̸=
+high
+Ci,j
+. Suppose that Q is a good modulus as defined in Theorem 4.12; we show how to find such a modulus
+in the next section. For simplicity, let Sℓ denote the set of all active level-ℓ segments, suppressing the
+dependence on Q. At a high level, we compute s′i,j for all (i, j) using S0 . Indeed, since Bk,j and Ci,j are
+constant on a level-0 segment, the congruence Ai,k + Bk,j ≡ Ci,j (mod Q) can be tested at a single j
+and then applied to the entire interval [j0 , j1 ] in a segment. To compute S0 , we compute the sets Sℓ via a
+top-down refinement from level ℓmax to level 0. To formalize our idea, we prove a property on which our
+algorithm relies.
+
+Lemma 4.14. For all 0 ≤ ℓ < ℓmax , and (i, k, [j0′ , j1′ ]) ∈ Sℓ , the unique level-(ℓ + 1) segment (i, k, [j0 , j1 ])
+with [j0′ , j1′ ] ⊆ [j0 , j1 ] is active, i.e., (i, k, [j0 , j1 ]) ∈ Sℓ+1 .
+Proof. Fix j ∈ [j0 , j1 ]. By definition of a level-(ℓ + 1) segment, we have ⌊Bk,j0 /2ℓ+1 ⌋ = ⌊Bk,j /2ℓ+1 ⌋.
+low − B low | ≤ M/10 by the promise of Problem 4.
+Hence, |Bk,j − Bk,j0 | < 2ℓ+1 < M/10. Moreover, |Bk,j
+k,j0
+high
+high
+̸= Bk,j
+, then
+Hence, if Bk,j
+0
+high
+high
+low
+low
+low
+low
+− Bk,j
+| ≥ 9M/10,
+− Bk,j
+)| ≥ M − |Bk,j
+− Bk,j
+)M + (Bk,j
+|Bk,j − Bk,j0 | = |(Bk,j
+0
+0
+0
+high
+which contradicts the previous bound. Therefore, Bk,j
+is constant for j ∈ [j0 , j1 ], and by a similar arguhigh
+high
+high
+ment, Ci,j
+is constant for j ∈ [j0 , j1 ]. Now, since (i, k, [j0′ , j1′ ]) ∈ Sℓ , we have Ahigh
+i,k + Bk,j ′ − Ci,j ′ ̸= 0.
+0
+
+0
+
+high
+high
+Because j0′ ∈ [j0 , j1 ], we conclude that Ahigh
+i,k + Bk,j0 − Ci,j0 ̸= 0, satisfying the high-part condition of
+being active.
+For the congruence condition, note that [j0′ , j1′ ] ⊆ [j0 , j1 ] and (i, k, [j0 , j1 ]) is a level-(ℓ + 1) segment.
+Hence, |Bk,j0 − Bk,j0′ | < 2ℓ+1 and |Ci,j0 − Ci,j0′ | < 2ℓ+1 , which implies
+
+|(Ai,k + Bk,j0 − Ci,j0 ) − (Ai,k + Bk,j0′ − Ci,j0′ )| < 2 · 2ℓ+1 .
+Since (i, k, [j0′ , j1′ ]) ∈ Sℓ , we have Ai,k + Bk,j0′ − Ci,j0′ ≡ s′ (mod Q) for some s′ ∈ [−4 · 2ℓ , 4 · 2ℓ ]. Take
+s = s′ + (Ai,k + Bk,j0 − Ci,j0 ) − (Ai,k + Bk,j0′ − Ci,j0′ ).
+Then |s| < 4 · 2ℓ + 2 · 2ℓ+1 = 4 · 2ℓ+1 and
+(Ai,k + Bk,j0 − Ci,j0 ) ≡ s − s′ + (Ai,k + Bk,j0′ − Ci,j0′ ) ≡ s
+Thus, the level-(ℓ + 1) segment (i, k, [j0 , j1 ]) is active.
+15
+
+(mod Q).
+
+Lemma 4.15 (Computing S0 ). We can compute S0 in b
+O(na+b+µ /Q) time.
+Proof. We first compute all level-ℓmax segments as follows. For each (i, k) ∈ [na ] × [nb ], we use binary
+search on j to group maximal consecutive indices on which ⌊Bk,j /2ℓmax ⌋ and ⌊Ci,j /2ℓmax ⌋ are both constant. We then enumerate all those level-ℓmax segments and filter the active ones to obtain Sℓmax . Next,
+for ℓ = ℓmax − 1, . . . , 0, we construct Sℓ from Sℓ+1 as follows. Every segment in Sℓ+1 refines into O(1)
+level-ℓ subsegments, since decreasing ℓ by 1 can split a maximal constant block into at most two blocks for
+B and at most two blocks for C. We use binary search to compute these subsegments. For each resulting
+subsegment, we test whether it is active at level ℓ and, if so, insert it into Sℓ .
+For correctness, note that every active level-ℓ segment is a subsegment of an active level-(ℓ + 1) segment
+by Theorem 4.14, and so the correctness follows inductively.
+By Theorem 4.9, there are e
+O(na+b+µ /2ℓmax ) level-ℓmax segments. Thus, computing them via binary
+e a+b+µ /2ℓmax ) = O(n
+e a+b+µ /M ) = O(n
+b a+b+µ /Q) time. For the
+search and constructing Sℓmax takes O(n
+b
+refinement, we note that Q is a good modulus, so for each ℓ, we have |Sℓ | = O(na+b+µ /Q), and each active
+segment generates only O(1) subsegments. There are O(log M ) = e
+O(1) levels, so the total time spent in
+a+b+µ
+b
+this refinement step is O(n
+/Q).
+Lemma 4.16 (Computing s′i,j ). We can compute s′i,j for all (i, j) ∈ [na ]×[nc ] in time b
+O(na+b+µ /Q+na+c ).
+Proof. We first compute the set S0 using Theorem 4.15. To compute all s′i,j , we aggregate the contributions of active level-0 segments in S0 as follows. For each fixed i ∈ [na ], we maintain a difference array
+Di of length nc + 1, indexed by 1, . . . , nc + 1, and initialized to zero. For each active level-0 segment
+(i, k, [j0 , j1 ]) ∈ S0 , we test whether Ai,k + Bk,j0 ≡ Ci,j0 (mod Q). If the test succeeds, we increment
+Di [j0 ] by one and decrement Di [j1 + 1] by one. After processing all active level-0 segments, we compute
+prefix sums and set
+X
+s′i,j =
+Di [t]
+for all j = 1, . . . , nc .
+1≤t≤j
+
+For correctness, fix any triple (i, k, j) counted in s′i,j . Then we have Ai,k + Bk,j ≡ Ci,j (mod Q)
+high
+high
+and Ahigh
+i,k + Bk,j ̸= Ci,j . Let (i, k, [j0 , j1 ]) be the unique level-0 segment such that j ∈ [j0 , j1 ]. Since
+(i, k, [j0 , j1 ]) is a level-0 segment, the values Bk,j and Ci,j are constant over all j ∈ [j0 , j1 ]. Since j ∈
+[j0 , j1 ], we have
+high
+high
+high
+high
+high
+Ahigh
+i,k + Bk,j0 = Ai,k + Bk,j ̸= Ci,j = Ci,j0
+
+and
+Ai,k + Bk,j0 ≡ Ai,k + Bk,j ≡ Ci,j ≡ Ci,j0
+
+(mod Q).
+
+Hence, (i, k, [j0 , j1 ]) is an active level-0 segment in S0 , and the algorithm performs the range update for
+(i, k, [j0 , j1 ]). We claim that this update increases the reconstructed value s′i,j by one (for this k) exactly
+when j ∈ [j0 , j1 ]. Indeed, for any j ∈ [nc ],
+• If j < j0 , the prefix sum does not include the increment at position j0 , so s′i,j stays the same.
+• If j0 ≤ j ≤ j1 , the prefix sum includes the increment at j0 but not the decrement at j1 + 1, so s′i,j
+increases by one.
+• If j ≥ j1 + 1, the prefix sum includes both the increment at j0 and the decrement at j1 + 1, which
+cancel, so s′i,j stays the same.
+Conversely, whenever the algorithm performs a range update for (i, k, [j0 , j1 ]) ∈ S0 , we have Ai,k +
+Bk,j0 ≡ Ci,j0 (mod Q). Since (i, k, [j0 , j1 ]) is a level-0 segment, the values Bk,j and Ci,j are constant
+over all j ∈ [j0 , j1 ]. Therefore, Ai,k + Bk,j ≡ Ci,j (mod Q) for every j ∈ [j0 , j1 ]. Moreover, the segment
+16
+
+high
+high
+is active, so Ahigh
+i,k + Bk,j ̸= Ci,j for every j ∈ [j0 , j1 ], and the update contributes exactly the intended
+triples to s′i,j .
+For the running time, scanning all segments in S0 and performing the constant-time test and update takes
+O(|S0 |) = b
+O(na+b+µ /Q). The total time to compute prefix sums is O(na+c ), since for each fixed i we
+b a+b+µ /Q) by Theorem 4.15,
+scan j = 1, . . . , nc once. Together with the time to compute S0 , which is O(n
+this yields the claimed running time.
+
+4.4
+
+Finding a Good Modulus Q
+
+We now construct a good modulus Q, namely an integer Q with M ≤ Q ≤ M no(1) such that the number of
+active level-ℓ segments is b
+O(na+b+µ /Q) for every 0 ≤ ℓ ≤ ℓmax .
+Let 4 ≤ R ≤ no(1) be a parameter to be fixed later, and let P be the set of primes in [R/2, R]. We take
+Q to be a product of primes p1 , p2 , . . . , pT with pt ∈ P for all 1 ≤ t ≤ T . Intuitively, each new prime factor
+filters out many spurious congruences, so the number of active segments shrinks rapidly with t. We choose
+these primes inductively: at step t ≥ 1, we select a prime pt ∈ P and multiply it into the current modulus
+Qt−1 , obtaining
+t
+Y
+Qt :=
+pi ,
+where Q0 := 1.
+i=1
+
+For the analysis, define Xℓ,t as the number of pairs ((i, k, [j0 , j1 ]), s), where (i, k, [j0 , j1 ]) is a level-ℓ
+segment and s ∈ [−4 · 2ℓ , 4 · 2ℓ ], such that
+Ai,k + Bk,j0 − Ci,j0 ≡ s
+
+(mod Qt )
+
+and
+
+Ai,k + Bk,j0 − Ci,j0 ̸= s.
+
+Our inductive invariant for Qt is that
+a+b+µ
+
+Xℓ,t = n
+
+log2 n
+·O
+R
+
+
+t
+for all 0 ≤ ℓ ≤ ℓmax .
+
+(3)
+
+b a+b+µ /QT ). Then, by the following lemma, QT is a good modulus.
+Later, we choose R so that Xℓ,T = O(n
+Lemma 4.17. For every 0 ≤ ℓ ≤ ℓmax , we have |Sℓ (QT )| ≤ Xℓ,T .
+Proof. Let (i, k, [j0 , j1 ]) ∈ Sℓ (QT ). By definition of an active segment, there exists an integer s ∈ [−4 ·
+high
+high
+2ℓ , 4 · 2ℓ ] such that Ai,k + Bk,j0 − Ci,j0 ≡ s (mod QT ) and Ahigh
+i,k + Bk,j0 ̸= Ci,j0 . We claim that
+high
+high
+Ai,k +Bk,j0 −Ci,j0 ̸= s. Indeed, since Ahigh
+i,k +Bk,j0 ̸= Ci,j0 , Theorem 4.5 implies |Ai,k +Bk,j0 −Ci,j0 | ≥
+7M/10. On the other hand, |s| ≤ 4 · 2ℓ ≤ 4 · 2ℓmax < 4M/10 < 7M/10, so Ai,k + Bk,j0 − Ci,j0 ̸= s.
+Therefore, every active segment in Sℓ (QT ) yields a pair ((i, k, [j0 , j1 ]), s) counted by Xℓ,T , and hence
+|Sℓ (QT )| ≤ Xℓ,T .
+
+We now explain how to choose pt so that the invariant Eq. (3) continues to hold. For the base case
+t = 0, we set Q0 := 1. Since Xℓ,0 counts level-ℓ segment–shift pairs, we trivially have Xℓ,0 ≤ na+b+µ by
+Theorem 4.9, and thus Q0 satisfies the invariant. Now assume Eq. (3) holds for t − 1 and that Qt−1 is fixed.
+For any prime p ∈ P, let Xℓ,t (p) denote the value of Xℓ,t when Qt is set to Qt−1 · p. Our goal is to find a
+prime pt ∈ P such that Eq. (3) holds with respect to Xℓ,t (pt ).
+Such a prime exists; applying the following lemma inductively yields the entire sequence p1 , . . . , pT .
+Lemma 4.18. There exists p∗ ∈ P such that
+log2 n
+Xℓ,t (p ) = Xℓ,t−1 · O
+R
+∗
+
+
+
+17
+
+
+for all 0 ≤ ℓ ≤ ℓmax .
+
+(4)
+
+Moreover, for every 0 ≤ ℓ ≤ ℓmax , if p is chosen uniformly at random from P, then
+
+
+
+
+log n
+.
+E Xℓ,t (p) = Xℓ,t−1 · O
+p∼P
+R
+Proof. Fix a level ℓ. Let Xℓ,t−1 be the set of all pairs ((i, k, [j0 , j1 ]), s) counted by Xℓ,t−1 ; that is, all pairs
+satisfying
+Ai,k + Bk,j0 − Ci,j0 ≡ s
+
+(mod Qt−1 )
+
+Ai,k + Bk,j0 − Ci,j0 ̸= s,
+
+and
+
+where (i, k, [j0 , j1 ]) is a level-ℓ segment and s ∈ [−4 · 2ℓ , 4 · 2ℓ ]. For a prime p ∈ P, such a pair is counted
+in Xℓ,t (p) if and only if, additionally, p divides Ai,k + Bk,j0 − Ci,j0 − s. Therefore,
+X
+
+
+1 p | Ai,k + Bk,j0 − Ci,j0 − s .
+Xℓ,t (p) =
+((i,k,[j0 ,j1 ]),s)∈Xℓ,t−1
+
+Now choose p uniformly at random from P. Fix any ((i, k, [j0 , j1 ]), s) ∈ Xℓ,t−1 and define
+∆ := Ai,k + Bk,j0 − Ci,j0 − s.
+Note that ∆ ̸= 0 by the definition of Xℓ,t−1 . Since the entries of A, B and C are bounded by O(nµ ) and
+|s| ≤ 4 · 2ℓ ≤ 4 · 2ℓmax = O(M ) = nO(1) , we have |∆| = nO(1) and hence log |∆| = O(log n). Any prime
+divisor of ∆ in [R/2, R] is at least R/2, so the number of such prime divisors is at most
+
+
+log |∆|
+log n
+=O
+.
+log(R/2)
+log(R/2)
+By the prime number theorem, |P| = Θ(R/ log R), and thus
+
+
+
+
+O(log n/ log(R/2))
+log n
+log R
+log n
+Pr [p | ∆] =
+=O
+·
+=O
+,
+p∼P
+|P|
+R
+log(R/2)
+R
+where the last equality uses
+log R
+log R
+=
+≤2
+log(R/2)
+log R − log 2
+
+for R ≥ 4.
+
+Then, by linearity of expectation,
+E [Xℓ,t (p)] =
+
+p∼P
+
+X
+
+
+
+Pr p | Ai,k + Bk,j0 − Ci,j0 − s
+
+((i,k,[j0 ,j1 ]),s)∈Xℓ,t−1
+
+p∼P
+
+
+
+log n
+≤
+O
+R
+((i,k,[j0 ,j1 ]),s)∈Xℓ,t−1
+
+
+log n
+= Xℓ,t−1 · O
+,
+R
+X
+
+
+
+as desired.
+To prove the existence of p∗ , let L := ℓmax + 1. Recall that 2ℓmax = Θ(M ) and M = nO(1) , so
+L = O(log M ) = O(log n). From the expectation bound proved above, there exists an absolute constant
+C0 > 0 such that for every 0 ≤ ℓ ≤ ℓmax ,
+
+
+log n
+.
+E Xℓ,t (p) ≤ C0 · Xℓ,t−1 ·
+p∼P
+R
+18
+
+By Markov’s inequality, for any c > 0,
+
+
+log n
+1
+Pr Xℓ,t (p) > c · C0 ·
+Xℓ,t−1 ≤ .
+p∼P
+R
+c
+Set c := 2L and apply a union bound over all 0 ≤ ℓ ≤ ℓmax to get
+
+
+log n
+L
+1
+Pr ∃ ℓ ∈ {0, . . . , ℓmax } : Xℓ,t (p) > 2LC0 ·
+Xℓ,t−1 ≤
+= < 1.
+p∼P
+R
+2L
+2
+Hence, there exists p∗ ∈ P such that for all 0 ≤ ℓ ≤ ℓmax ,
+
+ 2 
+
+log n
+log n
+L log n
+= Xℓ,t−1 · O
+.
+Xℓ,t (p ) ≤ 2LC0 ·
+Xℓ,t−1 = Xℓ,t−1 · O
+R
+R
+R
+∗
+
+We now discuss how to deterministically select these primes. For this, it is convenient to track the
+following quantities as well.
+1. Let Yℓ,t denote the number of pairs ((i, k, [j0 , j1 ]), s), where (i, k, [j0 , j1 ]) is a level-ℓ segment and
+s ∈ [−4 · 2ℓ , 4 · 2ℓ ], satisfying
+Ai,k + Bk,j0 − Ci,j0 ≡ s
+
+(mod Qt ).
+
+2. Let Zℓ denote the number of pairs ((i, k, [j0 , j1 ]), s), where (i, k, [j0 , j1 ]) is a level-ℓ segment and
+s ∈ [−4 · 2ℓ , 4 · 2ℓ ], satisfying
+Ai,k + Bk,j0 − Ci,j0 = s.
+As with Xℓ,t (p), let Yℓ,t (p) denote the value of Yℓ,t when the modulus is Qt−1 · p.
+The high-level idea for selecting pt is as follows. Fix a level ℓ. As briefly mentioned in Section 2,
+directly minimizing Xℓ,t (p) would require naively enumerating all level-ℓ segments, which is expensive.
+The key observation is that
+Xℓ,t (p) = Yℓ,t (p) − Zℓ ,
+where Zℓ depends only on the instance and ℓ and is independent of p. Hence, when comparing primes, this
+unknown offset cancels. In particular,
+Xℓ,t (p) − min
+Xℓ,t (p′ ) = Yℓ,t (p) − min
+Yℓ,t (p′ ).
+′
+′
+p ∈P
+
+p ∈P
+
+Therefore, it suffices to compute Yℓ,t (p) for all p ∈ P and choose a prime p such that Yℓ,t (p) is close to its
+minimum simultaneously for all levels. The process of computing Yℓ,t (p) will be essentially the same as
+how we computed si,j : we reduce modular counting to rectangular matrix multiplication over a polynomial
+ring. The only difference is that we count segments, identified by boundary indicators, rather than all column
+indices. More formally, we have the following lemma.
+Lemma 4.19 (Computing Yℓ,t (p)). We can compute Yℓ,t (p) for all primes p ∈ P and all levels 0 ≤ ℓ ≤ ℓmax
+in time b
+O(R2 Qt−1 nω(a,b,c) ).
+
+19
+
+Proof. Fix a prime p ∈ P and a level ℓ. We present an algorithm to compute Yℓ,t (p) for the modulus
+b ′ nω(a,b,c) ) time. Since there are ℓmax = O(log M ) = O(log n) levels, |P| =
+Q′ = Qt−1 · p in O(Q
+Θ(R/ log R) = e
+O(R), and Q′ = Qt−1 · p ≤ Qt−1 R, the total running time to compute Yℓ,t (p) for all p ∈ P
+and all levels is
+b
+b 2 Qt−1 nω(a,b,c) ).
+O(|P|
+· ℓmax · (RQt−1 ) nω(a,b,c) ) = O(R
+Recall that Yℓ,t (p) counts pairs ((i, k, [j0 , j1 ]), s) where (i, k, [j0 , j1 ]) is a level-ℓ segment, s ∈ [−4 ·
+′
+2ℓ , 4 · 2ℓ ], and
+ Ai,k +ℓ Bk,j0 −
+ Ci,j0 ℓ≡ s (mod Q ). A level-ℓ segment (i, k, [j0 , j1 ]) is a maximal interval on
+which both Bk,j /2 and Ci,j /2 are constant. Therefore, [j0 , j1 ] starts at column j if and only if either
+j = 1, or at least one of Bk,j /2ℓ and Ci,j /2ℓ changes at j. Hence, it suffices to check each segment
+exactly once via its start column j0 . More concretely, define an nb × nc boundary indicator matrix I B by
+hj
+k j
+ki
+B
+B
+Ik,1
+:= 1,
+Ik,j
+:= 1 Bk,j−1 /2ℓ ̸= Bk,j /2ℓ
+(j ≥ 2),
+and an na × nc boundary indicator matrix I C by
+hj
+k j
+ki
+C
+C
+Ii,1
+:= 1,
+Ii,j
+:= 1 Ci,j−1 /2ℓ ̸= Ci,j /2ℓ
+
+(j ≥ 2).
+
+B = 1 or I C = 1, grouped
+Then it suffices to count, for each (i, j) ∈ [na ] × [nc ], the indices k ∈ [nb ] with Ik,j
+i,j
+′
+by the residue class of Ai,k + Bk,j − Ci,j (mod Q ), and then weight each residue class by the number of
+admissible shifts s ∈ [−4 · 2ℓ , 4 · 2ℓ ] in that class.
+′
+To do this, we use the polynomial matrix multiplication technique. Work over the ring R := F[x]/(xQ −
+1), where F is a field of sufficiently large characteristic. Construct an na × nb matrix A′ and two nb × nc
+matrices B ′ and B bdry by
+′
+
+′
+
+′
+(x) := xBk,j mod Q ,
+Bk,j
+
+A′i,k (x) := xAi,k mod Q ,
+
+′
+
+bdry
+B
+· xBk,j mod Q .
+(x) := Ik,j
+Bk,j
+
+Compute the matrix products Dall := A′ · B ′ and Dbdry := A′ · B bdry over R using fast rectangular matrix
+multiplication, and finally construct an na × nc matrix D defined by
+(
+all (x),
+C = 1,
+Di,j
+if Ii,j
+Di,j (x) :=
+bdry
+C = 0.
+Di,j
+(x), if Ii,j
+For each r ∈ {0, . . . , Q′ − 1} and (i, j), let Ui,j (r) be the coefficient of xr in Di,j (x). Then Ui,j (r) is
+B = 1 or I C = 1. Next, define
+the number of indices k such that Ai,k + Bk,j ≡ r (mod Q′ ) and either Ik,j
+i,j
+W (r) :=
+
+n
+s ∈ [−4 · 2ℓ , 4 · 2ℓ ] : s ≡ r
+
+(mod Q′ )
+
+o
+
+.
+
+Note that the pair ((i, k, [j0 , j1 ]), s) is counted in Yℓ,t (p) exactly when Ai,k + Bk,j0 − Ci,j0 ≡ s (mod Q′ ).
+Equivalently, if r ≡ Ai,k + Bk,j0 (mod Q′ ), then s ≡ r − Ci,j0 (mod Q′ ). Thus, grouping by r, the
+contribution of a fixed (i, j) to Yℓ,t (p) is
+′ −1
+Q
+X
+
+
+Ui,j (r) · W (r − Ci,j ) mod Q′ ,
+
+r=0
+
+and therefore
+
+′
+
+Yℓ,t (p) =
+
+−1
+X X QX
+
+
+Ui,j (r) · W (r − Ci,j ) mod Q′ .
+
+i∈[na ] j∈[nc ] r=0
+
+20
+
+For the running time, arithmetic in R reduces exponents modulo Q′ , so the cost of the rectangular matrix
+b ′ nω(a,b,c) ), and we compute O(1) such products. Extracting Ui,j (r) for all (i, j) and r costs
+product is O(Q
+′
+a+c
+O(Q n ), computing W (r) for all r costs O(Q′ ), and evaluating the triple sum costs O(Q′ na+c ). Hence,
+for fixed p and ℓ we can compute Yℓ,t (p) in b
+O(Q′ nω(a,b,c) ) time.
+Lemma 4.20. We can find a prime pt ∈ P such that pt satisfies Eq. (3); that is
+ 2 t
+log n
+a+b+µ
+Xℓ,t (pt ) = n
+·O
+for all 0 ≤ ℓ ≤ ℓmax .
+R
+
+b R2 Qt−1 nω(a,b,c) time.
+Moreover, pt can be found in O
+Proof. We run the algorithm in Theorem 4.19 to compute Yℓ,t (p) for all primes p ∈ P and all levels
+0 ≤ ℓ ≤ ℓmax . For each ℓ, define
+∗
+Yℓ,t
+:= min Yℓ,t (p),
+p∈P
+
+and choose pt ∈ P that minimizes
+Φ(p) :=
+
+max
+
+
+
+0≤ℓ≤ℓmax
+
+∗
+Yℓ,t (p) − Yℓ,t
+.
+
+∗ ≥ Z . Since X (p) = Y (p)−Z for all p ∈ P and X (p) ≥ 0,
+For correctness, we first note that Yℓ,t
+ℓ
+ℓ,t
+ℓ,t
+ℓ
+ℓ,t
+∗ ≥Z .
+we have Yℓ,t (p) ≥ Zℓ for every p ∈ P, and thus Yℓ,t
+ℓ
+Now, let p∗ ∈ P be a prime satisfying Eq. (4), which exists by Theorem 4.18. Then, for every ℓ,
+ 2 
+ 2 t
+log n
+log n
+∗
+∗
+∗
+∗
+a+b+µ
+Yℓ,t (p ) − Yℓ,t ≤ Yℓ,t (p ) − Zℓ = Xℓ,t (p ) = Xℓ,t−1 · O
+=n
+·O
+,
+R
+R
+
+where the last inequality follows from the inductive hypothesis Eq. (3). Therefore,
+ 2 t
+log n
+∗
+a+b+µ
+Φ(p ) = n
+·O
+,
+R
+and by the choice of pt minimizing Φ, we obtain
+∗
+≤ Φ(pt ) ≤ Φ(p∗ ) ≤ na+b+µ · O
+Yℓ,t (pt ) − Yℓ,t
+
+
+
+log2 n
+R
+
+t
+for all 0 ≤ ℓ ≤ ℓmax .
+
+Next, define
+∗
+Xℓ,t
+:= min Xℓ,t (p).
+p∈P
+
+By minimality and Theorem 4.18,
+∗
+Xℓ,t
+≤
+
+
+
+log n
+E Xℓ,t (p) = Xℓ,t−1 · O
+p∼P
+R
+
+
+
+
+
+
+log2 n
+= Xℓ,t−1 · O
+R
+
+
+
+
+Using the inductive hypothesis Eq. (3), we obtain
+ 2 t−1
+ 2 
+ 2 t
+log n
+log n
+log n
+∗
+Xℓ,t
+= na+b+µ · O
+·O
+= na+b+µ · O
+,
+R
+R
+R
+Also, since Xℓ,t (p) = Yℓ,t (p) − Zℓ for all p ∈ P and Zℓ is independent of p, we have
+
+∗
+∗
+Yℓ,t
+− Zℓ = min Yℓ,t (p) − Zℓ = min Xℓ,t (p) = Xℓ,t
+.
+p∈P
+
+p∈P
+
+21
+
+Combining the above bounds, for every 0 ≤ ℓ ≤ ℓmax we get
+Xℓ,t (pt ) = Yℓ,t (pt ) − Zℓ =
+
+∗
+Yℓ,t
+− Zℓ
+
+
+
++
+
+∗
+Yℓ,t (pt ) − Yℓ,t
+
+
+
+∗
+≤ Xℓ,t
++ Φ(pt ) = na+b+µ · O
+
+
+
+log2 n
+R
+
+t
+.
+
+For the running time, computing Yℓ,t (p) for all p ∈ P and all 0 ≤ ℓ ≤ ℓmax via Theorem 4.19 domi
+b R2 Qt−1 nω(a,b,c) time. The remaining steps (taking minima and selecting pt ) take at most
+nates, giving O
+O(|P|ℓmax ) = e
+O(R log n) additional time, which is lower order.
+It remains to set the parameters so that the above procedure yields a good modulus. To this end, we
+prove the following fact.
+√
+
+Θ
+log n/ log log n
+Fact 4.21. Let R = 2
+and T = O(log n/ log R). Then (log n)2T = no(1) .
+
+Proof. We write (log n)2T = exp 2T log log n . Thus, it suffices to show that exp(2T log log n) = no(1) .
+Indeed,
+
+
+ 
+
+
+
+
+log log n
+log n
+· log log n = exp O log n ·
+.
+exp 2T log log n = exp 2 · O
+log R
+log R
+p
+By our choice of R, we have log R = Θ( log n/ log log n), which implies log log n/ log R = o(1).
+Therefore,
+
+
+exp 2T log log n = exp o(log n) = no(1) ,
+as claimed.
+b nω(a,b,c) ).
+Lemma 4.22 (Computing a good modulus). We can compute a good modulus Q in time O(M
+Proof. By
+Q applying Theorem 4.20 inductively for T steps, we obtain primes p1 , . . . , pT ∈ P and a modulus
+QT := Tt=1 pt such that Eq. (3) holds. Since pt ∈ [R/2, R] for all 1 ≤ t ≤ T , we have (R/2)T ≤ QT ≤
+RT . In particular, to ensure QT ≥ M it suffices to take
+T = Θ(log M/ log R) = O(log n/ log R).
+Moreover, if we take T to be the first index such that QT ≥ M , then QT −1 < M and hence QT =
+QT −1 · pT < M · R, so QT overshoots M by at most a factor of R. We set
+√
+
+Θ
+log n/ log log n
+R=2
+.
+Then R = no(1) , and therefore M ≤ QT ≤ M · R = M · no(1) . Finally, by Theorem 4.21, we have
+(log2 n)T = no(1) , and so
+(log2 n/R)T = (log n)2T /RT = no(1) /RT = no(1) /QT .
+Hence QT satisfies M ≤ QT ≤ M no(1) , and
+ 2 T
+log n
+na+b+µ+o(1)
+a+b+µ
+Xℓ,T = n
+·O
+=
+R
+QT
+
+for all 0 ≤ ℓ ≤ ℓmax .
+
+Therefore, QT is a good modulus.
+For the running time, we apply Theorem 4.20 for T steps. At step t, the cost of computing pt is
+b
+O R2 Qt−1 nω(a,b,c) . Since Qt−1 ≤ QT −1 < M , the total time is
+!
+T
+
+
+
+
+X
+b
+b T R2 M nω(a,b,c) = O
+b M nω(a,b,c) ,
+O
+R2 Qt−1 nω(a,b,c) = O
+t=1
+
+where the last bound uses T R2 = no(1) for our choice of R.
+22
+
+4.5
+
+Combining the Results
+
+Theorem 4.23. There is a deterministic b
+O(M nω(a,b,c) + na+b+µ /M )-time algorithm for Problem 4.
+b nω(a,b,c) ). Next, we compute si,j
+Proof. We first compute a good modulus Q via Theorem 4.22 in time O(M
+ω(a,b,c) ) = O(M
+b
+b nω(a,b,c) ). Finally, we compute
+for all (i, j) ∈ [na ] × [nc ] via Theorem 4.13 in time O(Qn
+
+
+′
+a
+c
+a+b+µ
+b
+b na+b+µ /M + na+c .
+si,j for all (i, j) ∈ [n ] × [n ] via Theorem 4.16 in time O n
+/Q + na+c = O
+For each (i, j) ∈ [na ]×[nc ], we output Y ES if and only if si,j > s′i,j ; correctness follows from Theorem 4.7.
+b nω(a,b,c) + na+b+µ /M ) as claimed.
+The total running time is O(M
+Proof of Theorem 1.1. Our claimed running time is
+
+
+b na+c + nb+c + n(a+b+µ+ω(a,b,c))/2 .
+O
+Let d := (a+b+µ−ω(a, b, c))/2. Since µ ≥ 0, we have d ≤ µ: indeed, d > µ would imply µ+ω(a, b, c) <
+a + b, contradicting the trivial lower bound ω(a, b, c) ≥ a + b. Furthermore, we may assume that d ≥ 0:
+if d < 0, then a + b + µ < ω(a, b, c). In this case, Lemma 17 of [GPVX21] gives an algorithm running
+b na+c + nb+c + na+b+µ , which is dominated by our claimed bound. Hence, we may assume
+in time O
+0 ≤ d ≤ µ.
+Now, by Theorems 4.2 and 4.3, it suffices to solve Problem 4. By Theorem 4.23, there is a deterministic
+b nω(a,b,c) +na+b+µ /M ). Take d as the exponent for M ; that is,
+algorithm for Problem 4 that runs in
+time O(M
+
+
+b M nω(a,b,c) + na+b+µ /M =
+take M = Θ n(a+b+µ−ω(a,b,c))/2 . Then the two terms balance, yielding O
+
+b n(a+b+µ+ω(a,b,c))/2 , which is dominated by our claimed bound.
+O
+
+5
+
+Extension to Column-Monotone Min-Plus Product
+
+In this section, we present a deterministic algorithm for column-monotone Min-Plus product, whose definition we recall below.
+Problem 5. Let A be an na × nb integer matrix. Let B be an nb × nc column-monotone integer matrix with
+entries in [nµ ]. Given (A, B) as input, compute A ⋆ B.
+We start by reducing column-monotone Min-Plus product to the following problem, which is a “rotated”
+version of Problem 3 (the differences have been highlighted).
+Problem 3’. Let A be an na × nb integer matrix with nonnegative entries bounded by O(nµ ). Let B be an
+nb × nc row-monotone integer matrix with nonnegative entries bounded by O(nµ ). Let C be an na × nc
+row-monotone integer matrix with nonnegative entries bounded by O(nµ ). Given (A, B, C) as input, for
+every (i, k) ∈ [na ] × [nb ], decide whether there exists j ∈ [nc ] such that Ai,k + Bk,j = Ci,j .
+We will show that the running time for Problem 3’ is the same as the running time for Problem 3.
+b a+c + nb+c +
+Theorem 5.1. There is a deterministic algorithm for Problem 3’ that runs in time O(n
+(a+b+µ+ω(a,b,c))/2
+n
+).
+Proof of Theorem 1.2 assuming Theorem 5.1. Let (A, B) be an instance of Problem 5. Similar to the proof
+of Theorem 4.2, we may assume that all entries of A are nonnegative integers bounded by O(nµ ). By an
+observation in [CDXZ22], we may also assume that each row of A is monotonically non-increasing: if there
+exist i, k1 , k2 such that k1 < k2 and Ai,k1 < Ai,k2 , then Ai,k1 + Bk1 ,j < Ai,k2 + Bk2 ,j for every j by the
+monotonicity of B. Hence, replacing Ai,k2 by Ai,k1 does not change A ⋆ B.
+23
+
+Now we follow the same recursive halving approach as in the proof of Theorem 4.2. Let A′i,j :=
+′ := ⌊B /2⌋. Flooring preserves monotonicity, so the columns of B ′ are monotone and
+⌊Ai,j /2⌋ and Bi,j
+i,j
+′
+the rows of A are monotonically non-increasing. We compute C ′ := A′ ⋆ B ′ recursively, with the trivial
+(s)
+′ + s for
+base case when both matrices are zero. Define three na × nc candidate matrices by Ci,j := 2Ci,j
+s ∈ {0, 1, 2}.
+As in the proof of Theorem 4.2, it suffices to check, for each s ∈ {0, 1, 2} and (i, j) ∈ [na ] × [nc ],
+(s)
+whether there exists k ∈ [nb ] such that Ai,k + Bk,j = Ci,j . Let W = O(nµ ) be the maximum entry of A,
+(s)
+
+B, and C (s) . This condition is equivalent to (W − Ci,j ) + Bk,j = W − Ai,k . Thus, it can be solved by
+a
+
+c
+
+a
+
+b
+
+Problem 3’ on the input (W n ×n −C (s) , B T , W n ×n −A), where W m×p denotes the m×p all-W matrix.
+a
+b
+All entries are bounded by O(nµ ), and both B T and W n ×n − A are row-monotone, so the input satisfies
+the requirements of Problem 3’. The dimensions are rotated: the three matrices have dimensions na × nc ,
+nc × nb , and na × nb . Hence, by Theorem 5.1 and
+ the symmetry ω(a, c, b) = ω(a, b, c), each verifier call
+a+b
+b+c
+(a+c+µ+ω(a,b,c))/2
+b
+takes time O n
++n
++n
+. Since there are only constantly many verifier calls per
+recursion level and the recursion depth is O(log n), the final asymptotic running time remains the same.
+
+5.1
+
+Algorithm for Problem 3’
+
+Using the same proof as for Theorem 4.3, we can reduce Problem 3’ to the following problem.
+Problem 4’. Let (A, B, C) be an instance of Problem 3’, and let M be a positive integer that is a multiple
+of 100 and satisfies M = O(nµ ). Additionally, assume that for every i ∈ [na ], k ∈ [nb ], and j ∈ [nc ], we
+have
+M
+Ai,k mod M, Bk,j mod M, Ci,j mod M ≤
+.
+10
+Given (A, B, C) as input, for every (i, k) ∈ [na ] × [nb ], decide whether there exists j ∈ [nc ] such that
+Ai,k + Bk,j = Ci,j .
+As before, we define
+Ahigh
+i,k =
+
+
+
+
+Ai,k
+,
+M
+
+high
+=
+Bk,j
+
+
+
+
+Bk,j
+,
+M
+
+high
+Ci,j
+=
+
+
+
+Ci,j
+M
+
+
+
+and
+Alow
+i,k = Ai,k mod M,
+
+low
+= Bk,j mod M,
+Bk,j
+
+low
+Ci,j
+= Ci,j mod M.
+
+Our algorithm proceeds as follows:
+b nω(a,b,c) )
+1. Find a “good” modulus Q with respect to Theorem 4.12. By Theorem 4.22, it takes O(M
+time.
+2. For every (i, k) ∈ [na ] × [nb ], compute ri,k , the number of j ∈ [nc ] such that Ai,k + Bk,j ≡ Ci,j
+ω(a,c,b) ) = O(M
+b nω(a,b,c) ) time.
+b
+(mod Q). Using the same method as Theorem 4.13, it takes O(Qn
+′ , the number of j ∈ [nc ] such that A
+3. For every (i, k) ∈ [na ] × [nb ], compute ri,k
+i,k + Bk,j ≡ Ci,j
+high
+high
+(mod Q) and Ahigh
+̸= Ci,j
+. To do so, first compute S0 (Q) using Theorem 4.15 in
+i,k + Bk,j
+a+b+µ
+a+b+µ
+b
+b
+O(n
+/Q) = O(n
+/M ) time. Fix any triple (i, k, j) that is counted in r′ , i.e., satisfyi,k
+
+high
+high
+ing Ai,k + Bk,j ≡ Ci,j (mod Q) and Ahigh
+i,k + Bk,j ̸= Ci,j . Let (i, k, [j0 , j1 ]) be the unique level-0
+segment such that j ∈ [j0 , j1 ]. Since (i, k, [j0 , j1 ]) is a level-0 segment, the values Bk,j and Ci,j are
+constant over all j ∈ [j0 , j1 ]. We have j ∈ [j0 , j1 ], so
+high
+high
+high
+high
+high
+Ahigh
+i,k + Bk,j0 = Ai,k + Bk,j ̸= Ci,j = Ci,j0
+
+24
+
+and
+Ai,k + Bk,j0 ≡ Ai,k + Bk,j ≡ Ci,j ≡ Ci,j0
+
+(mod Q).
+
+Hence, (i, k, [j0 , j1 ]) is an active level-0 segment in S0 (Q). Therefore, we can enumerate all segments
+′ by
+(i, k, [j0 , j1 ]) in S0 (Q), check whether Ai,k + Bk,j0 ≡ Ci,j0 (mod Q), and if so, increment ri,k
+j1 − j0 + 1. Since Q is a good modulus, we have |S0 (Q)| = b
+O(na+b+µ /M ), so this step takes
+b a+b+µ /M ) time.
+O(n
+′ .
+4. For each (i, k) ∈ [na ] × [nb ], output Y ES if and only if ri,k > ri,k
+
+The correctness of the algorithm follows from the following lemma.
+Lemma 5.2. For every (i, k) ∈ [na ] × [nb ], there exists j ∈ [nc ] such that Ai,k + Bk,j = Ci,j if and only if
+′ .
+ri,k > ri,k
+Proof. Fix (i, k) and suppose there exists j ∈ [nc ] such that Ai,k + Bk,j = Ci,j . Then Ai,k + Bk,j ≡
+Ci,j (mod Q), so this j contributes one to ri,k . Moreover, under the promise of Problem 4’, we have
+high
+low
+Alow
+=
+i,k + Bk,j ≤ 2M/10, so adding the low parts creates no carry across multiples of M . Hence, Ci,j
+high
+′
+⌊Ci,j /M ⌋ = ⌊(Ai,k + Bk,j )/M ⌋ = Ahigh
+i,k + Bk,j . Thus, this j does not contribute to ri,k , and therefore
+′ .
+ri,k > ri,k
+′ . Then there exists j ∈ [nc ] such that A
+Conversely, suppose ri,k > ri,k
+i,k + Bk,j ≡ Ci,j (mod Q)
+high
+high
+and Ahigh
+= Ci,j
+. By Theorem 4.6, we have |Ai,k + Bk,j − Ci,j | ≤ 3M/10 < Q. Since
+i,k + Bk,j
+Ai,k + Bk,j − Ci,j is a multiple of Q whose magnitude is strictly less than Q, it must be zero. Hence,
+Ai,k + Bk,j = Ci,j .
+
+Now the claimed running time in Theorem 5.1 is
+
+
+b na+c + nb+c + n(a+b+µ+ω(a,b,c))/2 .
+O
+Let d := (a + b + µ − ω(a, b, c))/2. As discussed in the proof of Theorem 1.1, we have d ≤ µ.
+If d ≥ 0, our approach runs in time b
+O(M nω(a,b,c) + na+b+µ /M ). Taking M = Θ(n(a+b+µ−ω(a,b,c))/2 )
+b (a+b+µ+ω(a,b,c))/2 ), which is dominated by the
+balances the two terms and gives a running time of O(n
+claimed bound.
+If d < 0, then a + b + µ < ω(a, b, c). In this case, we use a direct approach. For every row of B and
+C, compute its maximal constant intervals by scanning the row; that is, we partition each row into maximal
+contiguous intervals on which the row value is constant. This takes O(nb+c + na+c ) time. Since the entries
+are bounded by O(nµ ) and the rows are monotone, each row has O(nµ ) such intervals. Then, for each pair
+(i, k) ∈ [na ] × [nb ], scan the two interval decompositions of Bk,∗ and Ci,∗ using two pointers, and consider
+their common refinement: the maximal intervals obtained by intersecting one constant interval of Bk,∗ with
+one constant interval of Ci,∗ . On each such refined interval, both Bk,j and Ci,j are constant, so it suffices
+to check whether Ai,k + Bk,j = Ci,j for one representative j in the interval. Since the common refinement
+has O(nµ ) intervals, all pairs (i, k) can be processed in O(na+b+µ ) time. Thus the total running time is
+e a+c + nb+c + na+b+µ ), and since a + b + µ < ω(a, b, c), this running time is dominated by the claimed
+O(n
+bound.
+
+6
+
+Deterministic Monotone Min-Plus Convolution
+
+In this section, we present a deterministic algorithm for monotone Min-Plus convolution, whose definition
+we recall below.
+Problem 6. Let A and B be two monotone arrays of length n with entries in [nµ ]. Given (A, B) as input,
+compute A ⋄ B.
+25
+
+6.1
+
+Reduction to a Verification Problem
+
+As in Section 4, we first reduce Problem 6 to a corresponding verification problem and then to a promised
+version in which all entries have small residues modulo a parameter M .
+Problem 7. Let A and B be two monotone arrays of length n with nonnegative entries bounded by O(nµ ).
+Let C be an array of length-2n − 1 indexed by 2 to 2n with nonnegative entries bounded by O(nµ ). Given
+(A, B, C) as input, for every k ∈ [2, 2n], decide whether there exists i ∈ [n] such that k − i ∈ [n] and
+Ai + Bk−i = Ck .
+Problem 8. Let A, B, and C be an instance of Problem 7, and let M be a positive integer that is a multiple
+of 100 and at most O(nµ ). Additionally, assume that
+Ai mod M, Bi mod M, Ck mod M ≤
+
+M
+10
+
+for
+
+i ∈ [n], k ∈ [2, 2n].
+
+Given (A, B, C) as input, for every k ∈ [2, 2n], decide whether there exists i ∈ [n] such that k − i ∈ [n]
+and Ai + Bk−i = Ck .
+Lemma 6.1. If there is a T (n; nµ , M )-time deterministic algorithm for Problem 8 for any choice of M ,
+e (n; nµ , M ))-time deterministic algorithm for Problem 6.
+then there is an O(T
+Proof sketch. The proof is similar to the proofs of Theorem 4.2 and Theorem 4.3. We briefly describe the
+constructions.
+To reduce Problem 6 to Problem 7, we let A′i := ⌊Ai /2⌋ and Bi′ := ⌊Bi /2⌋. We compute C ′ := A′ ⋄ B ′
+(s)
+recursively. Construct three candidate arrays by Ck := 2Ck′ + s for all s ∈ {0, 1, 2}. Note that flooring
+preserves monotonicity, so A′ and B ′ are also monotone. Therefore, we run the verifier for Problem 7 on
+(A, B, C (s) ) for each s ∈ {0, 1, 2}. By an argument analogous to Theorem 4.2, correctness follows.
+Next, we reduce Problem 7 to Problem 8. Let W := M/100. We may assume that all entries of A, B,
+and C are at least M by adding M to the entries of A and B and adding 2M to the entries of C. We partition
+{0, 1, . . . , M − 1} into intervals Is defined by
+for s ∈ {0, 1, . . . , 99}.
+
+Is := [sW, (s + 1)W )
+
+For each s ∈ {0, 1, . . . , 99}, define arrays A(s) [1, 2, . . . , n] and B (s) [1, 2, . . . , n] by
+
+Ai − sW,
+if Ai mod M ∈ Is ,
+(s)
+Ai := j Ai − sW k
+,
+
+· M + 3W, otherwise
+M
+and define B (s) analogously. Additionally, for all s, t ∈ {0, 1, . . . , 99}, let
+
+Js,t := (s + t)W mod M, ((s + t)W + 1) mod M, . . . , ((s + t)W + (2W − 1)) mod M ,
+and define an array C (s,t) [2, 3, . . . , 2n] by
+
+Ck − (s + t)W,
+(s,t)
+Ck := j Ck − (s + t)W k
+
+· M + 7W,
+M
+
+if Ck mod M ∈ Js,t ,
+otherwise.
+
+For all s, t ∈ {0, 1, . . . , 99}, run the algorithm for Problem 8 on the instances (A(s) , B (t) , C (s,t) ) and output
+Y ES for index k if any instance outputs Y ES for k. By an argument analogous to Theorem 4.3, correctness
+follows.
+For the running time, we make O(1) calls to the T (n; nµ , M )-time verifier for Problem 8 per recursion
+e (n; nµ , M )) bound.
+level. The recursion depth is O(log(nµ )) = O(log n), which preserves the O(T
+26
+
+6.2
+
+Algorithm for Problem 8
+
+We focus on solving Problem 8 efficiently. Suppose we are given an instance (A, B, C) of Problem 8 with
+M = O(nd ) for some constant 0 ≤ d ≤ µ. Define
+ 
+ 
+ 
+Bj
+Ck
+Ai
+high
+high
+,
+B
+=
+,
+C
+=
+.
+Ahigh
+=
+j
+i
+k
+M
+M
+M
+We also define
+Alow
+= Ai mod M,
+i
+
+Bjlow = Bj mod M,
+
+Cklow = Ck mod M.
+
+The high-level outline of our algorithm is as follows:
+1. Find a “good” modulus Q with M ≤ Q ≤ M no(1) . The definition of “good” is deferred to Theorem 6.9.
+2. For every k ∈ [2, 2n], compute sk , the number of indices i ∈ [n] such that k−i ∈ [n] and Ai +Bk−i ≡
+Ck (mod Q).
+3. For every k ∈ [2, 2n], compute s′k , the number of indices i ∈ [n] such that k−i ∈ [n] and Ai +Bk−i ≡
+high
+̸= Ckhigh .
+Ck (mod Q) and Ahigh
++ Bk−i
+i
+4. For each k ∈ [2, 2n], output Y ES if and only if sk > s′k .
+We will show that Ai + Bk−i = Ck holds if and only if sk > s′k . First, we state two facts without proofs,
+as they are essentially identical to the proofs of Theorem 4.5 and Theorem 4.6.
+high
+̸= Ckhigh , then
+Fact 6.2. For every k ∈ [2, 2n] and i ∈ [n] such that k − i ∈ [n], if Ahigh
++ Bk−i
+i
+|Ai + Bk−i − Ck | ≥ 7M/10.
+high
+= Ckhigh , then
+Fact 6.3. For every k ∈ [2, 2n] and i ∈ [n] such that k − i ∈ [n], if Ahigh
++ Bk−i
+i
+|Ai + Bk−i − Ck | ≤ 3M/10.
+
+Lemma 6.4. For every k ∈ [2, 2n], there exists i ∈ [n] such that k − i ∈ [n] and Ai + Bk−i = Ck if and
+only if sk > s′k .
+Proof. Suppose there exists i ∈ [n] such that k − i ∈ [n] and Ai + Bk−i = Ck . Then Ai + Bk−i ≡ Ck
+high
+(mod Q), and Ahigh
++ Bk−i
+= Ckhigh because adding the low parts creates no carry across a multiple of
+i
+M . Hence, i contributes to sk but not to s′k . Conversely, suppose sk > s′k . Then there exists i ∈ [n] such
+high
+that Ai + Bk−i ≡ Ck (mod Q) and Ahigh
++ Bk−i
+= Ckhigh . Then Ai + Bk−i − Ck is a multiple of Q, and
+i
+|Ai + Bk−i − Ck | < Q by Theorem 6.3. This implies Ai + Bk−i = Ck .
+Let ℓmax be such that M/20 ≤ 2ℓmax < M/10. We define segments, active segments, and good modulus
+analogously to Section 4.
+Definition 6.5 (Segments). For 0 ≤ ℓ ≤ ℓmax , a level-ℓ segment is a pair ([i0 , i1 ], k) such that [i0 , i1 ] ⊆
+[max{1, k − n}, min{n, k − 1}], for every i ∈ [i0 , i1 ], ⌊Ai0 /2ℓ ⌋ = ⌊Ai /2ℓ ⌋, and ⌊Bk−i0 /2ℓ ⌋ = ⌊Bk−i /2ℓ ⌋,
+and [i0 , i1 ] cannot be extended further.
+Definition 6.6 (Active Segment). For 0 ≤ ℓ ≤ ℓmax , a level-ℓ segment ([i0 , i1 ], k) is called active with
+high
+high
+respect to Q if Ahigh
+̸= 0 and there exists s ∈ [−4·2ℓ , 4·2ℓ ] such that Ai0 +Bk−i0 −Ck ≡ s
+i0 +Bk−i0 −Ck
+(mod Q).
+27
+
+Fact 6.7. For 0 ≤ ℓ ≤ ℓmax , the number of level-ℓ segments is O(n1+µ /2ℓ ).
+Definition 6.8 (Set of Active Segments). For 0 ≤ ℓ ≤ ℓmax , let Sℓ (Q) be the set of all active level-ℓ
+segments with respect to Q.
+Definition 6.9 (Good Modulus). We say that an integer Q is a good modulus if M ≤ Q ≤ M no(1) and
+|Sℓ (Q)| ≤ b
+O(n1+µ /Q) for all 0 ≤ ℓ ≤ ℓmax .
+
+6.3
+
+Computing sk and s′k
+
+Recall that sk is the number of indices i ∈ [n] such that k − i ∈ [n] and Ai + Bk−i ≡ Ck (mod Q). We
+compute sk for all k ∈ [2, 2n] using polynomial multiplication.
+e
+Lemma 6.10 (Computing sk ). We can compute sk for every k ∈ [2, 2n] in O(Qn)
+time.
+Proof. Work over the ring R := F[x]/(xQ − 1), where F has characteristic greater than n. Define two
+bivariate polynomials in R[y] by
+PA (x, y) :=
+
+n
+X
+
+xAi mod Q y i ,
+
+PB (x, y) :=
+
+n
+X
+
+xBj mod Q y j .
+
+j=1
+
+i=1
+
+Compute the product P (x, y) := PA (x, y) · PB (x, y) in R[y].
+For correctness, fix k ∈ [2, 2n] and r ∈ {0, 1, . . . , Q − 1}. The coefficient of xr y k in P (x, y) equals the
+number of pairs (i, j) ∈ [n] × [n] such that i + j = k and Ai + Bj ≡ r (mod Q). Equivalently, it equals the
+number of indices i ∈ [n] such that k − i ∈ [n] and Ai + Bk−i ≡ r (mod Q). Hence, for each k ∈ [2, 2n],
+we set sk to be the coefficient of xCk mod Q y k in P (x, y).
+For the running time, the degrees in x and y of PA and PB are at most Q − 1 and n. Therefore, using
+e
+fast polynomial multiplication, we can compute P in O(Qn)
+time.
+We now describe how to compute s′k . Recall that s′k is the number of indices i ∈ [n] such that k − i ∈
+high
+[n], Ai + Bk−i ≡ Ck (mod Q) and Ahigh
++ Bk−i
+̸= Ckhigh . Assume that Q is a good modulus, as in
+i
+Theorem 6.9. For simplicity, let Sℓ denote the set of all active level-ℓ segments, suppressing the dependence
+on Q. We first prove a property that we will use to compute s′k .
+Lemma 6.11. For all 0 ≤ ℓ ≤ ℓmax − 1, and ([i′0 , i′1 ], k) ∈ Sℓ , the unique level-(ℓ + 1) segment ([i0 , i1 ], k)
+such that [i′0 , i′1 ] ⊆ [i0 , i1 ] is active, i.e., ([i0 , i1 ], k) ∈ Sℓ+1 .
+high
+Proof sketch. By a similar argument to that of Theorem 4.14, we have Ahigh
+and Bk−i
+are constant on
+i
+high
+high
+high
+high
+high
+′
+[i0 , i1 ]. Since Ai′ + Bk−i′ ̸= Ck and i0 ∈ [i0 , i1 ], we conclude that Ai0 + Bk−i0 ̸= Ckhigh , satisfying
+0
+0
+the first high-part condition of being active.
+For the congruence condition, we note that [i′0 , i′1 ] ⊆ [i0 , i1 ] and ([i0 , i1 ], k) is a level-(ℓ + 1) segment.
+By a similar argument to that of Theorem 4.14, we have
+
+(Ai0 + Bk−i0 − Ck ) − (Ai′0 + Bk−i′0 − Ck ) < 2 · 2ℓ+1 .
+Since ([i′0 , i′1 ], k) ∈ Sℓ , we have Ai′0 + Bk−i′0 − Ck ≡ s′ (mod Q) for some s′ ∈ [−4 · 2ℓ , 4 · 2ℓ ]. Let
+s = s′ + (Ai0 + Bk−i0 − Ck ) − (Ai′0 + Bk−i′0 − Ck ).
+Then, Ai0 + Bk−i0 − Ck ≡ s (mod Q) and s ∈ [−4 · 2ℓ+1 , 4 · 2ℓ+1 ].
+28
+
+
+b n1+µ /Q time.
+Lemma 6.12 (Computing s′k ). We can compute s′k for all k ∈ [2, 2n] in O
+Proof. As in Theorem 4.16, we first compute S0 and then compute the values s′k using S0 .
+1. Phase 1: Computing S0 . We compute all level-ℓmax segments via binary search and keep only the
+active ones to obtain Sℓmax . Next, for ℓ = ℓmax −1, . . . , 0, we construct Sℓ from Sℓ+1 as follows. Each
+segment in Sℓ+1 refines into O(1) level-ℓ subsegments, since decreasing ℓ by 1 can split a maximal
+constant block into at most two blocks for A and at most two blocks for B. We use binary search
+to find the boundary indices and compute these subsegments. For each resulting subsegment, we test
+whether it is active, and, if so, insert it into Sℓ .
+2. Phase 2: Computing s′k . For each segment ([i0 , i1 ], k) ∈ S0 , we test whether Ai0 + Bk−i0 ≡ Ck
+(mod Q). If the test succeeds, we increment s′k by i1 − i0 + 1.
+The correctness of Phase 1 follows inductively using Theorem 6.11. For Phase 2, fix any i ∈ [n] such
+high
+that k − i ∈ [n], Ai + Bk−i ≡ Ck (mod Q), and Ahigh
++ Bk−i
+̸= Ckhigh . Let ([i0 , i1 ], k) be the unique
+i
+level-0 segment containing (i, k). Since ([i0 , i1 ], k) is a level-0 segment, the values Ai and Bk−i are constant
+for all i ∈ [i0 , i1 ]. Because i ∈ [i0 , i1 ], we have
+high
+high
+Ahigh
++ Bk−i
+= Ahigh
++ Bk−i
+̸= Ckhigh
+i0
+i
+0
+
+and
+Ai0 + Bk−i0 ≡ Ai + Bk−i ≡ Ck
+
+(mod Q).
+
+Hence, ([i0 , i1 ], k) is an active level-0 segment and thus belongs to S0 .
+Moreover, the above identities hold for every i ∈ [i0 , i1 ]. For a fixed k, the level-0 segments form
+disjoint maximal intervals, so exactly i1 − i0 + 1 indices i ∈ [n] in this segment satisfy these conditions.
+Therefore, it is correct that the algorithm increments s′k by exactly (i1 − i0 + 1).
+For the running time, Theorem 6.7 implies that the number of level-ℓmax segments is O(n1+µ /2ℓmax ).
+e 1+µ /2ℓmax ) = O(n
+e 1+µ /M ) = O(n
+b 1+µ /Q) time. For the refinement step,
+Thus, computing Sℓmax takes O(n
+1+µ
+by the guarantee on Q, for each ℓ we have |Sℓ | = b
+O(n
+/Q), and each segment in Sℓ+1 generates only
+O(1) subsegments. Since there are O(log M ) = O(log n) levels, the total time for this refinement step
+b 1+µ /Q). Finally, we scan all segments in S0 and perform a constant-time test and update for each
+is O(n
+segment, so Phase 2 takes b
+O(|S0 |) = b
+O(n1+µ /Q) time.
+
+6.4
+
+Finding a Good Modulus Q
+
+We now construct a good modulus Q, that is, an integer Q with M ≤ Q ≤ M no(1) such that, for every level
+0 ≤ ℓ ≤ ℓmax , the number of active level-ℓ segments is at most b
+O(n1+µ /Q). The idea is essentially the
+same as in Section 4.4.
+Let 4 ≤ R ≤ no(1) be a parameter to be fixed later, and let P be the set of primes in [R/2, R]. We
+take Q to be a product of primes p1 , p2 , . . . , pT , where pt ∈ P for all 1 ≤ t ≤ T . We choose these primes
+inductively: at step t ≥ 1, we select a prime pt ∈ P and multiply it into the current modulus Qt−1 , obtaining
+Qt :=
+
+t
+Y
+
+pi ,
+
+where Q0 := 1.
+
+i=1
+
+For the analysis, it is convenient to track the following quantities:
+
+29
+
+1. Let Xℓ,t denote the number of pairs (([i0 , i1 ], k), s), where ([i0 , i1 ], k) is a level-ℓ segment and s ∈
+[−4 · 2ℓ , 4 · 2ℓ ] such that
+Ai0 + Bk−i0 − Ck ≡ s
+
+(mod Qt )
+
+and
+
+Ai0 + Bk−i0 − Ck ̸= s.
+
+2. Let Yℓ,t denote the number of pairs (([i0 , i1 ], k), s), where ([i0 , i1 ], k) is a level-ℓ segment and s ∈
+[−4 · 2ℓ , 4 · 2ℓ ], such that
+Ai0 + Bk−i0 − Ck ≡ s (mod Qt ).
+Our inductive invariant is that
+Xℓ,t = n1+µ · O
+
+
+
+log2 n
+R
+
+t
+for all 0 ≤ ℓ ≤ ℓmax .
+
+(5)
+
+b 1+µ /QT ). By the following lemma, QT is then a good modulus.
+Later, we will choose R so that Xℓ,T = O(n
+Lemma 6.13. For every 0 ≤ ℓ ≤ ℓmax , we have |Sℓ (QT )| ≤ Xℓ,T .
+Proof. Let ([i0 , i1 ], k) be an active level-ℓ segment with respect to QT . By Theorem 6.6, there exists s ∈
+high
+[−4 · 2ℓ , 4 · 2ℓ ] such that Ai0 + Bk−i0 − Ck ≡ s (mod QT ) and Ahigh
++ Bk−i
+− Ckhigh ̸= 0. We have
+i0
+0
+Ai0 +Bk−i0 −Ck ̸= s. Indeed |Ai0 +Bk−i0 −Ck | ≥ 7M/10 by Theorem 6.2, while |s| ≤ 4·2ℓmax < 4M/10.
+Thus, each active segment contributes to Xℓ,T , and therefore |Sℓ (QT )| ≤ Xℓ,T .
+We now choose pt so that the invariant Eq. (5) continues to hold. The base case t = 0 holds for Q0 := 1
+by Theorem 6.7. Now assume Eq. (5) holds for t − 1 and that Qt−1 has been fixed. For any prime p ∈ P, let
+Xℓ,t (p) (resp., Yℓ,t (p)) denote the value of Xℓ,t (resp., Yℓ,t ) when Qt := Qt−1 · p. Our goal is to find a prime
+pt ∈ P such that Eq. (5) holds at step t. Applying the following lemmas inductively yields the existence of
+the entire sequence p1 , . . . , pT .
+Lemma 6.14. There exists p∗ ∈ P such that
+log2 n
+Xℓ,t (p ) = Xℓ,t−1 · O
+R
+
+
+∗
+
+
+for all 0 ≤ ℓ ≤ ℓmax .
+
+(6)
+
+Moreover, for every 0 ≤ ℓ ≤ ℓmax , if p is chosen uniformly at random from P, then
+
+
+
+
+log n
+.
+E Xℓ,t (p) = Xℓ,t−1 · O
+p∼P
+R
+Proof sketch. The proof is almost identical to that of Theorem 4.18. For completeness, we briefly indicate
+the changes.
+Fix a level ℓ. Let Xℓ,t−1 be the set of pairs (([i0 , i1 ], k), s) counted by Xℓ,t−1 , that is, those satisfying
+Ai0 + Bk−i0 − Ck ≡ s
+
+(mod Qt−1 )
+
+and
+
+Ai0 + Bk−i0 − Ck ̸= s,
+
+where ([i0 , i1 ], k) is a level-ℓ segment and s ∈ [−4 · 2ℓ , 4 · 2ℓ ]. For a prime p ∈ P, such a pair is counted in
+Xℓ,t (p) if and only if, additionally, p divides ∆ := Ai0 + Bk−i0 − Ck − s. Thus,
+X
+
+
+Xℓ,t (p) =
+1 p | Ai0 + Bk−i0 − Ck − s .
+(([i0 ,i1 ],k),s)∈Xℓ,t−1
+
+The remainder of the argument—bounding Prp∼P [p | ∆], taking expectations, and applying Markov’s
+inequality with a union bound over ℓ ∈ {0, . . . , ℓmax }—is identical to that in Theorem 4.18, yielding a
+prime p∗ ∈ P that satisfies Eq. (6) and the claimed expectation.
+30
+
+Lemma 6.15 (Computing Yℓ,t (p)). We can compute Yℓ,t (p) for all primes p ∈ P and all levels 0 ≤ ℓ ≤ ℓmax
+e 2 Qt−1 n) time.
+in O(R
+Proof. Fix a prime p ∈ P and a level ℓ, and let Q′ := Qt−1 · p. We give an algorithm to compute Yℓ,t (p) for
+modulus Q′ in e
+O(Q′ n) time. Since ℓmax = O(log n), |P| = O(R), and Q′ ≤ Qt−1 R, the total time over
+all p ∈ P and ℓ is
+
+
+e |P| · ℓmax · Q′ n = O
+e R2 Qt−1 n .
+O
+Recall that a level-ℓ segment ([i0 , i1 ], k) is a maximal interval of valid indices i on which both ⌊Ai /2ℓ ⌋
+and ⌊Bk−i /2ℓ ⌋ are constant. Thus, for a fixed k, the segment start indices i0 are exactly those valid indices
+i ∈ [max{1, k − n}, min{n, k − 1}] such that either i = max{1, k − n}, or ⌊Ai−1 /2ℓ ⌋ ̸= ⌊Ai /2ℓ ⌋, or
+⌊Bk−i+1 /2ℓ ⌋ ̸= ⌊Bk−i /2ℓ ⌋. More concretely, define a boundary indicator array I A of size n by
+hj
+k j
+ki
+I1A := 1,
+IiA := 1 Ai−1 /2ℓ ̸= Ai /2ℓ
+(i ≥ 2),
+and a boundary indicator array I B of size n by
+ki
+k j
+hj
+InB := 1,
+IjB := 1 Bj+1 /2ℓ ̸= Bj /2ℓ
+
+(j ≤ n − 1).
+
+Then, for a fixed k, the segment start indices i0 are exactly those indices i ∈ [max{1, k −n}, min{n, k −1}]
+B = 1. We handle this OR condition by inclusion–exclusion.
+such that IiA = 1 or Ik−i
+′
+Work over the ring R := F[x]/(xQ −1), where F has characteristic greater than n. Define the following
+polynomials in R[y]:
+PAall (x, y) :=
+PBall (x, y) :=
+
+n
+X
+
+x
+
+Ai mod Q′
+
+PAbdry (x, y) :=
+
+i
+
+y,
+
+n
+X
+
+i=1
+
+i=1
+
+n
+X
+
+n
+X
+
+′
+
+PBbdry (x, y) :=
+
+xBj mod Q y j ,
+
+′
+
+IiA xAi mod Q y i ,
+′
+
+IjB xBj mod Q y j .
+
+j=1
+
+j=1
+
+Compute the three products in R[y]:
+P A := PAbdry · PBall ,
+
+P B := PAall · PBbdry ,
+
+P AB := PAbdry · PBbdry .
+
+For any k ∈ [2, 2n] and r ∈ {0, . . . , Q′ − 1}, let Uk (r) be the coefficient of xr y k in the polynomial
+P A +P B −P AB . Then Uk (r) equals the number of segment start indices i0 ∈ [n] such that Ai0 +Bk−i0 ≡ r
+B
+= 1. Next define
+(mod Q′ ) and either IiA0 = 1 or Ik−i
+0
+W (r) :=
+
+n
+s ∈ [−4 · 2ℓ , 4 · 2ℓ ] : s ≡ r
+
+o
+(mod Q′ )
+
+for all r ∈ {0, . . . , Q′ − 1}.
+
+A level-ℓ segment ([i0 , i1 ], k) contributes to Yℓ,t (p) if and only if
+Ai0 + Bk−i0 − Ck ≡ s
+
+(mod Q′ ).
+
+Equivalently, if r ≡ Ai0 + Bk−i0 (mod Q′ ), then s ≡ r − Ck (mod Q′ ). Thus, grouping by r, the
+contribution of a fixed k is
+′ −1
+Q
+X
+
+Uk (r) · W (r − Ck ) mod Q′ ,
+r=0
+
+31
+
+and therefore
+
+′
+
+Yℓ,t (p) =
+
+−1
+2n Q
+X
+X
+
+
+Uk (r) · W (r − Ck ) mod Q′ .
+
+k=2 r=0
+
+For the running time, each polynomial product takes e
+O(Q′ n) time, and we compute only O(1) such
+products. Computing W costs O(Q′ ), and evaluating the double sum costs O(Q′ n). Hence, for fixed p and
+e ′ n).
+ℓ, the total time is O(Q
+Lemma 6.16. We can find a prime pt ∈ P satisfying Eq. (5); that is Xℓ,t (pt ) = n1+µ · O(log2 n/R)t in
+
+e R2 Qt−1 n time.
+O
+Proof sketch. We run the algorithm in Theorem 6.15 to compute Yℓ,t (p) for all primes p ∈ P and all levels
+∗ := min
+0 ≤ ℓ ≤ ℓmax . For each ℓ, define Yℓ,t
+p∈P Yℓ,t (p), and choose pt ∈ P that minimizes
+
+∗
+Φ(p) := max Yℓ,t (p) − Yℓ,t
+.
+0≤ℓ≤ℓmax
+
+The same argument as in Theorem 4.20 shows that this choice of pt ensures Eq.
+ (5). Moreover, the running
+e R2 Qt−1 n time by Theorem 6.15.
+time is dominated by computing all values Yℓ,t (p), which takes O
+It remains to set the parameters so that the above procedure yields a good modulus.
+Lemma 6.17 (Computing a Good Modulus). We can compute a good modulus Q in b
+O(M n) time.
+Proof. By
+Q inductively applying Theorem 6.16 for T steps, we obtain primes p1 , . . . , pT ∈ P and a modulus
+QT := Tt=1 pt such that
+ 2 T
+log n
+1+µ
+for all 0 ≤ ℓ ≤ ℓmax .
+Xℓ,T = n
+·O
+R
+√
+
+Θ
+log n/ log log n
+. Then M ≤ Q ≤ M no(1) and
+We take T = Θ(log M/ log R) and R = 2
+ 2 T
+log n
+n1+µ+o(1)
+Xℓ,T ≤ n1+µ · O
+≤
+for all 0 ≤ ℓ ≤ ℓmax ,
+R
+QT
+by the same argument as in Theorem 4.22. Hence, QT is a good modulus.
+
+6.5
+
+Combining the Results
+
+b n + n1+µ /M ).
+Theorem 6.18. There is a deterministic algorithm that solves Problem 8 in time O(M
+Proof. We first compute a good modulus Q via Theorem 6.17 in time b
+O(M n). We then compute sk for all
+e
+b
+k ∈ [2, 2n] via Theorem 6.10 in time O(Qn) = O(M n). Finally, we compute s′k for all k ∈ [2, 2n] via
+
+
+b n1+µ /Q = O
+b n1+µ /M . For each k ∈ [2, 2n], we output Y ES if and only if
+Theorem 6.12 in time O
+sk > s′k and correctness follows from Theorem 6.4. The total running time is b
+O(M n + n1+µ /M ).
+Proof of Theorem 1.3. By the reductions in Theorem 6.1, it suffices to solve Problem 8 efficiently. By Theb n + n1+µ /M ). Take
+orem 6.18, there
+is a deterministic algorithm that solves Problem 8 in time O(M
+
+M = Θ nµ/2 by setting d = µ/2. Then, the two terms balance, yielding the claimed time bound
+
+b nµ/2+1 .
+O
+
+Acknowledgments
+The authors would like to thank Shyan Akmal and Adam Polak for pointing out issues in a previous version
+of this paper.
+32
+
+References
+[ADV+ 25]
+
+Josh Alman, Ran Duan, Virginia Vassilevska Williams, Yinzhan Xu, Zixuan Xu, and Renfei
+Zhou. More asymmetry yields faster matrix multiplication. In Proceedings of the 2025 Annual
+ACM-SIAM Symposium on Discrete Algorithms (SODA), pages 2005–2039, 2025. doi:
+10.1137/1.9781611978322.63. 1, 8
+
+[AGM97]
+
+Noga Alon, Zvi Galil, and Oded Margalit. On the exponent of the all pairs shortest path
+problem. J. Comput. Syst. Sci., 54(2):255–262, 1997. URL: https://doi.org/10.100
+6/jcss.1997.1388, doi:10.1006/JCSS.1997.1388. 1, 6, 7
+
+[BC22]
+
+Karl Bringmann and Alejandro Cassis. Faster knapsack algorithms via bounded monotone
+min-plus-convolution. In Proceedings of the 49th International Colloquium on Automata,
+Languages, and Programming (ICALP), pages 31:1–31:21, 2022. URL: https://doi.or
+g/10.4230/LIPIcs.ICALP.2022.31, doi:10.4230/LIPICS.ICALP.2022.
+31. 3, 4
+
+[BCD+ 14]
+
+David Bremner, Timothy M. Chan, Erik D. Demaine, Jeff Erickson, Ferran Hurtado, John
+Iacono, Stefan Langerman, Mihai Pătraşcu, and Perouz Taslakian. Necklaces, convolutions,
+and X+Y. Algorithmica, 69(2):294–314, 2014. URL: https://doi.org/10.1007/s0
+0453-012-9734-3, doi:10.1007/S00453-012-9734-3. 2, 3
+
+[BDP24]
+
+Karl Bringmann, Anita Dürr, and Adam Polak. Even faster knapsack via rectangular monotone min-plus convolution and balancing. In Proceedings of the 32nd Annual European Symposium on Algorithms (ESA), pages 33:1–33:15, 2024. Full version at https://arxiv.
+org/abs/2404.05681. URL: https://doi.org/10.4230/LIPIcs.ESA.202
+4.33, doi:10.4230/LIPICS.ESA.2024.33. 3, 4
+
+[BGSV19]
+
+Karl Bringmann, Fabrizio Grandoni, Barna Saha, and Virginia Vassilevska Williams. Truly
+subcubic algorithms for language edit distance and RNA folding via fast bounded-difference
+min-plus product. SIAM J. Comput., 48(2):481–512, 2019. doi:10.1137/17M112720X.
+1, 2
+
+[Bri17]
+
+Karl Bringmann. A near-linear pseudopolynomial time algorithm for subset sum. In Proceedings of the 28th Annual ACM-SIAM Symposium on Discrete Algorithms (SODA), pages
+1073–1084, 2017. doi:10.1137/1.9781611974782.69. 3
+
+[CDXZ22]
+
+Shucheng Chi, Ran Duan, Tianle Xie, and Tianyi Zhang. Faster min-plus product for monotone instances. In Proceedings of the 54th Annual ACM SIGACT Symposium on Theory of
+Computing (STOC), pages 1529–1542, 2022. doi:10.1145/3519935.3520057. 1, 2,
+3, 4, 5, 6, 9, 10, 14, 23
+
+[Cha26]
+
+Timothy M. Chan. Derandomizing pseudopolynomial algorithms for subset sum. In Proceedings of the 2026 Annual ACM-SIAM Symposium on Discrete Algorithms (SODA), pages
+3600–3610, 2026. URL: https://epubs.siam.org/doi/abs/10.1137/1.978
+1611978971.131, doi:10.1137/1.9781611978971.131. 3, 4
+
+[CL15]
+
+Timothy M. Chan and Moshe Lewenstein. Clustered integer 3sum via additive combinatorics.
+In Proceedings of the 47th Annual ACM on Symposium on Theory of Computing (STOC),
+pages 31–40, 2015. doi:10.1145/2746539.2746568. 3, 4, 5, 36
+
+33
+
+[CLMZ25]
+
+Lin Chen, Jiayi Lian, Yuchen Mao, and Guochuan Zhang. Weakly approximating knapsack
+in subquadratic time. In Proceedings of the 52nd International Colloquium on Automata,
+Languages, and Programming (ICALP), pages 51:1–51:18, 2025. URL: https://doi.or
+g/10.4230/LIPIcs.ICALP.2025.51, doi:10.4230/LIPICS.ICALP.2025.
+51. 3
+
+[CMWW17] Marek Cygan, Marcin Mucha, Karol W˛egrzycki, and Michał Włodarczyk. On problems
+equivalent to (min, +)-convolution. In Proceedings of the 44th International Colloquium
+on Automata, Languages, and Programming (ICALP), pages 22:1–22:15, 2017. URL:
+https://doi.org/10.4230/LIPIcs.ICALP.2017.22, doi:10.4230/LI
+PICS.ICALP.2017.22. 3
+[DKR+ 22]
+
+Mingyang Deng, Yael Kirkpatrick, Victor Rong, Virginia Vassilevska Williams, and Ziqian
+Zhong. New additive approximations for shortest paths and cycles. In Proceedings of the
+49th International Colloquium on Automata, Languages, and Programming (ICALP), pages
+50:1–50:10, 2022. URL: https://doi.org/10.4230/LIPIcs.ICALP.2022.50,
+doi:10.4230/LIPICS.ICALP.2022.50. 1
+
+[Dür23]
+
+Anita Dürr. Improved bounds for rectangular monotone min-plus product and applications.
+Inf. Process. Lett., 181:106358, 2023. URL: https://doi.org/10.1016/j.ipl.20
+23.106358, doi:10.1016/J.IPL.2023.106358. 1, 2, 4
+
+[FGK+ 24]
+
+Dvir Fried, Shay Golan, Tomasz Kociumaka, Tsvi Kopelowitz, Ely Porat, and Tatiana
+Starikovskaya. An improved algorithm for the k-dyck edit distance problem. ACM Trans.
+Algorithms, 20(3):26, 2024. doi:10.1145/3627539. 1, 2, 4
+
+[Fis26]
+
+Nick Fischer. Universe reduction for apsp: Equivalence of three fine-grained hypotheses. In
+Proceedings of the 58th Annual ACM Symposium on Theory of Computing (STOC), page to
+appear, 2026. 4
+
+[FKP24]
+
+Nick Fischer, Piotr Kaliciak, and Adam Polak. Deterministic 3SUM-hardness. In Proceedings
+of the 15th Innovations in Theoretical Computer Science Conference (ITCS), pages 49:1–
+49:24, 2024. URL: https://doi.org/10.4230/LIPIcs.ITCS.2024.49, doi:
+10.4230/LIPICS.ITCS.2024.49. 5
+
+[GH22]
+
+Younan Gao and Meng He. Faster path queries in colored trees via sparse matrix multiplication
+and min-plus product. In Proceedings of the 30th Annual European Symposium on Algorithms
+(ESA), pages 59:1–59:15, 2022. URL: https://doi.org/10.4230/LIPIcs.ESA.2
+022.59, doi:10.4230/LIPICS.ESA.2022.59. 2
+
+[GPVX21]
+
+Yuzhou Gu, Adam Polak, Virginia Vassilevska Williams, and Yinzhan Xu. Faster monotone
+min-plus product, range mode, and single source replacement paths. In Proceedings of the
+48th International Colloquium on Automata, Languages, and Programming (ICALP), volume
+198, pages 75:1–75:20, 2021. URL: https://doi.org/10.4230/LIPIcs.ICALP
+.2021.75, doi:10.4230/LIPICS.ICALP.2021.75. 1, 23
+
+[HP98]
+
+Xiaohan Huang and Victor Y. Pan. Fast rectangular matrix multiplication and applications. J.
+Complex., 14(2):257–299, 1998. URL: https://doi.org/10.1006/jcom.1998.
+0476, doi:10.1006/JCOM.1998.0476. 8
+
+34
+
+[JKSW26]
+
+Ce Jin, Yael Kirkpatrick, Michał Stawarz, and Virginia Vassilevska Williams. Improved additive approximation algorithms for apsp. In Proceedings of the 2026 Annual ACM-SIAM
+Symposium on Discrete Algorithms (SODA), pages 3639–3651, 2026. URL: https:
+//epubs.siam.org/doi/abs/10.1137/1.9781611978971.133, doi:
+10.1137/1.9781611978971.133. 2, 5, 35, 36
+
+[KPS17]
+
+Marvin Künnemann, Ramamohan Paturi, and Stefan Schneider. On the fine-grained complexity of one-dimensional dynamic programming. In 44th International Colloquium on
+Automata, Languages, and Programming, ICALP 2017, Warsaw, Poland, July 10-14, 2017,
+pages 21:1–21:15. Schloss Dagstuhl - Leibniz-Zentrum für Informatik, 2017. URL: https:
+//doi.org/10.4230/LIPIcs.ICALP.2017.21, doi:10.4230/LIPICS.ICA
+LP.2017.21. 3
+
+[Mao21]
+
+Xiao Mao. Breaking the cubic barrier for (unweighted) tree edit distance. In Proceedings
+of the 62nd IEEE Annual Symposium on Foundations of Computer Science (FOCS), pages
+792–803, 2021. doi:10.1109/FOCS52979.2021.00082. 1, 2
+
+[NPS+ 25]
+
+Jakob Nogler, Adam Polak, Barna Saha, Virginia Vassilevska Williams, Yinzhan Xu, and
+Christopher Ye. Faster weighted and unweighted tree edit distance and APSP equivalence.
+In Proceedings of the 57th Annual ACM Symposium on Theory of Computing (STOC), pages
+2167–2178, 2025. doi:10.1145/3717823.3718116. 1, 2
+
+[SY24]
+
+Barna Saha and Christopher Ye. Faster approximate all pairs shortest paths. In Proceedings
+of the 2024 ACM-SIAM Symposium on Discrete Algorithms (SODA), pages 4758–4827, 2024.
+doi:10.1137/1.9781611977912.170. 1, 2, 4
+
+[Vas18]
+
+Virginia Vassilevska Williams. On some fine-grained questions in algorithms and complexity.
+In Proceedings of the international congress of mathematicians: Rio de janeiro 2018, pages
+3447–3487. World Scientific, 2018. 1
+
+[VW18]
+
+Virginia Vassilevska Williams and R. Ryan Williams. Subcubic equivalences between path,
+matrix, and triangle problems. J. ACM, 65(5):27:1–27:38, 2018. doi:10.1145/3186893.
+1
+
+[VX20]
+
+Virginia Vassilevska Williams and Yinzhan Xu. Truly subcubic min-plus product for less
+structured matrices, with applications. In Proceedings of the 2020 ACM-SIAM Symposium on
+Discrete Algorithms (SODA), pages 12–29, 2020. doi:10.1137/1.9781611975994.
+2. 1
+
+[Wil18]
+
+R. Ryan Williams. Faster all-pairs shortest paths via circuit complexity. SIAM J. Comput.,
+47(5):1965–1985, 2018. doi:10.1137/15M1024524. 1, 2
+
+A
+
+Derandomizing the +2 APSP algorithm of [JKSW26]
+
+The only place where [JKSW26] used randomness is in the following Theorem A.1. Let MM(a, b, c) denote
+the time complexity of multiplying an a × b matrix with an b × c matrix. Using this notation, we have
+MM(nγ1 , nγ2 , nγ3 ) = nω(γ1 ,γ2 ,γ3 )+o(1) .
+Lemma A.1 ([JKSW26, Lemma 3.4]). Let integer parameter L ≥ 1. Let A ∈ Zhd×s , B ∈ Zs×hd be input
+matrices with entries in [−U, U ]. Partition the indices i ∈ {1, 2, . . . , hd} into h contiguous groups each of
+size d (so that i belongs to the ⌈i/d⌉-th group).
+35
+
+Suppose |Ai,k − Ai′ ,k | ≤ L holds for all k ∈ [s] and all i, i′ in the same group, and |Bk,j − Bk,j ′ | ≤ L
+holds for all k ∈ [s] and all j, j ′ in the same group.
+Then, for any parameter q ≥ 1, we can compute the Min-Plus product A ⋆ B by a randomized algorithm
+in time complexity
+
+e h2 s + qL · MM(hd, s, hd) + h2 L · MM(d, s/q, d) · poly log(U ).
+O
+Now we derandomize Theorem A.1, thereby derandomizing the +2-approximate APSP algorithm of
+[JKSW26] in O(n2.22548 ) time. For convenience, assume without loss of generality that U ≥ hds, so that
+poly log(hds) can be suppressed by the U o(1) notation.
+Lemma A.2. Theorem A.1 can be derandomized with only U o(1) -factor slowdown.
+Proof. The only randomized part in the original proof of [JKSW26] is to pick a random prime modulus
+p ∈ Θ(q log U ). Below we describe how to derandomize this step using the standard recipe which finds a
+good modulus by iteratively deciding its small prime factors [CL15]. We omit other parts of the original
+proof that are unrelated to derandomization.
+Following the original notations, use the shorthand î = ⌈i/d⌉ ∈ [h] and ĵ = ⌈j/d⌉ ∈ [h] to denote the
+groups that contain indices i ∈ [hd] and j ∈ [hd] respectively. Define matrix A′ ∈ Zh×s by
+$
+%
+A′î,k :=
+
+1
+L
+
+min
+
+Ai,k .
+
+(î−1)d<i≤îd
+
+Define the matrix B ′ ∈ Zs×h analogously. Let C ′ ∈ Zh×h be their Min-Plus product A′ ⋆ B ′ , which can be
+computed by brute force in time O(h2 s).
+For a modulus p, [JKSW26] defined a triple (î, k, ĵ) ∈ [h] × [s] × [h] to be a false positive (modulo p)
+if it does not satisfy
+′
+(7)
+− Cî,′ ĵ < 4,
+A′î,k + Bk,
+ĵ
+but satisfies
+′
+− Cî,′ ĵ ∈ {−3, . . . , 3}
+A′î,k + Bk,
+ĵ
+
+(mod p).
+
+(8)
+
+We say a modulus p is successful for (î, ĵ) ∈ [h] × [h] if
+n
+o
+s
+(p)
+|Fî,ĵ | := k ∈ [s] : (î, k, ĵ) is a false positive modulo p ≤ .
+q
+(p)
+
+One can compute |Fî,ĵ | for all (î, ĵ) ∈ [h] × [h] in O(h2 s) total time by brute force.
+[JKSW26] relied on the fact that, for fixed (î, ĵ) ∈ [h]×[h], a random prime p ∈ Θ(q log U ) is successful
+with ≥ 0.99 success probability. Therefore, [JKSW26] chose a random sequence of O(log h) many such
+moduli which can (with high probability) make every pair (î, ĵ) ∈ [h] × [h] successful at least once.
+e 2 s·
+We shall now deterministically choose U o(1) many moduli m1 , m2 , . . . , mU o(1) ∈ O(q·U o(1) ) in O(h
+o(1)
+U
+) time to make every pair (î, ĵ) ∈ [h] × [h] successful at least once. This would be sufficient for
+derandomizing the lemma (with U o(1) -factor slowdown compared to the original time bound).
+Initialize P := [h] × [h], which denote the set of pairs for which no moduli have been successful yet.
+We repeat the following procedure U o(1) times, each time finding a modulus m that makes at least 1/U o(1)
+fraction of pairs in P successful (and removing them from P ):
+√
+• Let M = exp( log U ). Initialize Q0 := P . Perform the following step for I := ⌈logM q⌉ iterations:
+In the i-th iteration,
+36
+
+– Find a prime (by brute-force enumeration) pi ∈ [CM log U, 2CM log U ] (where C > 1 is a
+sufficiently large absolute constant) such that the set
+
+s
+(p p ···p )
+Qi := (î, ĵ) ∈ Qi−1 : |Fî,ĵ 1 2 i | ≤ i
+M
+
+(9)
+
+|Qi | ≥ 0.9|Qi−1 |.
+
+(10)
+
+has size
+Checking whether a prime pi is satisfactory can be done by brute force in in O(h2 s) time. The
+existence of such pi can be proved as follows: By definition, we have
+(p ···pi )
+
+Fî,ĵ 1
+
+
+(p ···p
+)
+′
+∈ Cî,′ ĵ + {−3, . . . , 3}
+⊆ k ∈ Fî,ĵ 1 i−1 : A′î,k + Bk,
+ĵ
+(p ···p
+
+(mod pi ). .
+
+(11)
+
+)
+
+For fixed (î, ĵ) ∈ Qi−1 and k ∈ Fî,ĵ 1 i−1 , we know Eq. (7) must be violated, so {A′î,k +
+′ − C ′ − r}
+Bk,
+r∈{−3,...,3} are all non-zero integers bounded by O(U ), and thus together have
+ĵ
+î,ĵ
+at most O(logM U ) prime factors larger than M . Since the number of primes in the interval
+[CM log U, 2CM log U ] is at least Ω((M log U )/ log(M log U )) by the prime number theorem,
+′ − C′ −
+the probability that a random prime pi from this interval divides any of {A′î,k + Bk,
+î,ĵ
+ĵ
+1
+r}r∈{−3,...,3} is at most 10M
+(for large enough constant C). Consequently, by Eq. (11) and
+linearity of expectation,
+(p ···p
+)
+(p ···p )
+1
+E[|Fî,ĵ 1 i |] ≤ 10M
+|Fî,ĵ 1 i−1 |.
+pi
+
+By Markov’s inequality,
+h
+i
+(p ···p
+)
+(p ···p )
+1
+Pr |Fî,ĵ 1 i | ≤ M
+|Fî,ĵ 1 i−1 | ≥ 0.9.
+pi
+
+(p ···p
+
+)
+
+Recall that |Fî,ĵ 1 i−1 | ≤ M si−1 for every (î, ĵ) ∈ Qi−1 . Hence, by Eq. (9) and linearity of
+expectation, we have
+E[|Qi |] ≥ 0.9|Qi−1 |.
+pi
+
+In particular, there exists a prime pi such that |Qi | ≥ 0.9|Qi−1 | as claimed.
+After I = ⌈log Mq ⌉ iterations, we have found primes p1 , . . . , pI . Define modulus m = p1 p2 · · · pI .
+By Eq. (10) (recalling Q0 = P ) we have
+
+
+(m)
+
+(î, ĵ) ∈ P : |Fî,ĵ | ≤
+
+s
+MI
+
+≥ |QI | ≥ |P | · 0.9I .
+√
+
+√
+
+Note that 0.9I = 0.9⌈logM q⌉ ≥ 0.9 · 0.9log q/ log M = 0.9 · 0.9log q/ log U ≥ 0.9 · 0.9 log U ≥ 1/U o(1) .
+Note that M I = M ⌈logM q⌉ ≥ q. So
+
+
+(m)
+
+(î, ĵ) ∈ P : |Fî,ĵ | ≤
+
+s
+q
+
+≥ |QI | ≥ |P |/U o(1) ,
+
+that is, the modulus m makes at least 1/U o(1) fraction of the pairs in P successful, as wanted. Note
+I
+1+logM q = qM · (2C log U )1+logM q ≤ qM ·
+that the modulus
+√ m ≤ (2CM log U ) ≤ (2CM log U )
+1+
+log
+U
+o(1)
+(2C log U )
+≤q·U
+as required.
+The total time complexity of deterministically finding the moduli is obviously O(h2 s · U o(1) ).
+
+37
+
+
