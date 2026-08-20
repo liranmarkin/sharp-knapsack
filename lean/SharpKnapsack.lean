@@ -16,3 +16,4 @@ import SharpKnapsack.New.SamplerTests
 import SharpKnapsack.New.SamplerMerge
 import SharpKnapsack.New.SamplerMechanisms
 import SharpKnapsack.New.SamplerHeadline
+import SharpKnapsack.New.SamplerResolution
