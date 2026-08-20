@@ -167,36 +167,37 @@ Theorem~\ref{thm:main}. At the extremes ($\ell=\mathrm{polylog}$ or
 $\ell=\Theta(n)$) the bound improves further, to
 $\OO(n^{1.5}+n\,\varepsilon^{-2})$.
 
-\section{A further refinement: amortized caching}
+\section{The refinement: honest rounding}
 
-The per-draw rectangle enumeration can be amortized. Two observations
-compound. First, the position queried at a node is an index into that
-node's array, so at most $L_u$ distinct (node, position) pairs ever
-occur -- however often the node is visited; caching an alias table per
-pair makes repeat draws free. Second, a build enumerates at most
-$\min(M_u, L_u)$ rectangles, not $M_u$: every witness level present in
-the array occupies at least one of its $L_u$ cells. Summed over a class
-tree, all cache builds together cost $\OO(\ell^2)$ -- free of both
-$\varepsilon$ and $n$. A third step goes further: precompute the
-witness merge on \emph{dyadic sub-blocks} of a child, deepening a node
-only as its visits double. The exact identity ``a block contributes its
-own witness mass when its block-maximum matches the global maximum,
-and nothing otherwise'' lets a draw binary-search the stored block
-weights, and the doubling schedule balances build against draw at
-$L_u\sqrt{\text{visits}}$ per node, i.e.\ $\OO(\ell\sqrt{N k})$ in
-total. Taking the best mode at each $\ell$:
+The $n^{4/3}$ kink -- and all the amortization machinery one can build
+to soften it -- turns out to be an artifact of one coupling: the grid
+step is tied to $T/\ell^2$, which makes the rounded count overshoot by
+$1/p = \OO(n/\ell)$ and forces $N = \OO(n/(\ell\varepsilon^2))$
+samples. The coupling is not forced by correctness, only by the query
+cost: the original sampler \emph{reads} arrays, so finer grids explode
+its sampling phase. The pruned scan of Section~4 never reads positions
+-- it enumerates witness levels -- so its per-sample cost is
+independent of the grid. That frees the grid entirely:
+
+\begin{quote}
+\emph{Make the grid fine enough that the rounded count is honest
+($p = \Theta(1/\mathrm{polylog})$), and pay for it only in array
+length, which the pruned scan never reads.}
+\end{quote}
+
+With grid step $\sim T/(\ell n)$ the total round-down error stays
+below one band width $T/\ell$, so the overshoot is the band mass --
+polylogarithmic by the same Lemma~3.3 that powers their sample bound
+-- and $N = \OO(\varepsilon^{-2})$. Construction is per-merge
+proportional to length times $\sqrt{\text{levels}}$, summing to
+$\OO(n^{1.5})$ at full boost, independent of $\ell$. The total is
 \[
-\OO\!\left(n^{1.5}
- + \min\!\big(n^{5/4}\varepsilon^{-3/2},\; n^{2}\big)
- + n\,\varepsilon^{-2}\right).
+\OO\!\left(n^{1.5} + n\,\varepsilon^{-2}\right)
+\qquad\text{uniformly in $\varepsilon$ and $\ell$:}
 \]
-This is strictly below Theorem~\ref{thm:main}'s
-$n^{4/3}\varepsilon^{-2}$ for \emph{every} $\varepsilon<1$, stays flat
-at $\OO(n^{1.5})$ for all $\varepsilon\ge n^{-1/6}$, and reaches the
-output-optimal $n\varepsilon^{-2}$ once $\varepsilon\le n^{-1/2}$. The
-remaining $\varepsilon$-term sits exactly at the doubling balance;
-answering a fresh position's witness query below $L\sqrt{\text{visits}}$
-is the open sub-problem this refinement exposes.
+construction plus output-optimal sampling, with no residual
+$\varepsilon$-term at all. This subsumes the amortized-caching
+refinements described in earlier versions of this memo.
 
 \section{Discussion}
 

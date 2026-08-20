@@ -159,3 +159,18 @@ stage updates the checkbox and lands in CI.
   ε ≥ n^{-1/6}, output-optimal below n^{-1/2}.
 - [ ] Open sub-problem: fresh-position witness queries below the
   L·√(visits) doubling balance → uniform Õ(n^1.5 + n·ε⁻²).
+
+## Branch `resolution-lever` (the uniform bound)
+
+- [x] `rounded_superset` / `rounded_band_split` / `bandSet_mono` - the
+  round-down sandwich Ω ⊆ Ω' ⊆ Ω ∪ band(T, E).
+- [x] `resolution_p_bound` - THE p-bound: 100·|Ω'| ≤ (101+200h)·|Ω|
+  under lemma_33's resolution-free hypotheses; N drops to Õ(ε⁻²).
+- [x] `boost_construction_ledger` - construction at boost ≤
+  4(D+1)·FB·(√M+1) = Õ(n^1.5) at full crank.
+- [x] `scan_ledger` - per-sample scan ≤ (D+1)·A, boost-independent.
+- [x] `fprasUniform` - the composed headline:
+  Õ(n^1.5 + n·ε⁻²) uniformly. No residual ε-term; PR #2's open
+  sub-problem closed.
+- [ ] Remaining: beating Õ(n^1.5) at ε = Θ(1) is their §1.3 open
+  problem (the (max,+) frontier).
